@@ -10,6 +10,14 @@ import securityMiddleware from '#middleware/security.middleware.js';
 
 const app = express();
 
+// Set a default user-agent if not provided for arcjet bot detection
+app.use((req, res, next) => {
+  if (!req.get('User-Agent')) {
+    req.headers['user-agent'] = 'acquisitions-app/1.0';
+  }
+  next();
+});
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
