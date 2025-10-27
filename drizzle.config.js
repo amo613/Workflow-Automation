@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import {DATABASE_URL} from "#config/env.js";
+import {DATABASE_URL} from '#config/env.js';
 
 export default {
   schema: './src/models/*.js',

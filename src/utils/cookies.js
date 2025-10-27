@@ -1,23 +1,23 @@
-import {NODE_ENV} from "#config/env.js";
+import {NODE_ENV} from '#config/env.js';
 
 export const cookies = {
-    getOptions: () => ({
-        httpOnly: true,
-        secure: NODE_ENV === 'production',
-        sameSite: "strict",
-        maxAge: 15 * 60 * 1000 // Expire after 15 minutes
+  getOptions: () => ({
+    httpOnly: true,
+    secure: NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 15 * 60 * 1000 // Expire after 15 minutes
 
-    }),
+  }),
 
-    set: (res, name, value, options = {}) => {
-        res.cookie(name, value, { ...cookies.getOptions(), ...options });
-    },
+  set: (res, name, value, options = {}) => {
+    res.cookie(name, value, { ...cookies.getOptions(), ...options });
+  },
 
-    clear: (res, name, options = {} )=> {
-        res.clearCookie(name, { ...cookies.getOptions(), ...options });
-    },
+  clear: (res, name, options = {} )=> {
+    res.clearCookie(name, { ...cookies.getOptions(), ...options });
+  },
 
-    get: (req, name) => {
-        return req.cookies[name];
-    }
-}
+  get: (req, name) => {
+    return req.cookies[name];
+  }
+};

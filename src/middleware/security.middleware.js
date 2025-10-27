@@ -1,63 +1,63 @@
-import aj from "#config/arcjet.js"
-import logger from "#config/logger.js";
-import {slidingWindow} from "@arcjet/node";
+import aj from '#config/arcjet.js';
+import logger from '#config/logger.js';
+import {slidingWindow} from '@arcjet/node';
 
 const securityMiddleware = async (req, res, next) => {
-    try {
-        const role = req.user?.role || "guest";
+  try {
+    const role = req.user?.role || 'guest';
 
-        let limit;
-        let message;
+    let limit;
+    let message;
 
-        switch (role) {
-            case "admin":
-                limit = 20
-                message = "Admin request limit exceeded 20 per minute. Slow down!"
-                break;
-            case "user":
-                limit = 10
-                message = "Admin request limit exceeded 10 per minute. Slow down!"
-                break;
-            case "guest":
-                limit = 5
-                message = "Admin request limit exceeded 5 per minute. Slow down!"
-                break;
-        }
+    switch (role) {
+      case 'admin':
+        limit = 20;
+        message = 'Admin request limit exceeded 20 per minute. Slow down!';
+        break;
+      case 'user':
+        limit = 10;
+        message = 'Admin request limit exceeded 10 per minute. Slow down!';
+        break;
+      case 'guest':
+        limit = 5;
+        message = 'Admin request limit exceeded 5 per minute. Slow down!';
+        break;
+    }
 
-        const client = aj.withRule(slidingWindow({
-            mode: "LIVE",
-            interval: "1m",
-            max: limit,
-            name: `${role}-rate-limit`
-        }));
-        const decision = await client.protect(req)
+    const client = aj.withRule(slidingWindow({
+      mode: 'LIVE',
+      interval: '1m',
+      max: limit,
+      name: `${role}-rate-limit`
+    }));
+    const decision = await client.protect(req);
 
-        if (decision.isDenied()) {
-            const reason = decision.reason;
+    if (decision.isDenied()) {
+      const reason = decision.reason;
 
-            switch (true) {
-                case reason.isBot():
-                    logger.warn("Bot request blocked", { ip: req.ip, userAgent: req.get("User-Agent"), path: req.path });
-                    return res.status(403).json({ error: "Forbidden", message: "Bot requests are not allowed" });
+      switch (true) {
+        case reason.isBot():
+          logger.warn('Bot request blocked', { ip: req.ip, userAgent: req.get('User-Agent'), path: req.path });
+          return res.status(403).json({ error: 'Forbidden', message: 'Bot requests are not allowed' });
 
-                case reason.isShield():
-                    logger.warn("Shield blocked request", { ip: req.ip, userAgent: req.get("User-Agent"), path: req.path, method: req.method });
-                    return res.status(403).json({ error: "Forbidden", message: "Shield requests blocked by security policy" });
+        case reason.isShield():
+          logger.warn('Shield blocked request', { ip: req.ip, userAgent: req.get('User-Agent'), path: req.path, method: req.method });
+          return res.status(403).json({ error: 'Forbidden', message: 'Shield requests blocked by security policy' });
 
-                case reason.isRateLimit():
-                    logger.warn("Rate limit exceeded", { ip: req.ip, userAgent: req.get("User-Agent"), path: req.path });
-                    return res.status(403).json({ error: "Forbidden", message: "Too many requests" });
-            }
-        }
+        case reason.isRateLimit():
+          logger.warn('Rate limit exceeded', { ip: req.ip, userAgent: req.get('User-Agent'), path: req.path });
+          return res.status(403).json({ error: 'Forbidden', message: 'Too many requests' });
+      }
+    }
     next();
 
-    } catch (e) {
-        logger.error("Security middleware error", e);
-        res.status(500).json({
-            error: "Internal server error",
-            message: "Something went wrong with the security middleware"
-        });
-    }
-}
+  } catch (e) {
+    logger.error('Security middleware error', e);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Something went wrong with the security middleware'
+    });
+  }
+};
 
 export default securityMiddleware;
