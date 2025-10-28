@@ -36,13 +36,11 @@ app.get('/', (req, res) => {
   res.status(200).send('Hello World!');
 });
 app.get('/health', (req, res) => {
-  res
-    .status(200)
-    .send({
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    });
+  res.status(200).send({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
 });
 
 app.get('/api', (req, res) => {

@@ -44,12 +44,10 @@ const securityMiddleware = async (req, res, next) => {
             userAgent: req.get('User-Agent'),
             path: req.path,
           });
-          return res
-            .status(403)
-            .json({
-              error: 'Forbidden',
-              message: 'Bot requests are not allowed',
-            });
+          return res.status(403).json({
+            error: 'Forbidden',
+            message: 'Bot requests are not allowed',
+          });
 
         case reason.isShield():
           logger.warn('Shield blocked request', {
@@ -58,12 +56,10 @@ const securityMiddleware = async (req, res, next) => {
             path: req.path,
             method: req.method,
           });
-          return res
-            .status(403)
-            .json({
-              error: 'Forbidden',
-              message: 'Shield requests blocked by security policy',
-            });
+          return res.status(403).json({
+            error: 'Forbidden',
+            message: 'Shield requests blocked by security policy',
+          });
 
         case reason.isRateLimit():
           logger.warn('Rate limit exceeded', {
