@@ -4,8 +4,10 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
 config({ path: envFile });
 
 export const {
-  PORT, NODE_ENV,
-  DATABASE_URL, DATABASE_NAME,
+  PORT,
+  NODE_ENV,
+  DATABASE_URL,
+  DATABASE_NAME,
   JWT_SECRET,
   JWT_EXPIRES_IN,
   ARCJET_KEY,

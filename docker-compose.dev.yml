@@ -10,7 +10,7 @@ services:
     env_file:
       - .env.development
     volumes:
-      # Persist branch metadata per git branch 
+      # Persist branch metadata per git branch
       - ./.neon_local/:/tmp/.neon_local
       - ./.git/HEAD:/tmp/.git/HEAD:ro,consistent
     healthcheck:
@@ -49,4 +49,3 @@ services:
 networks:
   acquisitions-dev:
     driver: bridge
-

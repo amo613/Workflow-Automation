@@ -13,7 +13,7 @@ on:
 jobs:
   lint-and-format:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,4 +60,3 @@ jobs:
       - name: Fail if issues found
         if: steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure'
         run: exit 1
-

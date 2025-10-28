@@ -7,10 +7,12 @@ This repository includes three CI/CD workflows for automated testing, linting, a
 ### 1. Lint and Format (`lint-and-format.yml`)
 
 **Triggers:**
+
 - Push to `main` or `staging` branches
 - Pull requests to `main` or `staging` branches
 
 **What it does:**
+
 - Runs ESLint with `npm run lint`
 - Runs Prettier check with `npm run format:check`
 - Provides clear annotations suggesting fixes with `npm run lint:fix` and `npm run format`
@@ -19,10 +21,12 @@ This repository includes three CI/CD workflows for automated testing, linting, a
 ### 2. Tests (`tests.yml`)
 
 **Triggers:**
+
 - Push to `main` or `staging` branches
 - Pull requests to `main` or `staging` branches
 
 **What it does:**
+
 - Runs test suite with `npm test`
 - Sets environment variables: `NODE_ENV=test`, `NODE_OPTIONS=--experimental-vm-modules`
 - Uploads coverage reports as artifacts (retention: 30 days)
@@ -32,10 +36,12 @@ This repository includes three CI/CD workflows for automated testing, linting, a
 ### 3. Docker Build and Push (`docker-build-and-push.yml`)
 
 **Triggers:**
+
 - Push to `main` branch
 - Manual trigger via `workflow_dispatch`
 
 **What it does:**
+
 - Sets up Docker Buildx for multi-platform builds
 - Logs in to Docker Hub using secrets
 - Extracts metadata including:
@@ -88,4 +94,3 @@ Check workflow status in the GitHub Actions tab or via the badges:
 - [![Lint](https://github.com/USERNAME/REPO/workflows/Lint/badge.svg)](https://github.com/USERNAME/REPO/actions)
 - [![Tests](https://github.com/USERNAME/REPO/workflows/Tests/badge.svg)](https://github.com/USERNAME/REPO/actions)
 - [![Docker Build](https://github.com/USERNAME/REPO/workflows/Docker/badge.svg)](https://github.com/USERNAME/REPO/actions)
-

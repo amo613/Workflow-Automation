@@ -13,7 +13,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
         run: |
           echo "# Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -f coverage/coverage-summary.json ]; then
             COVERAGE=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct")
             echo "## Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
@@ -64,7 +64,7 @@ jobs:
           else
             echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           if [ "${{ steps.test.outcome }}" == "success" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
@@ -82,4 +82,3 @@ jobs:
       - name: Set status
         if: steps.test.outcome == 'failure'
         run: exit 1
-

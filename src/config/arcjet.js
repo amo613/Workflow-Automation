@@ -1,7 +1,5 @@
-import arcjet, { shield, detectBot, tokenBucket, slidingWindow } from '@arcjet/node';
-import {ARCJET_KEY} from '#config/env.js';
-
-
+import arcjet, { shield, detectBot, slidingWindow } from '@arcjet/node';
+import { ARCJET_KEY } from '#config/env.js';
 
 const aj = arcjet({
   // Get your site key from https://app.arcjet.com and set it as an environment
@@ -14,16 +12,13 @@ const aj = arcjet({
     detectBot({
       mode: 'LIVE', // Blocks requests. Use "DRY_RUN" to log only
       // Block all bots except the following
-      allow: [
-        'CATEGORY:SEARCH_ENGINE',
-        'CATEGORY:PREVIEW',
-      ],
+      allow: ['CATEGORY:SEARCH_ENGINE', 'CATEGORY:PREVIEW'],
     }),
     slidingWindow({
       mode: 'LIVE',
       interval: '2s',
-      max: 5
-    })
+      max: 5,
+    }),
   ],
 });
 

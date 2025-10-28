@@ -18,14 +18,16 @@ This guide explains how to run the application using Docker with Neon Local for 
    - Copy your **NEON_API_KEY** and **NEON_PROJECT_ID**
 
 2. **Configure environment:**
+
    ```bash
    # Edit .env.development
    nano .env.development
-   
+
    # Add your NEON_API_KEY and NEON_PROJECT_ID
    ```
 
 3. **Start the development environment:**
+
    ```bash
    docker-compose -f docker-compose.dev.yml up --build
    ```
@@ -43,10 +45,11 @@ This guide explains how to run the application using Docker with Neon Local for 
    - Copy your connection string
 
 2. **Configure environment:**
+
    ```bash
    # Edit .env.production
    nano .env.production
-   
+
    # Add your DATABASE_URL
    ```
 
@@ -100,7 +103,7 @@ This guide explains how to run the application using Docker with Neon Local for 
 PORT=3001
 NODE_ENV=development
 LOG_LEVEL=info
-DATABASE_URL=                    
+DATABASE_URL=
 JWT_SECRET=dev-secret
 JWT_EXPIRES_IN=1d
 ARCJET_KEY=your-key-here
@@ -229,4 +232,3 @@ docker-compose -f docker-compose.dev.yml up --build
 2. **Production**: Use environment variables, never hardcode secrets
 3. **Neon Local**: Automatically creates database branches for git workflow
 4. **Health Checks**: Both dev and prod include health check endpoints
-
