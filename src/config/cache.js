@@ -19,8 +19,9 @@ export const CACHE_CONFIG = {
 
   // Redis cache settings
   redis: {
-  
-    url: REDIS_URL || (process.env.CI ? 'redis://localhost:6379' : 'redis://redis:6379'),
+    url:
+      REDIS_URL ||
+      (process.env.CI ? 'redis://localhost:6379' : 'redis://redis:6379'),
     retryDelayOnFailover: 100,
     enableReadyCheck: true,
     maxRetriesPerRequest: 3,
