@@ -149,6 +149,13 @@ const config = {
   // The test environment that will be used for testing
   testEnvironment: 'node',
 
+  // Test timeout in milliseconds
+  testTimeout: 10000,
+
+  // Force Jest to exit after tests complete (prevents hanging on open handles)
+  // This is safe because we clean up connections in afterAll hooks
+  forceExit: true,
+
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
 

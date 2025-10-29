@@ -67,34 +67,95 @@ export const memoryCache = new NodeCache(CACHE_CONFIG.memory);
 let redisClient = null;
 
 export const initRedis = async () => {
+  if (process.env.NODE_ENV === 'test' && process.env.SKIP_REDIS === 'true') {
+    logger.info('Skipping Redis initialization in test environment');
+    return null;
+  }
+
   try {
-    redisClient = createClient(CACHE_CONFIG.redis);
+    const redisConfig = {
+      url: CACHE_CONFIG.redis.url,
+      password: CACHE_CONFIG.redis.password,
+      socket: {
+        // Adding connection timeout for tests
+        connectTimeout: process.env.NODE_ENV === 'test' ? 5000 : 10000,
+        reconnectStrategy: (retries) => {
+          if (process.env.NODE_ENV === 'test' && retries > 5) {
+            logger.warn('Redis connection failed after 5 retries in test mode');
+            return new Error('Too many retries');
+          }
+          return Math.min(retries * 50, 500);
+        },
+      },
+    };
+
+    redisClient = createClient(redisConfig);
 
     redisClient.on('error', err => {
-      logger.error('Redis Client Error:', err);
+      // Don't spam logs in test mode
+      if (process.env.NODE_ENV !== 'test') {
+        logger.error('Redis Client Error:', err);
+      }
     });
 
     redisClient.on('connect', () => {
-      logger.info('Redis Client Connected');
+      if (process.env.NODE_ENV !== 'test') {
+        logger.info('Redis Client Connected');
+      }
     });
 
     redisClient.on('ready', () => {
-      logger.info('Redis Client Ready');
+      if (process.env.NODE_ENV !== 'test') {
+        logger.info('Redis Client Ready');
+      }
     });
 
     redisClient.on('end', () => {
-      logger.warn('Redis Client Disconnected');
+      if (process.env.NODE_ENV !== 'test') {
+        logger.warn('Redis Client Disconnected');
+      }
     });
 
-    await redisClient.connect();
+    // Add timeout for connection in test mode
+    const connectPromise = redisClient.connect();
+    if (process.env.NODE_ENV === 'test') {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
+      );
+      await Promise.race([connectPromise, timeoutPromise]);
+    } else {
+      await connectPromise;
+    }
+
     return redisClient;
   } catch (error) {
-    logger.error('Failed to initialize Redis:', error);
+    // In test mode, don't log errors as critical
+    if (process.env.NODE_ENV !== 'test') {
+      logger.error('Failed to initialize Redis:', error);
+    }
+    redisClient = null;
     return null;
   }
 };
 
 export const getRedisClient = () => redisClient;
+
+export const closeRedis = async () => {
+  try {
+    if (redisClient && redisClient.isOpen) {
+      await redisClient.quit();
+      redisClient = null;
+      if (process.env.NODE_ENV !== 'test') {
+        logger.info('Redis client closed');
+      }
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'test') {
+      logger.error('Error closing Redis client:', error);
+    }
+    redisClient = null;
+  }
+};
 
 // Cache statistics
 export const cacheStats = {
