@@ -62,32 +62,39 @@ class CacheMiddleware {
   }
 
   /**
-   * Get value from cache (Redis first, then memory)
+   * Get value from cache (Memory first for speed, Redis as fallback for distribution)
    */
   async get(key) {
     try {
-      // We Try if is Redis is available first
+      // 1. Check memory cache FIRST synchronous, instant - best performance for local
+      const memoryValue = memoryCache.get(key);
+      if (memoryValue !== undefined) {
+        cacheStats.hits++;
+        logger.debug(`Cache HIT (Memory): ${key}`);
+        return memoryValue;
+      }
+
+      // 2. Check Redis as fallback async, for distributed caching across servers
       if (this.useRedis && this.redisClient) {
-        const value = await this.redisClient.get(key);
-        if (value !== null) {
-          cacheStats.hits++;
-          logger.debug(`Cache HIT (Redis): ${key}`);
-          return JSON.parse(value);
+        try {
+          const value = await this.redisClient.get(key);
+          if (value !== null) {
+            cacheStats.hits++;
+            const parsedValue = JSON.parse(value);
+            
+            // Warm-up: Store in memory cache for next request (speed optimization)
+            memoryCache.set(key, parsedValue, CACHE_CONFIG.strategies.default.ttl);
+            
+            logger.debug(`Cache HIT (Redis): ${key} (warmed up in memory)`);
+            return parsedValue;
+          }
+        } catch (redisError) {
+          logger.debug(`Redis GET error (non-critical): ${redisError.message}`);
         }
       }
 
-      // Fallback to memory cache
-      const value = memoryCache.get(key);
-      if (value !== undefined) {
-        cacheStats.hits++;
-        logger.debug(`Cache HIT (Memory): ${key}`);
-        return value;
-      }
-
       cacheStats.misses++;
-      logger.debug(`Cache MISS: ${key}`, {
-        stats: { ...cacheStats },
-      });
+      logger.debug(`Cache MISS: ${key}`);
       return null;
     } catch (error) {
       cacheStats.errors++;
@@ -97,31 +104,28 @@ class CacheMiddleware {
   }
 
   /**
-   * Set value in cache (both Redis and memory)
+   * Set value in cache (memory first for speed, then Redis in background)
    */
   async set(key, value, ttl = CACHE_CONFIG.strategies.default.ttl) {
     try {
-      const serializedValue = JSON.stringify(value);
-
-      // Set in Redis if available
-      if (this.useRedis && this.redisClient && ttl > 0) {
-        await this.redisClient.setEx(key, ttl, serializedValue);
-      }
-
-      // Set in memory cache
+      // Set in memory cache FIRST (synchronous, instant)
       if (ttl > 0) {
         memoryCache.set(key, value, ttl);
       }
 
+      // Set in Redis in background (async, don't block)
+      if (this.useRedis && this.redisClient && ttl > 0) {
+        const serializedValue = JSON.stringify(value);
+        // Fire and forget - don't await to avoid blocking
+        this.redisClient.setEx(key, ttl, serializedValue).catch(err => {
+          // Non-critical error - memory cache is already set
+          logger.debug(`Redis SET error (non-critical): ${err.message}`);
+          cacheStats.errors++;
+        });
+      }
+
       cacheStats.sets++;
-      logger.info(`Cache SET: ${key} (TTL: ${ttl}s)`, {
-        stats: {
-          hits: cacheStats.hits,
-          misses: cacheStats.misses,
-          sets: cacheStats.sets,
-          deletes: cacheStats.deletes,
-        },
-      });
+      logger.debug(`Cache SET: ${key} (TTL: ${ttl}s)`);
       return true;
     } catch (error) {
       cacheStats.errors++;
