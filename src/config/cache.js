@@ -79,7 +79,7 @@ export const initRedis = async () => {
       socket: {
         // Adding connection timeout for tests
         connectTimeout: process.env.NODE_ENV === 'test' ? 5000 : 10000,
-        reconnectStrategy: (retries) => {
+        reconnectStrategy: retries => {
           if (process.env.NODE_ENV === 'test' && retries > 5) {
             logger.warn('Redis connection failed after 5 retries in test mode');
             return new Error('Too many retries');
@@ -119,7 +119,7 @@ export const initRedis = async () => {
     // Add timeout for connection in test mode
     const connectPromise = redisClient.connect();
     if (process.env.NODE_ENV === 'test') {
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
       );
       await Promise.race([connectPromise, timeoutPromise]);

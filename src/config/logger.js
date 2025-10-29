@@ -25,7 +25,7 @@ if (NODE_ENV !== 'production') {
 
 // Function to close logger (useful for tests)
 export const closeLogger = async () => {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     logger.end(() => {
       resolve();
     });
