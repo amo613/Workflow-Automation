@@ -6,19 +6,54 @@ import {
   deleteUserById,
 } from '#controllers/users.controller.js';
 import { authenticateToken, requireRole } from '#middleware/auth.middleware.js';
+import { userRoutesCache, invalidateUserCache } from '#utils/cache.utils.js';
+import { invalidateCache } from '#middleware/cache.middleware.js';
 
 const router = express.Router();
 
-router.get('/', authenticateToken, requireRole(['admin']), fetchAllUsers);
+// GET /api/users
+router.get('/', 
+  authenticateToken, 
+  requireRole(['admin']), 
+  userRoutesCache(),
+  fetchAllUsers
+);
 
-router.get('/:id', authenticateToken, fetchUserById);
+// GET /api/users/:id
+router.get('/:id', 
+  authenticateToken, 
+  userRoutesCache(),
+  fetchUserById
+);
 
-router.put('/:id', authenticateToken, updateUserById);
+// PUT /api/users/:id
+router.put('/:id', 
+  authenticateToken, 
+  invalidateCache({
+    patterns: [
+      'users:*',
+      'user:*',
+      '*:users:*',
+    ],
+    tags: ['users'],
+  }),
+  updateUserById
+);
 
+// DELETE /api/users/:id - Delete user (invalidates cache)
 router.delete(
   '/:id',
   authenticateToken,
   requireRole(['admin']),
+  invalidateCache({
+    // This will be called after successful response
+    patterns: [
+      'users:*',
+      'user:*',
+      '*:users:*',
+    ],
+    tags: ['users'],
+  }),
   deleteUserById
 );
 

@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: acquisitions-redis
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - acquisitions-dev
+
   # Neon Local proxy for development
   neon-local:
     image: neondatabase/neon_local:latest
@@ -40,11 +58,16 @@ services:
       # Mount logs directory
       - ./logs:/app/logs
     depends_on:
+      redis:
+        condition: service_healthy
       neon-local:
         condition: service_healthy
     networks:
       - acquisitions-dev
     restart: unless-stopped
+
+volumes:
+  redis_data:
 
 networks:
   acquisitions-dev:

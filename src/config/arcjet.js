@@ -14,11 +14,8 @@ const aj = arcjet({
       // Block all bots except the following
       allow: ['CATEGORY:SEARCH_ENGINE', 'CATEGORY:PREVIEW'],
     }),
-    slidingWindow({
-      mode: 'LIVE',
-      interval: '2s',
-      max: 5,
-    }),
+    /* Global rate limit removed - using role-based rate limiting in security.middleware.js instead
+     role-based limits so 5 for guests, 10 for users, 20 for admins per minute provides better control*/
   ],
 });
 

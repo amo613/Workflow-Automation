@@ -1,16 +1,19 @@
 # Docker Setup for Neon Database
 
-This guide explains how to run the application using Docker with Neon Local for development and Neon Cloud for production.
+This guide explains how to run the application using Docker with Neon Local for development and Neon Cloud for production. The project includes automated scripts that handle the entire setup process for you.
 
 ## 📋 Prerequisites
 
 - [Docker](https://www.docs.docker.com/get-docker/) installed
 - [Docker Compose](https://docs.docker.com/compose/install/) installed
 - A Neon Cloud account: [Sign up here](https://console.neon.tech/)
+- Node.js and npm (for running scripts)
 
 ## 🚀 Quick Start
 
 ### Development (Neon Local)
+
+**Option A: Using npm script (Recommended)**
 
 1. **Get your Neon credentials:**
    - Sign in to [Neon Console](https://console.neon.tech/)
@@ -20,7 +23,8 @@ This guide explains how to run the application using Docker with Neon Local for 
 2. **Configure environment:**
 
    ```bash
-   # Edit .env.development
+   # Copy template and edit
+   cp .env.example .env.development
    nano .env.development
 
    # Add your NEON_API_KEY and NEON_PROJECT_ID
@@ -29,8 +33,22 @@ This guide explains how to run the application using Docker with Neon Local for 
 3. **Start the development environment:**
 
    ```bash
-   docker-compose -f docker-compose.dev.yml up --build
+   npm run dev:docker
    ```
+
+   This runs the `scripts/dev.sh` script which:
+   - Checks if `.env.development` exists
+   - Verifies Docker is running
+   - Creates `.neon_local/` directory
+   - Adds `.neon_local/` to `.gitignore`
+   - Runs database migrations
+   - Starts Docker Compose with Neon Local
+
+**Option B: Manual Docker Compose**
+
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
 
 4. **Access your application:**
    - App: http://localhost:3001
@@ -38,6 +56,8 @@ This guide explains how to run the application using Docker with Neon Local for 
    - Database: Available at `localhost:5432`
 
 ### Production (Neon Cloud)
+
+**Option A: Using npm script (Recommended)**
 
 1. **Get your Neon Cloud database URL:**
    - Sign in to [Neon Console](https://console.neon.tech/)
@@ -47,16 +67,31 @@ This guide explains how to run the application using Docker with Neon Local for 
 2. **Configure environment:**
 
    ```bash
-   # Edit .env.production
+   # Create production environment file
+   cp .env.example .env.production
    nano .env.production
 
-   # Add your DATABASE_URL
+   # Add your DATABASE_URL and production secrets
    ```
 
 3. **Start the production environment:**
+
    ```bash
-   docker-compose -f docker-compose.prod.yml up --build -d
+   npm run prod:docker
    ```
+
+   This runs the `scripts/prod.sh` script which:
+   - Checks if `.env.production` exists
+   - Verifies Docker is running
+   - Starts production containers in detached mode
+   - Runs database migrations
+   - Provides helpful commands for monitoring
+
+**Option B: Manual Docker Compose**
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build -d
+```
 
 ## 📁 Project Structure
 
@@ -68,6 +103,9 @@ This guide explains how to run the application using Docker with Neon Local for 
 ├── .dockerignore              # Files excluded from Docker build
 ├── .env.development           # Development environment variables
 ├── .env.production            # Production environment variables
+├── scripts/                   # Automated setup scripts
+│   ├── dev.sh                 # Development startup script
+│   └── prod.sh                # Production startup script
 └── DOCKER_SETUP.md           # This file
 ```
 
@@ -94,6 +132,42 @@ This guide explains how to run the application using Docker with Neon Local for 
 - Loads `.env.production` for configuration
 - Connects to Neon Cloud database
 - Includes resource limits (memory, CPU)
+
+### scripts/dev.sh
+
+The development script (`npm run dev:docker`) performs these automated steps:
+
+1. **Environment Check**: Verifies `.env.development` exists
+2. **Docker Check**: Ensures Docker is running
+3. **Directory Setup**: Creates `.neon_local/` for Neon Local data
+4. **Git Configuration**: Adds `.neon_local/` to `.gitignore`
+5. **Database Migration**: Runs `npm run db:migrate`
+6. **Database Health Check**: Waits for Neon Local to be ready
+7. **Container Startup**: Starts `docker-compose.dev.yml` with build
+
+**What happens during execution:**
+- Neon Local creates an ephemeral database branch
+- Application runs with hot-reload enabled
+- Source code is mounted for instant changes
+- Database migrations are applied automatically
+
+### scripts/prod.sh
+
+The production script (`npm run prod:docker`) performs these automated steps:
+
+1. **Environment Check**: Verifies `.env.production` exists
+2. **Docker Check**: Ensures Docker is running
+3. **Container Startup**: Starts `docker-compose.prod.yml` in detached mode
+4. **Health Check**: Waits for services to be ready
+5. **Database Migration**: Runs `npm run db:migrate`
+6. **Status Information**: Provides monitoring commands
+
+**What happens during execution:**
+- Uses Neon Cloud Database (no local proxy)
+- Runs in optimized production mode
+- Containers run in background (`-d` flag)
+- Resource limits are applied
+- Production logging is configured
 
 ## 🔧 Environment Variables
 
@@ -127,6 +201,18 @@ ARCJET_KEY=your-production-key
 
 ### Development
 
+**Using npm scripts (Recommended):**
+
+```bash
+# Start development environment
+npm run dev:docker
+
+# Stop development environment
+docker-compose -f docker-compose.dev.yml down
+```
+
+**Manual Docker Compose:**
+
 ```bash
 # Start development environment
 docker-compose -f docker-compose.dev.yml up
@@ -149,6 +235,18 @@ docker exec -it acquisitions-app-dev sh
 
 ### Production
 
+**Using npm scripts (Recommended):**
+
+```bash
+# Start production environment
+npm run prod:docker
+
+# Stop production environment
+docker-compose -f docker-compose.prod.yml down
+```
+
+**Manual Docker Compose:**
+
 ```bash
 # Start production environment
 docker-compose -f docker-compose.prod.yml up -d
@@ -163,9 +261,57 @@ docker-compose -f docker-compose.prod.yml down
 docker-compose -f docker-compose.prod.yml ps
 ```
 
+### Script Output Examples
+
+**Development Script (`npm run dev:docker`):**
+
+```
+Starting Acquisition App in Development Mode
+================================================
+📦 Building and starting development containers...
+   - Neon Local proxy will create an ephemeral database branch
+   - Application will run with hot reload enabled
+
+📜 Applying latest schema with Drizzle...
+⏳ Waiting for the database to be ready...
+
+🎉 Development environment started!
+   Application: http://localhost:3001
+   Database: postgres://neon:npg@localhost:5432/neondb
+
+To stop the environment, press Ctrl+C or run: docker compose down
+```
+
+**Production Script (`npm run prod:docker`):**
+
+```
+🚀 Starting Acquisition App in Production Mode
+===============================================
+📦 Building and starting production container...
+   - Using Neon Cloud Database (no local proxy)
+   - Running in optimized production mode
+
+⏳ Waiting for Neon Local to be ready...
+📜 Applying latest schema with Drizzle...
+
+🎉 Production environment started!
+   Application: http://localhost:3000
+   Logs: docker logs acquisition-app-prod
+
+Useful commands:
+   View logs: docker logs -f acquisition-app-prod
+   Stop app: docker compose -f docker-compose.prod.yml down
+```
+
 ## 🔄 Database Migrations
 
 ### Development
+
+**Automatic (via scripts):**
+- Migrations run automatically when using `npm run dev:docker`
+- The script executes `npm run db:migrate` before starting containers
+
+**Manual:**
 
 ```bash
 # Run migrations inside container
@@ -177,9 +323,28 @@ DATABASE_URL=postgres://neon@localhost:5432/neondb npm run db:migrate
 
 ### Production
 
+**Automatic (via scripts):**
+- Migrations run automatically when using `npm run prod:docker`
+- The script executes `npm run db:migrate` after starting containers
+
+**Manual:**
+
 ```bash
 # Set DATABASE_URL to production URL, then migrate
 DATABASE_URL=your-production-url npm run db:migrate
+```
+
+### Migration Commands
+
+```bash
+# Generate new migration (after modifying models)
+npm run db:generate
+
+# Run migrations
+npm run db:migrate
+
+# Open Drizzle Studio (database GUI)
+npm run db:studio
 ```
 
 ## 🐛 Troubleshooting
@@ -232,3 +397,9 @@ docker-compose -f docker-compose.dev.yml up --build
 2. **Production**: Use environment variables, never hardcode secrets
 3. **Neon Local**: Automatically creates database branches for git workflow
 4. **Health Checks**: Both dev and prod include health check endpoints
+5. **Scripts**: Use `npm run dev:docker` and `npm run prod:docker` for automated setup
+6. **Logs**: Check container logs if something goes wrong
+7. **Migrations**: Scripts handle migrations automatically, but you can run them manually
+8. **Environment**: Always copy from `.env.example` to create your environment files
+9. **Docker**: Make sure Docker Desktop is running before using scripts
+10. **Ports**: Development uses port 3001, production uses port 3000
