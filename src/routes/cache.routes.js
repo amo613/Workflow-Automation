@@ -1,15 +1,14 @@
 import express from 'express';
-import { 
-  getCacheStats, 
-  clearCache, 
-  cacheKey,
-  cacheStrategies 
+import {
+  getCacheStats,
+  clearCache,
+  cacheStrategies,
 } from '#middleware/cache.middleware.js';
-import { 
-  invalidateUserCache, 
-  invalidateApiCache, 
+import {
+  invalidateUserCache,
+  invalidateApiCache,
   invalidateResourceCache,
-  cacheHealthCheck 
+  cacheHealthCheck,
 } from '#utils/cache.utils.js';
 import logger from '#config/logger.js';
 

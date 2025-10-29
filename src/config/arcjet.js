@@ -1,4 +1,4 @@
-import arcjet, { shield, detectBot, slidingWindow } from '@arcjet/node';
+import arcjet, { shield, detectBot } from '@arcjet/node';
 import { ARCJET_KEY } from '#config/env.js';
 
 const aj = arcjet({

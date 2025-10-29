@@ -305,6 +305,7 @@ npm run db:migrate
 ```
 
 This will:
+
 1. Generate SQL migration in `drizzle/`
 2. Apply it to your database
 
@@ -435,10 +436,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📞 Support
 
 For issues and questions:
+
 - Open an issue on [GitHub](https://github.com/amo613/Testing/issues)
 - Check the [Docker Setup Guide](DOCKER_SETUP.md) for Docker-related questions
 - Review [CI/CD Workflows](.github/workflows/README.md) for automation details
 
 ---
-
-

@@ -1,12 +1,11 @@
 import {
-    cache,
-    invalidateCache,
-    cacheKey,
-    cacheStrategies,
-    getCacheStats
+  cache,
+  invalidateCache,
+  cacheKey,
+  cacheStrategies,
+  getCacheStats,
 } from '#middleware/cache.middleware.js';
 import logger from '#config/logger.js';
-
 
 /**
  * User-specific caching
@@ -15,12 +14,12 @@ import logger from '#config/logger.js';
 export const userCache = (ttl = cacheStrategies.medium.ttl) => {
   return cache({
     ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const userId = req.user?.id || 'anonymous';
       const path = req.originalUrl.replace('/api/', '');
       return cacheKey.custom('user', userId, path, JSON.stringify(req.query));
     },
-    skipIf: (req) => !req.user?.id, // Skip for anonymous users
+    skipIf: req => !req.user?.id, // Skip for anonymous users
   });
 };
 
@@ -31,7 +30,7 @@ export const userCache = (ttl = cacheStrategies.medium.ttl) => {
 export const publicCache = (ttl = cacheStrategies.long.ttl) => {
   return cache({
     ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const path = req.originalUrl.replace('/api/', '');
       return cacheKey.custom('public', path, JSON.stringify(req.query));
     },
@@ -45,7 +44,7 @@ export const publicCache = (ttl = cacheStrategies.long.ttl) => {
 export const dbCache = (ttl = cacheStrategies.medium.ttl) => {
   return cache({
     ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const userId = req.user?.id || 'anonymous';
       const path = req.originalUrl.replace('/api/', '');
       return cacheKey.custom('db', userId, path, JSON.stringify(req.query));
@@ -60,8 +59,9 @@ export const dbCache = (ttl = cacheStrategies.medium.ttl) => {
 export const sessionCache = (ttl = cacheStrategies.short.ttl) => {
   return cache({
     ttl,
-    keyGenerator: (req) => {
-      const sessionId = req.sessionID || req.headers['x-session-id'] || 'no-session';
+    keyGenerator: req => {
+      const sessionId =
+        req.sessionID || req.headers['x-session-id'] || 'no-session';
       const path = req.originalUrl.replace('/api/', '');
       return cacheKey.custom('session', sessionId, path);
     },
@@ -75,10 +75,12 @@ export const sessionCache = (ttl = cacheStrategies.short.ttl) => {
 export const rateLimitedCache = (ttl = cacheStrategies.short.ttl) => {
   return cache({
     ttl,
-    skipIf: (req) => {
+    skipIf: req => {
       // Skip caching for high-frequency endpoints
       const highFreqEndpoints = ['/api/auth/me', '/api/users/profile'];
-      return highFreqEndpoints.some(endpoint => req.originalUrl.includes(endpoint));
+      return highFreqEndpoints.some(endpoint =>
+        req.originalUrl.includes(endpoint)
+      );
     },
   });
 };
@@ -95,10 +97,10 @@ export const conditionalCache = (options = {}) => {
 
   return cache({
     ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const path = req.originalUrl.replace('/api/', '');
       const relevantHeaders = {};
-      
+
       // Include specific headers
       includeHeaders.forEach(header => {
         if (req.headers[header]) {
@@ -112,7 +114,12 @@ export const conditionalCache = (options = {}) => {
       });
 
       const headerString = JSON.stringify(relevantHeaders);
-      return cacheKey.custom('conditional', path, headerString, JSON.stringify(req.query));
+      return cacheKey.custom(
+        'conditional',
+        path,
+        headerString,
+        JSON.stringify(req.query)
+      );
     },
   });
 };
@@ -135,18 +142,14 @@ export const invalidateUserCache = (userId = '*') => {
   } else {
     // Invalidate specific user cache
     return invalidateCache({
-      patterns: [
-        `users:${userId}:*`,
-        `user:${userId}:*`,
-        `*:${userId}:*`,
-      ],
+      patterns: [`users:${userId}:*`, `user:${userId}:*`, `*:${userId}:*`],
       tags: [`user:${userId}`, 'users'],
     });
   }
 };
 
 // Invalidate user cache including all users list
-export const invalidateUserAndAllCache = (userId) => {
+export const invalidateUserAndAllCache = userId => {
   return async (req, res, next) => {
     // Invalidate specific user cache
     const invalidateSpecific = invalidateUserCache(userId);
@@ -160,7 +163,7 @@ export const invalidateUserAndAllCache = (userId) => {
 
 // Invalidate API endpoint cache
 
-export const invalidateApiCache = (endpoint) => {
+export const invalidateApiCache = endpoint => {
   return invalidateCache({
     patterns: [`*:${endpoint}:*`],
     tags: [`api:${endpoint}`],
@@ -169,20 +172,18 @@ export const invalidateApiCache = (endpoint) => {
 
 // Invalidate all cache for a specific resource
 
-export const invalidateResourceCache = (resource) => {
+export const invalidateResourceCache = resource => {
   return invalidateCache({
     patterns: [`*:${resource}:*`],
     tags: [`resource:${resource}`],
   });
 };
 
-
-
 // Cache middleware for user routes
 export const userRoutesCache = () => {
   return cache({
     ttl: cacheStrategies.medium.ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const userId = req.user?.id || 'anonymous';
       const path = req.originalUrl.replace('/api/users/', '');
       return cacheKey.custom('users', userId, path, JSON.stringify(req.query));
@@ -195,14 +196,14 @@ export const userRoutesCache = () => {
 export const authRoutesCache = () => {
   return cache({
     ttl: cacheStrategies.short.ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const path = req.originalUrl.replace('/api/auth/', '');
       return cacheKey.custom('auth', path, JSON.stringify(req.query));
     },
     tags: ['auth'],
-    skipIf: (req) => {
+    skipIf: req => {
       // Don't cache login/logout endpoints
-      return ['login', 'logout', 'sign-in', 'sign-out'].some(endpoint => 
+      return ['login', 'logout', 'sign-in', 'sign-out'].some(endpoint =>
         req.originalUrl.includes(endpoint)
       );
     },
@@ -213,7 +214,7 @@ export const authRoutesCache = () => {
 export const apiRoutesCache = (ttl = cacheStrategies.default.ttl) => {
   return cache({
     ttl,
-    keyGenerator: (req) => {
+    keyGenerator: req => {
       const path = req.originalUrl.replace('/api/', '');
       const userId = req.user?.id || 'anonymous';
       return cacheKey.custom('api', userId, path, JSON.stringify(req.query));
@@ -222,16 +223,15 @@ export const apiRoutesCache = (ttl = cacheStrategies.default.ttl) => {
   });
 };
 
-
 // Cache performance middleware
 export const cachePerformance = () => {
   return (req, res, next) => {
     const start = Date.now();
-    
+
     res.on('finish', () => {
       const duration = Date.now() - start;
       const cacheStatus = res.get('X-Cache') || 'MISS';
-      
+
       logger.info('Cache Performance', {
         method: req.method,
         url: req.originalUrl,
@@ -242,7 +242,7 @@ export const cachePerformance = () => {
         cacheTTL: res.get('X-Cache-TTL'),
       });
     });
-    
+
     next();
   };
 };
@@ -289,17 +289,17 @@ export default {
   sessionCache,
   rateLimitedCache,
   conditionalCache,
-  
+
   // Invalidation
   invalidateUserCache,
   invalidateApiCache,
   invalidateResourceCache,
-  
+
   // Route-specific
   userRoutesCache,
   authRoutesCache,
   apiRoutesCache,
-  
+
   // Performance
   cachePerformance,
   cacheHealthCheck,

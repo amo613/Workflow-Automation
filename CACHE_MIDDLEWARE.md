@@ -45,12 +45,12 @@ CACHE_TTL_LONG=3600
 
 ```javascript
 const cacheStrategies = {
-  short: { ttl: 60 },        // 1 minute - for frequently changing data
-  default: { ttl: 300 },     // 5 minutes - standard for API responses
-  medium: { ttl: 900 },      // 15 minutes - for user profiles
-  long: { ttl: 3600 },       // 1 hour - for static content
-  veryLong: { ttl: 86400 },  // 24 hours - for truly static data
-  none: { ttl: 0 },          // No caching
+  short: { ttl: 60 }, // 1 minute - for frequently changing data
+  default: { ttl: 300 }, // 5 minutes - standard for API responses
+  medium: { ttl: 900 }, // 15 minutes - for user profiles
+  long: { ttl: 3600 }, // 1 hour - for static content
+  veryLong: { ttl: 86400 }, // 24 hours - for truly static data
+  none: { ttl: 0 }, // No caching
 };
 ```
 
@@ -83,13 +83,9 @@ app.get('/api/data', cache({ strategy: 'long' }), (req, res) => {
 import { userCache } from '#utils/cache.utils.js';
 
 // Cache per user ID (automatically caches based on req.user.id)
-app.get('/api/profile', 
-  authenticateToken,
-  userCache(), 
-  (req, res) => {
-    res.json({ user: req.user, profile: 'user-specific data' });
-  }
-);
+app.get('/api/profile', authenticateToken, userCache(), (req, res) => {
+  res.json({ user: req.user, profile: 'user-specific data' });
+});
 ```
 
 ### Public API Caching
@@ -109,18 +105,15 @@ app.get('/api/public/data', publicCache(), (req, res) => {
 import { userRoutesCache, authRoutesCache } from '#utils/cache.utils.js';
 
 // User routes caching
-router.get('/users', 
+router.get(
+  '/users',
   authenticateToken,
-  userRoutesCache(),  // Automatically caches based on user ID
+  userRoutesCache(), // Automatically caches based on user ID
   fetchAllUsers
 );
 
 // Auth routes caching
-router.get('/auth/me', 
-  authenticateToken,
-  authRoutesCache(),
-  getCurrentUser
-);
+router.get('/auth/me', authenticateToken, authRoutesCache(), getCurrentUser);
 ```
 
 ### Conditional Caching
@@ -129,12 +122,16 @@ router.get('/auth/me',
 import { conditionalCache } from '#utils/cache.utils.js';
 
 // Cache based on headers (e.g., language)
-app.get('/api/data', conditionalCache({
-  includeHeaders: ['accept-language'],
-  skipHeaders: ['authorization']
-}), (req, res) => {
-  res.json({ data: 'conditional data' });
-});
+app.get(
+  '/api/data',
+  conditionalCache({
+    includeHeaders: ['accept-language'],
+    skipHeaders: ['authorization'],
+  }),
+  (req, res) => {
+    res.json({ data: 'conditional data' });
+  }
+);
 ```
 
 ### Cache Invalidation
@@ -145,13 +142,14 @@ The cache middleware automatically invalidates cache entries when data is update
 import { invalidateCache } from '#middleware/cache.middleware.js';
 
 // Automatically invalidate cache after successful update
-app.put('/api/users/:id', 
+app.put(
+  '/api/users/:id',
   authenticateToken,
-  invalidateCache({ 
+  invalidateCache({
     patterns: [
-      'users:*',      // All users list
-      'user:*',       // All user caches
-      '*:users:*יות',    // Any cache containing users
+      'users:*', // All users list
+      'user:*', // All user caches
+      '*:users:*יות', // Any cache containing users
     ],
     tags: ['users'],
   }),
@@ -159,9 +157,10 @@ app.put('/api/users/:id',
 );
 
 // Delete operation also invalidates cache
-app.delete('/api/users/:id', 
+app.delete(
+  '/api/users/:id',
   authenticateToken,
-  invalidateCache({ 
+  invalidateCache({
     patterns: ['users:*', 'user:*'],
   }),
   deleteUser
@@ -177,6 +176,7 @@ GET /api/cache/stats
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -201,6 +201,7 @@ GET /api/cache/health
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -222,6 +223,7 @@ POST /api/cache/clear
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -247,6 +249,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -262,6 +265,7 @@ GET /api/cache/strategies
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -293,6 +297,7 @@ GET /api/cache/info
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -339,12 +344,14 @@ app.use(cachePerformance());
 ```
 
 Logs contain:
+
 - Request method and URL
 - Response status and duration
 - Cache status (HIT/MISS)
 - Cache key and TTL
 
 Example log:
+
 ```json
 {
   "method": "GET",
@@ -391,24 +398,28 @@ session:abc123:/api/cart
 ```javascript
 import { cacheKey } from '#middleware/cache.middleware.js';
 
-app.get('/api/data', cache({
-  keyGenerator: (req) => {
-    return cacheKey.custom('custom', req.params.id, req.query.type);
+app.get(
+  '/api/data',
+  cache({
+    keyGenerator: req => {
+      return cacheKey.custom('custom', req.params.id, req.query.type);
+    },
+  }),
+  (req, res) => {
+    res.json({ data: 'custom cached data' });
   }
-}), (req, res) => {
-  res.json({ data: 'custom cached data' });
-});
+);
 ```
 
 Available key helpers:
 
 ```javascript
-cacheKey.user(id)                    // user:123
-cacheKey.users(page, limit)          // users:1:10
-cacheKey.auth(token)                 // auth:token123
-cacheKey.api(path, params)           // api:/users:{"page":1}
-cacheKey.session(id)                 // session:abc123
-cacheKey.custom(prefix, ...args)     // custom:prefix:arg1:arg2
+cacheKey.user(id); // user:123
+cacheKey.users(page, limit); // users:1:10
+cacheKey.auth(token); // auth:token123
+cacheKey.api(path, params); // api:/users:{"page":1}
+cacheKey.session(id); // session:abc123
+cacheKey.custom(prefix, ...args); // custom:prefix:arg1:arg2
 ```
 
 ## 🔄 Cache Invalidation Strategies
@@ -421,11 +432,11 @@ Cache is automatically invalidated when using the `invalidateCache` middleware:
 // Pattern-based invalidation
 invalidateCache({
   patterns: [
-    'users:*',        // All entries starting with "users:"
-    '*:profile:*',    // All entries containing ":profile:"
+    'users:*', // All entries starting with "users:"
+    '*:profile:*', // All entries containing ":profile:"
   ],
-  tags: ['users'],    // Tag-based invalidation
-})
+  tags: ['users'], // Tag-based invalidation
+});
 ```
 
 ### Manual Invalidation via API
@@ -453,20 +464,17 @@ POST /api/cache/invalidate
 ### Utility Functions
 
 ```javascript
-import { 
-  invalidateUserCache, 
-  invalidateApiCache, 
-  invalidateResourceCache 
+import {
+  invalidateUserCache,
+  invalidateApiCache,
+  invalidateResourceCache,
 } from '#utils/cache.utils.js';
 
 // Invalidate all cache for a specific user
 await invalidateUserCache('123');
 
 // Invalidate all cache for a user (middleware form)
-router.put('/users/:id', 
-  invalidateUserCache(req.params.id),
-  updateUser
-);
+router.put('/users/:id', invalidateUserCache(req.params.id), updateUser);
 
 // Invalidate API endpoint cache
 await invalidateApiCache('/api/users');
@@ -481,32 +489,34 @@ await invalidateResourceCache('products');
 
 ```javascript
 // Short-lived: User-specific data that changes frequently
-userCache({ strategy: 'short' })  // 1 minute
+userCache({ strategy: 'short' }); // 1 minute
 
 // Medium: Standard API responses
-apiRoutesCache({ strategy: 'medium' })  // 15 minutes
+apiRoutesCache({ strategy: 'medium' }); // 15 minutes
 
 // Long: Static or rarely changing data
-publicCache({ strategy: 'long' })  // 1 hour
+publicCache({ strategy: 'long' }); // 1 hour
 
 // Very Long: Truly static data
-publicCache({ strategy: 'veryLong' })  // 24 hours
+publicCache({ strategy: 'veryLong' }); // 24 hours
 ```
 
 ### 2. Always Invalidate Cache on Updates
 
 ```javascript
 // ✅ Good: Invalidate cache after updates
-router.put('/users/:id', 
+router.put(
+  '/users/:id',
   authenticateToken,
   invalidateCache({ patterns: ['users:*', 'user:*'] }),
   updateUser
 );
 
 // ❌ Bad: No invalidation - stale data
-router.put('/users/:id', 
+router.put(
+  '/users/:id',
   authenticateToken,
-  updateUser  // Cache won't update!
+  updateUser // Cache won't update!
 );
 ```
 
@@ -579,7 +589,8 @@ if (stats.hitRate < 0.5) {
 ```
 
 **Symptoms**: Low hit rate (< 50%)
-**Solutions**: 
+**Solutions**:
+
 - Increase TTL for static data
 - Review cache key patterns
 - Check invalidation frequency
@@ -599,6 +610,7 @@ if (memoryKeys > 1000) {
 
 **Symptoms**: High memory usage
 **Solutions**:
+
 - Ensure Redis is connected (distributed cache)
 - Reduce TTL for less critical data
 - Implement cache size limits
@@ -618,11 +630,11 @@ if (memoryKeys > 1000) {
 // Collect cache metrics
 const stats = getCacheStats();
 const metrics = {
-  hitRate: stats.hitRate,           // Target: > 70%
-  hits: stats.hits,                 // Cache hits
-  misses: stats.misses,             // Cache misses
-  memoryKeys: stats.memoryKeys,     // Keys in memory
-  redisConnected: stats.redisConnected,  // Redis status
+  hitRate: stats.hitRate, // Target: > 70%
+  hits: stats.hits, // Cache hits
+  misses: stats.misses, // Cache misses
+  memoryKeys: stats.memoryKeys, // Keys in memory
+  redisConnected: stats.redisConnected, // Redis status
 };
 
 // Calculate cache efficiency
@@ -638,10 +650,10 @@ You can use custom TTL values directly:
 
 ```javascript
 // Custom TTL in seconds
-cache({ ttl: 120 })  // 2 minutes
+cache({ ttl: 120 }); // 2 minutes
 
 // Or use strategy names
-cache({ strategy: 'medium' })  // 15 minutes
+cache({ strategy: 'medium' }); // 15 minutes
 ```
 
 ### Skip Caching for Specific Conditions
@@ -649,28 +661,28 @@ cache({ strategy: 'medium' })  // 15 minutes
 ```javascript
 // Skip caching for certain conditions
 cache({
-  skipIf: (req) => {
+  skipIf: req => {
     // Don't cache admin users
     return req.user?.role === 'admin';
-  }
-})
+  },
+});
 
 // Skip caching entirely
-cache({ strategy: 'none' })  // No caching
+cache({ strategy: 'none' }); // No caching
 ```
 
 ### Tag-Based Cache Management
 
 ```javascript
 // Add tags to cache entries
-cache({ 
-  tags: ['users', 'profile'] 
-})
+cache({
+  tags: ['users', 'profile'],
+});
 
 // Invalidate by tags
-invalidateCache({ 
-  tags: ['users']  // Invalidates all entries with 'users' tag
-})
+invalidateCache({
+  tags: ['users'], // Invalidates all entries with 'users' tag
+});
 ```
 
 ## 📚 Implementation Details
@@ -714,17 +726,18 @@ Base64 Encoded (for headers): "dXNlcnM6MTc6Ont9"
 
 ```javascript
 // Don't cache sensitive data
-cache({ strategy: 'none' })
+cache({ strategy: 'none' });
 
 // Or skip caching for authenticated admin routes
 cache({
-  skipIf: (req) => req.user?.role === 'admin'
-})
+  skipIf: req => req.user?.role === 'admin',
+});
 ```
 
 ### Cache Key Security
 
 Cache keys are automatically sanitized when used in HTTP headers:
+
 - Keys are base64 encoded
 - Keys are truncated to 100 characters
 - No sensitive information should be in cache keys
@@ -735,17 +748,19 @@ Cache keys are automatically sanitized when used in HTTP headers:
 
 ```javascript
 // GET: Cache user profile for 15 minutes
-router.get('/users/:id', 
+router.get(
+  '/users/:id',
   authenticateToken,
   userRoutesCache({ strategy: 'medium' }),
   fetchUserById
 );
 
 // PUT: Update and invalidate cache
-router.put('/users/:id', 
+router.put(
+  '/users/:id',
   authenticateToken,
-  invalidateCache({ 
-    patterns: [`user:${req.params.id}:*`, 'users:*'] 
+  invalidateCache({
+    patterns: [`user:${req.params.id}:*`, 'users:*'],
   }),
   updateUserById
 );
@@ -755,17 +770,15 @@ router.put('/users/:id',
 
 ```javascript
 // Cache products for 1 hour (static data)
-router.get('/products', 
-  publicCache({ strategy: 'long' }),
-  fetchProducts
-);
+router.get('/products', publicCache({ strategy: 'long' }), fetchProducts);
 ```
 
 ### Example 3: Dynamic User Dashboard
 
 ```javascript
 // Cache for 1 minute (frequently changing)
-router.get('/dashboard', 
+router.get(
+  '/dashboard',
   authenticateToken,
   userCache({ strategy: 'short' }),
   getDashboard

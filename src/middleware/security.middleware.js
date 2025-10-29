@@ -25,23 +25,38 @@ async function checkRateLimit(identifier, limit, windowMs = 60000) {
           }
           // Increment count
           const newCount = data.count + 1;
-          await redisClient.setEx(key, Math.ceil((data.resetAt - now) / 1000), JSON.stringify({
-            count: newCount,
+          await redisClient.setEx(
+            key,
+            Math.ceil((data.resetAt - now) / 1000),
+            JSON.stringify({
+              count: newCount,
+              resetAt: data.resetAt,
+            })
+          );
+          return {
+            allowed: true,
+            remaining: limit - newCount,
             resetAt: data.resetAt,
-          }));
-          return { allowed: true, remaining: limit - newCount, resetAt: data.resetAt };
+          };
         }
       }
       // Create new window
       const resetAt = now + windowMs;
-      await redisClient.setEx(key, Math.ceil(windowMs / 1000), JSON.stringify({
-        count: 1,
-        resetAt,
-      }));
+      await redisClient.setEx(
+        key,
+        Math.ceil(windowMs / 1000),
+        JSON.stringify({
+          count: 1,
+          resetAt,
+        })
+      );
       return { allowed: true, remaining: limit - 1, resetAt };
     }
   } catch (error) {
-    logger.warn('Redis rate limit error, falling back to memory:', error.message);
+    logger.warn(
+      'Redis rate limit error, falling back to memory:',
+      error.message
+    );
   }
 
   // Fallback to in-memory store
@@ -51,13 +66,17 @@ async function checkRateLimit(identifier, limit, windowMs = 60000) {
       return { allowed: false, remaining: 0, resetAt: stored.resetAt };
     }
     stored.count++;
-    return { allowed: true, remaining: limit - stored.count, resetAt: stored.resetAt };
+    return {
+      allowed: true,
+      remaining: limit - stored.count,
+      resetAt: stored.resetAt,
+    };
   }
 
   // Create new window
   const resetAt = now + windowMs;
   rateLimitStore.set(key, { count: 1, resetAt });
-  
+
   // Clean up old entries periodically
   if (rateLimitStore.size > 10000) {
     for (const [k, v] of rateLimitStore.entries()) {
@@ -84,7 +103,7 @@ const securityMiddleware = async (req, res, next) => {
           req.user = user;
         }
       } catch (e) {
-        // Token invalid or not present - user remains undefined
+        logger.error('Token verification failed in security middleware:', e);
       }
     }
 
@@ -109,10 +128,9 @@ const securityMiddleware = async (req, res, next) => {
     }
 
     // For authenticated users: Use custom rate limiting (Redis + memory fallback)
-    // This allows proper per-user tracking (Arcjet only supports IP-based by default)
     if (user?.id) {
       const identifier = `user:${user.id}:${role}`;
-      
+
       logger.debug('Rate limit check for authenticated user', {
         userId: user.id,
         role,
@@ -120,7 +138,7 @@ const securityMiddleware = async (req, res, next) => {
         limit,
         path: req.path,
       });
-      
+
       const rateLimitResult = await checkRateLimit(identifier, limit, 60000); // 1 minute window
 
       logger.debug('Rate limit result', {
@@ -141,9 +159,16 @@ const securityMiddleware = async (req, res, next) => {
 
       // Rate limit passed - continue to next middleware
       // Note: Still run Arcjet for bot detection and shield
-      const client = aj.withRule(slidingWindow({ mode: 'LIVE', interval: '1m', max: 100, name: 'bot-check' }));
+      const client = aj.withRule(
+        slidingWindow({
+          mode: 'LIVE',
+          interval: '1m',
+          max: 100,
+          name: 'bot-check',
+        })
+      );
       const decision = await client.protect(req, { requested: 1 });
-      
+
       if (decision.isDenied()) {
         const reason = decision.reason;
         if (reason.isBot()) {
@@ -159,7 +184,7 @@ const securityMiddleware = async (req, res, next) => {
           });
         }
       }
-      
+
       return next();
     }
 
@@ -173,7 +198,7 @@ const securityMiddleware = async (req, res, next) => {
         name: `${role}-rate-limit`,
       })
     );
-    
+
     const decision = await client.protect(req, { requested: 1 });
 
     if (decision.isDenied()) {

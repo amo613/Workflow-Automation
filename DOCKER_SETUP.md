@@ -146,6 +146,7 @@ The development script (`npm run dev:docker`) performs these automated steps:
 7. **Container Startup**: Starts `docker-compose.dev.yml` with build
 
 **What happens during execution:**
+
 - Neon Local creates an ephemeral database branch
 - Application runs with hot-reload enabled
 - Source code is mounted for instant changes
@@ -163,6 +164,7 @@ The production script (`npm run prod:docker`) performs these automated steps:
 6. **Status Information**: Provides monitoring commands
 
 **What happens during execution:**
+
 - Uses Neon Cloud Database (no local proxy)
 - Runs in optimized production mode
 - Containers run in background (`-d` flag)
@@ -308,6 +310,7 @@ Useful commands:
 ### Development
 
 **Automatic (via scripts):**
+
 - Migrations run automatically when using `npm run dev:docker`
 - The script executes `npm run db:migrate` before starting containers
 
@@ -324,6 +327,7 @@ DATABASE_URL=postgres://neon@localhost:5432/neondb npm run db:migrate
 ### Production
 
 **Automatic (via scripts):**
+
 - Migrations run automatically when using `npm run prod:docker`
 - The script executes `npm run db:migrate` after starting containers
 

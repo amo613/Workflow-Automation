@@ -1,9 +1,9 @@
 import logger from '#config/logger.js';
-import { 
-  memoryCache, 
-  getRedisClient, 
-  CACHE_CONFIG, 
-  cacheStats 
+import {
+  memoryCache,
+  getRedisClient,
+  CACHE_CONFIG,
+  cacheStats,
 } from '#config/cache.js';
 
 /**
@@ -27,13 +27,20 @@ class CacheMiddleware {
           this.useRedis = true;
           logger.info('Cache middleware initialized with Redis support');
         } else {
-          logger.info('Cache middleware initialized with memory-only caching (Redis not ready)');
+          logger.info(
+            'Cache middleware initialized with memory-only caching (Redis not ready)'
+          );
         }
       } else {
-        logger.info('Cache middleware initialized with memory-only caching (Redis client not available)');
+        logger.info(
+          'Cache middleware initialized with memory-only caching (Redis client not available)'
+        );
       }
     } catch (error) {
-      logger.warn('Redis not available, using memory cache only:', error.message);
+      logger.warn(
+        'Redis not available, using memory cache only:',
+        error.message
+      );
     }
   }
 
@@ -46,11 +53,11 @@ class CacheMiddleware {
       // Otherwise return it as string
       return customKey;
     }
-    
+
     const { method, originalUrl, query, user } = req;
     const userId = user?.id || 'anonymous';
     const queryString = Object.keys(query).length ? JSON.stringify(query) : '';
-    
+
     return `${method.toLowerCase()}:${originalUrl}:${userId}:${queryString}`;
   }
 
@@ -78,8 +85,8 @@ class CacheMiddleware {
       }
 
       cacheStats.misses++;
-      logger.debug(`Cache MISS: ${key}`, { 
-        stats: { ...cacheStats } 
+      logger.debug(`Cache MISS: ${key}`, {
+        stats: { ...cacheStats },
       });
       return null;
     } catch (error) {
@@ -95,7 +102,7 @@ class CacheMiddleware {
   async set(key, value, ttl = CACHE_CONFIG.strategies.default.ttl) {
     try {
       const serializedValue = JSON.stringify(value);
-      
+
       // Set in Redis if available
       if (this.useRedis && this.redisClient && ttl > 0) {
         await this.redisClient.setEx(key, ttl, serializedValue);
@@ -107,8 +114,13 @@ class CacheMiddleware {
       }
 
       cacheStats.sets++;
-      logger.info(`Cache SET: ${key} (TTL: ${ttl}s)`, { 
-        stats: { hits: cacheStats.hits, misses: cacheStats.misses, sets: cacheStats.sets, deletes: cacheStats.deletes } 
+      logger.info(`Cache SET: ${key} (TTL: ${ttl}s)`, {
+        stats: {
+          hits: cacheStats.hits,
+          misses: cacheStats.misses,
+          sets: cacheStats.sets,
+          deletes: cacheStats.deletes,
+        },
       });
       return true;
     } catch (error) {
@@ -147,7 +159,7 @@ class CacheMiddleware {
   async deletePattern(pattern) {
     try {
       const keys = [];
-      
+
       // Get keys from Redis
       if (this.useRedis && this.redisClient) {
         const redisKeys = await this.redisClient.keys(pattern);
@@ -158,16 +170,24 @@ class CacheMiddleware {
       }
 
       // Get keys from memory cache
-      const memoryKeys = memoryCache.keys().filter(key => 
-        key.match(new RegExp(pattern.replace('*', '.*')))
-      );
+      const memoryKeys = memoryCache
+        .keys()
+        .filter(key => key.match(new RegExp(pattern.replace('*', '.*'))));
       keys.push(...memoryKeys);
       memoryCache.del(memoryKeys);
 
       cacheStats.deletes += keys.length;
-      logger.info(`Cache DELETE PATTERN: ${pattern} (${keys.length} keys deleted)`, { 
-        stats: { hits: cacheStats.hits, misses: cacheStats.misses, sets: cacheStats.sets, deletes: cacheStats.deletes } 
-      });
+      logger.info(
+        `Cache DELETE PATTERN: ${pattern} (${keys.length} keys deleted)`,
+        {
+          stats: {
+            hits: cacheStats.hits,
+            misses: cacheStats.misses,
+            sets: cacheStats.sets,
+            deletes: cacheStats.deletes,
+          },
+        }
+      );
       return keys.length;
     } catch (error) {
       cacheStats.errors++;
@@ -201,36 +221,41 @@ class CacheMiddleware {
       }
 
       // Use strategy-specific TTL
-      const finalTTL = typeof strategy === 'string' 
-        ? CACHE_CONFIG.strategies[strategy]?.ttl || ttl
-        : ttl;
+      const finalTTL =
+        typeof strategy === 'string'
+          ? CACHE_CONFIG.strategies[strategy]?.ttl || ttl
+          : ttl;
 
       const cacheKey = this.generateKey(req, keyGenerator);
 
       try {
         // Try to get from cache
         const cachedData = await this.get(cacheKey);
-        
+
         if (cachedData !== null) {
           // Add cache headers (sanitize cache key for HTTP headers - base64 encode)
           const keyString = String(cacheKey);
-          const sanitizedKey = Buffer.from(keyString).toString('base64').substring(0, 100);
+          const sanitizedKey = Buffer.from(keyString)
+            .toString('base64')
+            .substring(0, 100);
           res.set({
             'X-Cache': 'HIT',
             'X-Cache-Key': sanitizedKey,
             'X-Cache-TTL': finalTTL.toString(),
             'X-Cache-Tags': tags.join(','),
           });
-          
+
           return res.json(cachedData);
         }
 
         // Cache miss - intercept response
         const originalJson = res.json;
-        res.json = function(data) {
+        res.json = function (data) {
           // Set cache headers for miss (sanitize cache key for HTTP headers - base64 encode)
           const keyString = String(cacheKey);
-          const sanitizedKey = Buffer.from(keyString).toString('base64').substring(0, 100);
+          const sanitizedKey = Buffer.from(keyString)
+            .toString('base64')
+            .substring(0, 100);
           res.set({
             'X-Cache': 'MISS',
             'X-Cache-Key': sanitizedKey,
@@ -265,7 +290,7 @@ class CacheMiddleware {
 
       // Intercept response to invalidate cache after successful operation
       const originalJson = res.json;
-      res.json = function(data) {
+      res.json = function (data) {
         // Only invalidate on successful responses
         if (res.statusCode >= 200 && res.statusCode < 300) {
           // Invalidate by patterns
@@ -295,7 +320,7 @@ class CacheMiddleware {
     // Check Redis connection status dynamically
     const redisClient = getRedisClient();
     const redisConnected = redisClient?.isReady || false;
-    
+
     return {
       ...cacheStats,
       hitRate: cacheStats.hits / (cacheStats.hits + cacheStats.misses) || 0,
@@ -328,7 +353,8 @@ class CacheMiddleware {
 const cacheMiddleware = new CacheMiddleware();
 
 export const cache = (options = {}) => cacheMiddleware.middleware(options);
-export const invalidateCache = (options = {}) => cacheMiddleware.invalidate(options);
+export const invalidateCache = (options = {}) =>
+  cacheMiddleware.invalidate(options);
 export const getCacheStats = () => cacheMiddleware.getStats();
 export const clearCache = () => cacheMiddleware.clear();
 

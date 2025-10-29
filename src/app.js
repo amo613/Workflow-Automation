@@ -15,7 +15,10 @@ const app = express();
 
 // Initialize Redis cache
 initRedis().catch(err => {
-  logger.warn('Redis initialization failed, using memory cache only:', err.message);
+  logger.warn(
+    'Redis initialization failed, using memory cache only:',
+    err.message
+  );
 });
 
 // Set a default user-agent if not provided for arcjet bot detection
@@ -48,7 +51,7 @@ app.get('/', (req, res) => {
 });
 app.get('/health', async (req, res) => {
   const cacheHealth = await cacheHealthCheck();
-  
+
   res.status(200).send({
     status: 'OK',
     timestamp: new Date().toISOString(),
