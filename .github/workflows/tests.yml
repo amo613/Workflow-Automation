@@ -38,11 +38,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Wait for Redis to be ready
-        run: |
-          timeout 30 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 1; done'
-          echo "Redis is ready!"
-
       - name: Run tests
         id: test
         env:
