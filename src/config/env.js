@@ -23,4 +23,6 @@ export const {
   CACHE_TTL_DEFAULT,
   CACHE_TTL_SHORT,
   CACHE_TTL_LONG,
+  EMAIL_PASSWORD,
+  ACCOUNT_EMAIL,
 } = process.env;

@@ -10,6 +10,13 @@ import userRoutes from '#routes/users.routes.js';
 import cacheRoutes from '#routes/cache.routes.js';
 import { initRedis } from '#config/cache.js';
 import { cachePerformance, cacheHealthCheck } from '#utils/cache.utils.js';
+import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
+
+import { jobQueue } from './jobs/jobs.queue.js';
+import { ExpressAdapter } from '@bull-board/express';
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import jobsRoutes from '#routes/jobs.routes.js';
 
 const app = express();
 
@@ -20,6 +27,15 @@ initRedis().catch(err => {
     err.message
   );
 });
+
+// Inline Bull Board setup,no dynamic import paths
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+createBullBoard({
+  queues: [new BullMQAdapter(jobQueue)],
+  serverAdapter,
+});
+app.use('/admin/queues', serverAdapter.getRouter());
 
 // Set a default user-agent if not provided for arcjet bot detection
 app.use((req, res, next) => {
@@ -67,6 +83,7 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cache', cacheRoutes);
+app.use('/api/jobs', jobsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

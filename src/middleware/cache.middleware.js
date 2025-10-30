@@ -81,10 +81,14 @@ class CacheMiddleware {
           if (value !== null) {
             cacheStats.hits++;
             const parsedValue = JSON.parse(value);
-            
+
             // Warm-up: Store in memory cache for next request (speed optimization)
-            memoryCache.set(key, parsedValue, CACHE_CONFIG.strategies.default.ttl);
-            
+            memoryCache.set(
+              key,
+              parsedValue,
+              CACHE_CONFIG.strategies.default.ttl
+            );
+
             logger.debug(`Cache HIT (Redis): ${key} (warmed up in memory)`);
             return parsedValue;
           }
