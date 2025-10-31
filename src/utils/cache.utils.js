@@ -223,6 +223,23 @@ export const apiRoutesCache = (ttl = cacheStrategies.default.ttl) => {
   });
 };
 
+// Cache middleware for job routes
+export const jobRoutesCache = () => {
+  return cache({
+    ttl: cacheStrategies.medium.ttl,
+    keyGenerator: req => {
+      const userId = req.user?.id || 'anonymous';
+      const path = req.originalUrl.replace('/api/jobs/', '');
+      return cacheKey.custom('jobs', userId, path, JSON.stringify(req.query));
+    },
+    tags: ['jobs'],
+    skipIf: req => {
+      // Don't cache POST requests (job creation)
+      return req.method !== 'GET';
+    },
+  });
+};
+
 // Cache performance middleware
 export const cachePerformance = () => {
   return (req, res, next) => {
@@ -299,6 +316,7 @@ export default {
   userRoutesCache,
   authRoutesCache,
   apiRoutesCache,
+  jobRoutesCache,
 
   // Performance
   cachePerformance,

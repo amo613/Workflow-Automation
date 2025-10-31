@@ -27,17 +27,16 @@ echo ""
 docker compose -f docker-compose.prod.yml up --build -d
 
 # Wait for DB to be ready (basic health check)
-echo "⏳ Waiting for Neon Local to be ready..."
+echo "⏳ Waiting for containers to be ready..."
 sleep 5
 
-# Run migrations with Drizzle
-echo "📜 Applying latest schema with Drizzle..."
-npm run db:migrate
+# Migration runs automatically via server.js on app startup
+echo "📜 Migration will run automatically on app startup if needed..."
 
 echo ""
 echo "🎉 Production environment started!"
-echo "   Application: http://localhost:3000"
-echo "   Logs: docker logs acquisition-app-prod"
+echo "   Application: http://localhost:${PORT:-3001}"
+echo "   Logs: docker logs acquisitions-app-prod"
 echo ""
 echo "Useful commands:"
 echo "   View logs: docker logs -f acquisition-app-prod"

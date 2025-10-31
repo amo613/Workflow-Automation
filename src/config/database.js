@@ -2,21 +2,22 @@ import 'dotenv/config';
 
 import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
+import { NODE_ENV, DATABASE_URL } from '#config/env.js';
 
-if (process.env.NODE_ENV === 'development') {
+if (NODE_ENV === 'development') {
   neonConfig.fetchEndpoint = 'http://neon-local:5432/sql';
   neonConfig.useSecureWebSocket = false;
   neonConfig.poolQueryViaFetch = true;
-} else if (process.env.NODE_ENV === 'production') {
-  neonConfig.fetchEndpoint = process.env.DATABASE_URL;
-  neonConfig.useSecureWebSocket = true;
-  neonConfig.poolQueryViaFetch = false;
+} else if (NODE_ENV === 'production' && DATABASE_URL?.includes('-pooler.')) {
+  // Production with Pooler URL - use HTTP fetch
+  neonConfig.poolQueryViaFetch = true;
+  neonConfig.useSecureWebSocket = false;
 }
 
 const sql = neon(
-  process.env.NODE_ENV === 'production'
-    ? process.env.production.DATABASE_URL
-    : 'postgres://neon:npg@localhost:5432/neondb?sslmode=require'
+  NODE_ENV === 'production'
+    ? DATABASE_URL
+    : 'postgres://neon:npg@neon-local:5432/neondb'
 );
 
 const db = drizzle(sql);

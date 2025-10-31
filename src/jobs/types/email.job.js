@@ -1,11 +1,9 @@
 import nodemailer from 'nodemailer';
 import { BaseJob } from './base.job.js';
 import logger from '#config/logger.js';
-import { EMAIL_PASSWORD } from '#config/env.js';
-import { ACCOUNT_EMAIL } from '#config/env.js';
+import { ACCOUNT_EMAIL, EMAIL_PASSWORD } from '#config/env.js';
 
 const accountEmail = ACCOUNT_EMAIL;
-
 // Create transporter (singleton pattern)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -67,11 +65,6 @@ export class EmailJob extends BaseJob {
     return true;
   }
 
-  /**
-   * Execute email sending
-   * @param {Object} data - Email job data { to (string or array), subject, html, text }
-   * @returns {Promise<Object>} Email sending result
-   */
   async execute(data) {
     const { to, subject, html, text } = data;
 
