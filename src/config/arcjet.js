@@ -1,11 +1,10 @@
 import arcjet, { shield, detectBot } from '@arcjet/node';
-import { ARCJET_KEY, ARCJET_ENV } from '#config/env.js';
+import { ARCJET_KEY } from '#config/env.js';
 
 const aj = arcjet({
   // Get your site key from https://app.arcjet.com and set it as an environment
   // variable rather than hard coding.
   key: ARCJET_KEY,
-  env: ARCJET_ENV,
   rules: [
     // Shield protects your app from common attacks e.g. SQL injection
     shield({ mode: 'LIVE' }),
