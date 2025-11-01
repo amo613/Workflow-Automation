@@ -1,5 +1,6 @@
 import logger from '#config/logger.js';
 import { EmailJob } from './types/email.job.js';
+import { PhoneCallJob } from './types/phone-call.job.js';
 
 class JobRegistry {
   constructor() {
@@ -8,12 +9,9 @@ class JobRegistry {
 
     // Register default jobs
     this.register('email', EmailJob);
+    this.register('phone-call', PhoneCallJob);
   }
 
-  /**
-   * Register a new job type with a job class and a schema for validation.
-   * TODO: Add more job types.
-   */
   register(type, JobClass, schema = null) {
     if (this.jobs.has(type)) {
       logger.warn(`Job type "${type}" is already registered, overwriting...`);
@@ -49,7 +47,6 @@ class JobRegistry {
     return job;
   }
 
-  // checkign if a job type is registered
   has(type) {
     return this.jobs.has(type);
   }
@@ -63,7 +60,6 @@ class JobRegistry {
   }
 }
 
-// create an instance of the JobRegistry and export it.
 export const jobRegistry = new JobRegistry();
 
 export default jobRegistry;

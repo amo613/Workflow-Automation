@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const jobDataSchema = z.object({
   type: z.string().min(1, 'Job type is required'),
-  data: z.any(), // Will be validated by type-specific schemas
+  data: z.any(),
   options: z
     .object({
       maxAttempts: z.number().int().positive().optional(),
@@ -29,11 +29,33 @@ export const emailJobDataSchema = z
     message: 'Either html or text must be provided',
   });
 
+export const phoneCallJobDataSchema = z.object({
+  toNumber: z.union([
+    z
+      .string()
+      .regex(
+        /^\+[1-9]\d{1,14}$/,
+        'Phone number must be in E.164 format (e.g. +1234567890)'
+      ),
+    z
+      .array(
+        z
+          .string()
+          .regex(
+            /^\+[1-9]\d{1,14}$/,
+            'Phone number must be in E.164 format (e.g. +1234567890)'
+          )
+      )
+      .min(1, 'At least one phone number is required'),
+  ]),
+  configId: z.string().uuid('Config ID must be a valid UUID').optional(),
+  config: z.any().optional(),
+});
+
 export const jobIdSchema = z.object({
   id: z.string(),
 });
 
-// Query parameters schema for bullmq dashboard listing job data
 export const listJobsQuerySchema = z.object({
   status: z
     .enum([

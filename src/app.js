@@ -17,6 +17,7 @@ import { ExpressAdapter } from '@bull-board/express';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import jobsRoutes from '#routes/jobs.routes.js';
+import humeTestRoutes from '#routes/hume-test.routes.js';
 
 const app = express();
 
@@ -45,11 +46,42 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          'https://unpkg.com',
+          'https://esm.sh',
+          'https://cdn.jsdelivr.net',
+          'https://storage.googleapis.com',
+        ],
+        scriptSrcElem: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://unpkg.com',
+          'https://esm.sh',
+          'https://cdn.jsdelivr.net',
+          'https://storage.googleapis.com',
+        ],
+        workerSrc: ["'self'", 'blob:', 'https://storage.googleapis.com'],
+        childSrc: ["'self'", 'blob:'],
+        connectSrc: ["'self'", 'wss:', 'ws:', 'https:', 'https://api.hume.ai'],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Serve Hume SDK from node_modules
+app.use('/node_modules', express.static('node_modules'));
 
 app.use(
   morgan('combined', {
@@ -59,12 +91,14 @@ app.use(
 
 app.use(cachePerformance());
 
+// Hume test route - add before security middleware to avoid bot detection
+
 app.use(securityMiddleware);
 
 app.get('/', (req, res) => {
-  logger.info('Hello from the root route!');
   res.status(200).send('Hello World!');
 });
+
 app.get('/health', async (req, res) => {
   const cacheHealth = await cacheHealthCheck();
 
@@ -77,14 +111,14 @@ app.get('/health', async (req, res) => {
 });
 
 app.get('/api', (req, res) => {
-  res.status(200).json({ message: 'Test API is running!' });
+  res.status(200).json({ message: 'API is running!' });
 });
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/jobs', jobsRoutes);
-
+app.use('/api', humeTestRoutes);
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });

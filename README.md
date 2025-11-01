@@ -196,23 +196,42 @@ docker-compose -f docker-compose.prod.yml ps
 .
 ├── src/                    # Source code
 │   ├── config/            # Configuration files
-│   │   ├── arcjet.js      # Arcjet security config
-│   │   ├── database.js    # Drizzle database setup
-│   │   ├── env.js         # Environment variables
-│   │   └── logger.js      # Winston logger setup
+│   │   ├── arcjet.js
+│   │   ├── database.js
+│   │   ├── env.js
+│   │   └── logger.js
 │   ├── controllers/       # Route controllers
 │   │   ├── auth.controller.js
+│   │   ├── hume-evi.controller.js
+│   │   ├── jobs.controller.js
 │   │   └── users.controller.js
+│   ├── jobs/               # Job queue (BullMQ)
+│   │   ├── types/         # Job implementations
+│   │   │   ├── base.job.js
+│   │   │   ├── email.job.js
+│   │   │   └── phone-call.job.js
+│   │   ├── jobs.executor.js
+│   │   ├── jobs.queue.js
+│   │   └── jobs.registry.js
 │   ├── middleware/        # Express middleware
 │   │   ├── auth.middleware.js
 │   │   └── security.middleware.js
 │   ├── models/            # Drizzle ORM models
+│   │   ├── job.model.js
 │   │   └── user.model.js
 │   ├── routes/            # API routes
 │   │   ├── auth.routes.js
+│   │   ├── hume-test.routes.js
+│   │   ├── jobs.routes.js
 │   │   └── users.routes.js
+│   ├── server/            # Server setup
+│   │   └── hume-websocket.server.js
 │   ├── services/          # Business logic
 │   │   ├── auth.service.js
+│   │   ├── hume-evi-config.service.js
+│   │   ├── hume-evi.service.js
+│   │   ├── jobs.service.js
+│   │   ├── twilio.service.js
 │   │   └── users.service.js
 │   ├── utils/             # Utility functions
 │   │   ├── cookies.js
@@ -220,10 +239,13 @@ docker-compose -f docker-compose.prod.yml ps
 │   │   └── jwt.js
 │   ├── validations/       # Zod schemas
 │   │   ├── auth.validation.js
+│   │   ├── jobs.validation.js
 │   │   └── users.validation.js
-│   ├── app.js             # Express app setup
-│   ├── index.js           # Entry point
-│   └── server.js          # Server startup
+│   ├── views/             # HTML views
+│   │   └── hume-test.html
+│   ├── app.js
+│   ├── index.js
+│   └── server.js
 ├── tests/                 # Test files
 │   └── app.test.js
 ├── scripts/               # Helper scripts
@@ -277,6 +299,30 @@ GET    /api/users         # Get all users (protected)
 GET    /api/users/:id     # Get user by ID (protected)
 PUT    /api/users/:id     # Update user (protected)
 DELETE /api/users/:id     # Delete user (protected)
+```
+
+### Hume EVI (Empathic Voice Interface)
+
+```bash
+GET  /api/test-hume              # Hume EVI test UI
+GET  /api/test-hume/config       # Get default configuration
+POST /api/test-hume/config/validate      # Validate configuration parameters
+POST /api/test-hume/config/create        # Create new Hume EVI configuration (returns config ID)
+POST /api/test-hume/call                 # Create phone call job (all calls use BullMQ)
+                                          # @body {string|string[]} toNumber - Phone number(s) in E.164 format
+                                          # @body {Object} [config] - Optional Hume EVI configuration
+                                          # @body {string} [configId] - Optional existing config ID
+POST /api/test-hume/twilio-webhook       # Twilio webhook endpoint
+```
+
+### Jobs
+
+```bash
+POST /api/jobs          # Create a job (email, phone-call)
+GET  /api/jobs          # Get all jobs with optional filters
+GET  /api/jobs/:id      # Get job by ID
+GET  /api/jobs/types    # Get available job types
+GET  /api/jobs/stats    # Get job statistics
 ```
 
 ## 🧪 Testing
@@ -424,6 +470,9 @@ npm install
 - **Linting**: ESLint + Prettier
 - **Containerization**: Docker + Docker Compose
 - **CI/CD**: GitHub Actions
+- **Job Queue**: BullMQ with Redis
+- **AI Integration**: Hume AI EVI (Empathic Voice Interface)
+- **Voice Calls**: Twilio integration for outbound calls
 
 ## 📝 License
 

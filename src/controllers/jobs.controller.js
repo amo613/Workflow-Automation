@@ -11,6 +11,7 @@ import {
   jobIdSchema,
   listJobsQuerySchema,
   emailJobDataSchema,
+  phoneCallJobDataSchema,
 } from '#validations/jobs.validation.js';
 import { formatValidationError } from '#utils/format.js';
 
@@ -33,6 +34,14 @@ export const createJobHandler = async (req, res, next) => {
         return res.status(400).json({
           error: 'Email job data validation failed',
           details: formatValidationError(emailValidation.error),
+        });
+      }
+    } else if (type === 'phone-call') {
+      const phoneCallValidation = phoneCallJobDataSchema.safeParse(data);
+      if (!phoneCallValidation.success) {
+        return res.status(400).json({
+          error: 'Phone call job data validation failed',
+          details: formatValidationError(phoneCallValidation.error),
         });
       }
     }
@@ -82,7 +91,6 @@ export const getJobHandler = async (req, res, next) => {
   }
 };
 
-// Get jobs optional with filters
 export const getAllJobsHandler = async (req, res, next) => {
   try {
     const validationResult = listJobsQuerySchema.safeParse(req.query);
