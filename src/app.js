@@ -50,27 +50,27 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
+        defaultSrc: ['\'self\''],
         scriptSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "'unsafe-eval'",
+          '\'self\'',
+          '\'unsafe-inline\'',
+          '\'unsafe-eval\'',
           'https://unpkg.com',
           'https://esm.sh',
           'https://cdn.jsdelivr.net',
           'https://storage.googleapis.com',
         ],
         scriptSrcElem: [
-          "'self'",
-          "'unsafe-inline'",
+          '\'self\'',
+          '\'unsafe-inline\'',
           'https://unpkg.com',
           'https://esm.sh',
           'https://cdn.jsdelivr.net',
           'https://storage.googleapis.com',
         ],
-        workerSrc: ["'self'", 'blob:', 'https://storage.googleapis.com'],
-        childSrc: ["'self'", 'blob:'],
-        connectSrc: ["'self'", 'wss:', 'ws:', 'https:', 'https://api.hume.ai'],
+        workerSrc: ['\'self\'', 'blob:', 'https://storage.googleapis.com'],
+        childSrc: ['\'self\'', 'blob:'],
+        connectSrc: ['\'self\'', 'wss:', 'ws:', 'https:', 'https://api.hume.ai'],
       },
     },
   })
