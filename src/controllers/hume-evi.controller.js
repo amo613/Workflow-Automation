@@ -101,21 +101,17 @@ export const makeOutboundCall = async (req, res) => {
     const { toNumber, config, configId, options } = req.body;
 
     if (!toNumber) {
-      return res
-        .status(400)
-        .json({
-          error:
-            'Phone number is required. Provide "toNumber" as a string or array of strings',
-        });
+      return res.status(400).json({
+        error:
+          'Phone number is required. Provide "toNumber" as a string or array of strings',
+      });
     }
 
     if (typeof toNumber !== 'string' && !Array.isArray(toNumber)) {
-      return res
-        .status(400)
-        .json({
-          error:
-            'Phone number "toNumber" must be a string or an array of strings',
-        });
+      return res.status(400).json({
+        error:
+          'Phone number "toNumber" must be a string or an array of strings',
+      });
     }
 
     let configParams = null;

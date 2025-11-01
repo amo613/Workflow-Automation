@@ -26,7 +26,7 @@ describe('API ENDPOINTS', () => {
     it('should return API stats', async () => {
       const response = await request(app).get('/api').expect(200);
 
-      expect(response.body).toHaveProperty('message', 'Test API is running!');
+      expect(response.body).toHaveProperty('message', 'API is running!');
     });
   });
 
