@@ -1,15 +1,11 @@
 import logger from '#config/logger.js';
-import humeEVIConfigService from '#services/hume-evi-config.service.js';
+import openAIRealtimeConfigService from '#services/openai-realtime-config.service.js';
 import { createJob } from '#services/jobs.service.js';
-import {
-  getNgrokUrl,
-  storeCallConfig,
-  storeCallFrom,
-} from '#utils/ngrok.service.js';
+import { getNgrokUrl, storeCallFrom } from '#utils/ngrok.service.js';
 
 export const getConfig = async (req, res) => {
   try {
-    const defaultConfig = humeEVIConfigService.getDefaultConfig();
+    const defaultConfig = openAIRealtimeConfigService.getDefaultConfig();
     res.json({ success: true, config: defaultConfig });
   } catch (error) {
     logger.error('Error getting default config:', error);
@@ -23,7 +19,7 @@ export const getConfig = async (req, res) => {
 export const validateConfig = async (req, res) => {
   try {
     const configParams = req.body;
-    const validation = humeEVIConfigService.validateConfig(configParams);
+    const validation = openAIRealtimeConfigService.validateConfig(configParams);
 
     if (validation.valid) {
       res.json({ success: true, valid: true });
@@ -43,53 +39,14 @@ export const validateConfig = async (req, res) => {
   }
 };
 
-export const createConfig = async (req, res) => {
-  try {
-    const configParams = req.body;
-
-    if (!configParams) {
-      return res
-        .status(400)
-        .json({ error: 'Configuration parameters are required' });
-    }
-
-    // Validate config first
-    const validation = humeEVIConfigService.validateConfig(configParams);
-    if (!validation.valid) {
-      return res.status(400).json({
-        error: 'Invalid configuration',
-        errors: validation.errors,
-      });
-    }
-
-    // Create config via Hume API
-    const configId = await humeEVIConfigService.createHumeConfig(configParams);
-
-    // Return the created config ID and full config data
-    res.json({
-      success: true,
-      configId,
-      message: 'Configuration created successfully',
-    });
-  } catch (error) {
-    logger.error('Error creating config:', error);
-    res.status(500).json({
-      error: 'Failed to create configuration',
-      message: error.message,
-    });
-  }
-};
-
 /**
- * POST /api/test-hume/twilio-webhook
- * Twilio webhook endpoint - returns TwiML to start media stream via our proxy
- * @query {string} [configId] - Optional Hume EVI config ID
+ * POST /api/test-openai/twilio-webhook
+ * Twilio webhook endpoint - returns TwiML to start media stream via our OpenAI proxy
  * @query {string} [config] - Optional base64 encoded config parameters
  */
 export const twilioWebhook = async (req, res) => {
   try {
     const { CallSid, From, To, AccountSid, CallStatus, Direction } = req.body;
-    const configId = req.query.configId || req.query.config_id;
     const configParam = req.query.config;
 
     if (!CallSid) {
@@ -107,15 +64,12 @@ export const twilioWebhook = async (req, res) => {
     }
 
     // Convert HTTP(S) URL to WebSocket URL
-    // CRITICAL: Based on working example, configId should be passed as Parameter in TwiML, NOT in URL
-    // The working call shows config_id as <Parameter>, not in the WebSocket URL
     const wsProtocol = ngrokUrl.startsWith('https') ? 'wss' : 'ws';
     const wsHost = ngrokUrl.replace(/^https?:\/\//, '');
-    // IMPORTANT: Only include callSid in URL, NOT configId (configId goes in <Parameter> tag)
-    const wsFullUrl = `${wsProtocol}://${wsHost}/ws/twilio/call?callSid=${CallSid}`;
+    // Only include callSid in URL, config goes in <Parameter> tag if needed
+    const wsFullUrl = `${wsProtocol}://${wsHost}/ws/openai/call?callSid=${CallSid}`;
 
     logger.info(`Twilio webhook called for call: ${CallSid}`, {
-      hasConfigId: !!configId,
       hasConfig: !!configParam,
       wsUrl: wsFullUrl,
       ngrokUrl,
@@ -125,61 +79,46 @@ export const twilioWebhook = async (req, res) => {
       },
     });
 
-    // CRITICAL: Store callSid -> configId mapping for WebSocket connection
-    // Twilio might not send query params in the upgrade request, so we need to store it
-    if (configId) {
-      storeCallConfig(CallSid, configId);
-      logger.info(
-        `Stored callSid -> configId mapping: ${CallSid} -> ${configId}`
-      );
-    }
-
-    // CRITICAL: Store callSid -> From (caller number) mapping for Hume metadata
-    // The From field is only available in the webhook, not in the WebSocket start event
+    // Store callSid -> From (caller number) mapping for OpenAI metadata
     if (From) {
       storeCallFrom(CallSid, From);
       logger.info(`Stored callSid -> From mapping: ${CallSid} -> ${From}`);
     }
 
-    // CRITICAL: Escape XML entities in URL for TwiML
-    // In XML, & must be escaped as &amp; to prevent parse errors
-    // Twilio Error 12100: "The reference to entity 'configId' must end with the ';' delimiter"
+    // Escape XML entities in URL for TwiML
     const wsFullUrlEscaped = wsFullUrl.replace(/&/g, '&amp;');
 
     // Return TwiML to start media stream
-    // CRITICAL: Use <Start><Stream> instead of <Connect><Stream>
-    // User reported that <Start><Stream> gives no error (unlike <Connect> which gives 31951)
-    // This matches the working example the user provided
-    // CRITICAL: config_id must be passed as <Parameter>, NOT in the WebSocket URL
+    // CRITICAL: Based on Twilio official example, use <Connect><Stream> NOT <Start><Stream>
+    // Reference: https://www.twilio.com/en-us/blog/outbound-calls-node-openai-realtime-api-voice
+    // The <Connect><Stream> approach is the official way for outbound calls with OpenAI Realtime API
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Start>
-    <Stream url="${wsFullUrlEscaped}" track="both_tracks">
+  <Connect>
+    <Stream url="${wsFullUrlEscaped}">
       <Parameter name="callSid" value="${CallSid}" />
       <Parameter name="call_sid" value="${CallSid}" />
-      ${configId ? `<Parameter name="config_id" value="${configId}" />` : ''}
       ${AccountSid ? `<Parameter name="account_sid" value="${AccountSid}" />` : ''}
       ${From ? `<Parameter name="from_number" value="${From}" />` : ''}
       ${To ? `<Parameter name="to_number" value="${To}" />` : ''}
       ${CallStatus ? `<Parameter name="call_status" value="${CallStatus}" />` : ''}
       ${Direction ? `<Parameter name="direction" value="${Direction}" />` : ''}
+      ${configParam ? `<Parameter name="config" value="${configParam}" />` : ''}
     </Stream>
-  </Start>
-  <Say voice="alice">Connecting.</Say>
-  <Pause length="3600" />
+  </Connect>
 </Response>`;
 
     logger.info(`TwiML generated for call ${CallSid}:`, {
       twimlLength: twiml.length,
       wsUrl: wsFullUrl,
-      hasStart: true,
+      hasConnect: true,
       hasStream: true,
-      hasSay: true,
-      hasPause: true,
-      track: 'both_tracks',
+      hasPause: false,
+      track: 'default (both tracks)',
+      fullTwiML: twiml, // Log full TwiML for debugging
     });
 
-    // CRITICAL: Set content type and status explicitly
+    // Set content type and status explicitly
     res.status(200).type('text/xml');
     res.send(twiml);
   } catch (error) {
@@ -188,9 +127,16 @@ export const twilioWebhook = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/test-openai/call
+ * Creates a phone call job (all calls are jobs, used by BullMQ)
+ * @body {string|string[]} toNumber - Phone number(s) in E.164 format (string for single, array for bulk)
+ * @body {Object} [config] - Optional OpenAI Realtime API configuration
+ * @body {Object} [options] - Optional job options (maxAttempts, timeout, priority)
+ */
 export const makeOutboundCall = async (req, res) => {
   try {
-    const { toNumber, config, configId, options } = req.body;
+    const { toNumber, config, options } = req.body;
 
     if (!toNumber) {
       return res.status(400).json({
@@ -208,7 +154,7 @@ export const makeOutboundCall = async (req, res) => {
 
     let configParams = null;
     if (config) {
-      const validation = humeEVIConfigService.validateConfig(config);
+      const validation = openAIRealtimeConfigService.validateConfig(config);
       if (!validation.valid) {
         return res.status(400).json({
           error: 'Invalid configuration',
@@ -218,46 +164,52 @@ export const makeOutboundCall = async (req, res) => {
       configParams = config;
     }
 
-    if (configId && typeof configId !== 'string') {
-      return res.status(400).json({ error: 'Config ID must be a string' });
-    }
-
+    // Create phone-call job
+    // CRITICAL: Ensure provider is set at top level, not just in config
     const jobData = {
       toNumber,
       ...(configParams ? { config: configParams } : {}),
-      ...(configId ? { configId } : {}),
+      provider: 'openai', // Mark as OpenAI call - MUST be at top level!
     };
+
+    // CRITICAL: Validate that provider is correctly set
+    logger.info(`📞 Creating phone call job:`, {
+      hasToNumber: !!toNumber,
+      toNumber: Array.isArray(toNumber)
+        ? `${toNumber.length} numbers`
+        : toNumber,
+      hasConfig: !!configParams,
+      provider: jobData.provider,
+      jobDataKeys: Object.keys(jobData),
+    });
 
     const userId = req.user?.id || null;
     const job = await createJob('phone-call', jobData, options || {}, userId);
 
     const numberCount = Array.isArray(toNumber) ? toNumber.length : 1;
 
-    logger.info(`Phone call job created: ${job.id}`, {
+    logger.info(`Phone call job created for OpenAI: ${job.id}`, {
       type: 'phone-call',
       userId,
-      hasConfigId: !!configId,
       hasConfig: !!configParams,
+      provider: 'openai',
       numberCount,
     });
 
     res.status(201).json({
       success: true,
       message: 'Phone call job created and queued',
+      jobId: job.id, // Also include jobId at top level for UI compatibility
       job: {
         id: job.id,
         type: job.type,
         status: job.status,
-        createdAt: job.createdAt,
       },
+      toNumber: Array.isArray(toNumber) ? toNumber : [toNumber],
+      provider: 'openai',
     });
   } catch (error) {
     logger.error('Error creating phone call job:', error);
-
-    if (error.message.includes('Unknown job type')) {
-      return res.status(400).json({ error: error.message });
-    }
-
     res.status(500).json({
       error: 'Failed to create phone call job',
       message: error.message,

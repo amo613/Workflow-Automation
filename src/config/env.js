@@ -33,4 +33,5 @@ export const {
   TWILIO_AUTH_TOKEN,
   TWILIO_PHONE_NUMBER,
   TWILIO_WEBHOOK_URL,
+  OPENAI_API_KEY,
 } = process.env;

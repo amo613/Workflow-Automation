@@ -9,10 +9,10 @@ const clientConnections = new Map(); // browser -> hume socket mapping
 
 // TODO: FIND THE BEST SETTINGS, SO THE LATENCY IS AS LOW AS POSSIBLE
 
-export function initHumeWebSocketServer(httpServer) {
+export function initHumeWebSocketServer(_httpServer) {
+  // Use noServer mode to manually handle upgrades (prevent conflicts with Express)
   const wss = new WebSocketServer({
-    server: httpServer,
-    path: '/api/hume-evi/connect',
+    noServer: true,
     perMessageDeflate: false, // Disable compression for lower latency
     maxPayload: 1024 * 1024, // 1MB max payload for audio chunks
     clientTracking: true, // Track clients for faster lookups

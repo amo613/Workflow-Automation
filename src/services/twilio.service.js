@@ -4,9 +4,9 @@ import {
   TWILIO_AUTH_TOKEN,
   TWILIO_PHONE_NUMBER,
   TWILIO_WEBHOOK_URL,
-  HUME_API_KEY,
 } from '#config/env.js';
 import logger from '#config/logger.js';
+import { getNgrokUrl, buildWebhookUrl } from '#utils/ngrok.service.js';
 
 /**
  * Twilio Service
@@ -78,54 +78,119 @@ class TwilioService {
         };
       }
 
-      // Build webhook URL - if custom config is provided, create config via API and use its ID
-      // Otherwise use the default TWILIO_WEBHOOK_URL
-      let webhookUrl = TWILIO_WEBHOOK_URL;
+      // Build webhook URL - use our own proxy server
+      // The proxy server will handle the connection to Hume EVI
+      let webhookUrl = null;
       let createdConfigId = null;
 
+      // Get ngrok URL for our proxy webhook
+      const ngrokUrl = getNgrokUrl();
+      if (!ngrokUrl) {
+        logger.error('Ngrok URL not available, cannot make Twilio call');
+        return {
+          success: false,
+          error:
+            'Ngrok tunnel not established. Please wait for ngrok to initialize.',
+        };
+      }
+
+      // Determine which webhook endpoint to use based on provider
+      // For OpenAI, we use /api/test-openai/twilio-webhook
+      // For Hume, we use /api/test-hume/twilio-webhook
+      const provider = configParams?.provider || 'openai'; // Default to openai to match current use
+
+      // CRITICAL: Log provider to diagnose routing issues
+      logger.info(`🔍 Determining webhook endpoint:`, {
+        hasConfigParams: !!configParams,
+        providerFromConfig: configParams?.provider,
+        resolvedProvider: provider,
+        configParamsKeys: configParams ? Object.keys(configParams) : [],
+      });
+
+      const webhookBasePath =
+        provider === 'openai'
+          ? '/api/test-openai/twilio-webhook'
+          : '/api/test-hume/twilio-webhook';
+
+      logger.info(
+        `✅ Using webhook path: ${webhookBasePath} (provider: ${provider})`
+      );
+
       // Priority 1: Use existing config ID if provided (from saved config)
-      if (existingConfigId) {
+      // Note: OpenAI doesn't use configId like Hume, but we keep compatibility
+      if (existingConfigId && provider === 'hume') {
         createdConfigId = existingConfigId;
-        webhookUrl = `https://api.hume.ai/v0/evi/twilio?config_id=${existingConfigId}&api_key=${encodeURIComponent(HUME_API_KEY || '')}`;
+        webhookUrl = buildWebhookUrl(
+          `${webhookBasePath}?configId=${encodeURIComponent(existingConfigId)}`
+        );
         logger.info(
           `✅ Using existing config ID for Twilio call: ${existingConfigId}`
         );
-        logger.info(
-          `📞 Webhook URL: ${webhookUrl.replace(/api_key=[^&]+/, 'api_key=***')}`
-        );
+        logger.info(`📞 Webhook URL: ${webhookUrl}`);
       }
       // Priority 2: Create new config from params
       else if (configParams) {
-        // Import humeEVIConfigService here to avoid circular dependency
-        const humeEVIConfigService = (
-          await import('./hume-evi-config.service.js')
-        ).default;
-
-        // Create Hume config via API and get config ID
-        try {
-          logger.info('Creating Hume config for Twilio call...');
-          const configId =
-            await humeEVIConfigService.createHumeConfig(configParams);
-          createdConfigId = configId;
-
-          // Format: https://api.hume.ai/v0/evi/twilio?config_id={config_id}&api_key={api_key}
-          webhookUrl = `https://api.hume.ai/v0/evi/twilio?config_id=${configId}&api_key=${encodeURIComponent(HUME_API_KEY || '')}`;
-
-          logger.info(
-            `✅ Using custom config for Twilio call with config ID: ${configId}`
+        if (provider === 'openai') {
+          // For OpenAI, encode config as base64 in query param
+          const configBase64 = Buffer.from(
+            JSON.stringify(configParams)
+          ).toString('base64');
+          webhookUrl = buildWebhookUrl(
+            `${webhookBasePath}?config=${encodeURIComponent(configBase64)}`
           );
-          logger.info(
-            `📞 Webhook URL: ${webhookUrl.replace(/api_key=[^&]+/, 'api_key=***')}`
-          );
-        } catch (error) {
-          logger.error(
-            '❌ Failed to create Hume config, falling back to default webhook:',
-            error
-          );
-          logger.error('Error details:', error.message, error.stack);
-          // Fallback to default webhook URL if config creation fails
-          webhookUrl = TWILIO_WEBHOOK_URL;
+          logger.info(`Using OpenAI config for Twilio call`);
+          logger.info(`📞 Webhook URL: ${webhookUrl}`);
+        } else if (provider === 'hume') {
+          // For Hume, create config via API and get config ID
+          // Import humeEVIConfigService here to avoid circular dependency
+          const humeEVIConfigService = (
+            await import('./hume-evi-config.service.js')
+          ).default;
+
+          // Create Hume config via API and get config ID
+          try {
+            logger.info('Creating Hume config for Twilio call...');
+            const configId =
+              await humeEVIConfigService.createHumeConfig(configParams);
+            createdConfigId = configId;
+
+            // Use our proxy webhook with config ID (only for Hume)
+            webhookUrl = buildWebhookUrl(
+              `${webhookBasePath}?configId=${encodeURIComponent(configId)}`
+            );
+
+            logger.info(
+              `✅ Using custom config for Twilio call with config ID: ${configId}`
+            );
+            logger.info(`📞 Webhook URL: ${webhookUrl}`);
+          } catch (error) {
+            logger.error(
+              '❌ Failed to create Hume config, falling back to default webhook:',
+              error
+            );
+            logger.error('Error details:', error.message, error.stack);
+            // Fallback to default webhook URL if config creation fails
+            webhookUrl = TWILIO_WEBHOOK_URL || buildWebhookUrl(webhookBasePath);
+          }
         }
+      }
+      // Priority 3: Use our proxy without config (will use default)
+      else {
+        webhookUrl = buildWebhookUrl(webhookBasePath);
+        logger.info(
+          'Using proxy webhook without custom config (will use default)'
+        );
+        logger.info(`📞 Webhook URL: ${webhookUrl}`);
+      }
+
+      // CRITICAL: Validate webhookUrl before making the call
+      if (!webhookUrl) {
+        logger.error('Webhook URL is null - ngrok might not be initialized');
+        return {
+          success: false,
+          error:
+            'Webhook URL not available. Please ensure ngrok tunnel is established.',
+        };
       }
 
       // Make the outbound call

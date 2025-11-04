@@ -45,6 +45,28 @@ export default [
     },
   },
   {
+    files: ['src/public/js/**/*.js'],
+    languageOptions: {
+      globals: {
+        // Browser globals
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        fetch: 'readonly',
+        WebSocket: 'readonly',
+        AudioContext: 'readonly',
+        btoa: 'readonly',
+        atob: 'readonly',
+        performance: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+  },
+  {
     ignores: ['node_modules/**', 'coverage/**', 'logs/**', 'drizzle/**'],
   },
   prettier,

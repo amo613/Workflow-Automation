@@ -18,6 +18,7 @@ import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import jobsRoutes from '#routes/jobs.routes.js';
 import humeTestRoutes from '#routes/hume-test.routes.js';
+import openaiTestRoutes from '#routes/openai-test.routes.js';
 
 const app = express();
 
@@ -75,10 +76,32 @@ app.use(
     },
   })
 );
+// CRITICAL: Skip ALL middleware for WebSocket upgrade requests
+// WebSocket upgrades should NOT go through Express middleware at all
+// They are handled directly at the HTTP server level in server.js
+// This middleware is just a safety net - upgrade requests should never reach here
+app.use((req, res, next) => {
+  // Log if an upgrade request somehow reaches Express (should not happen)
+  if (req.headers.upgrade === 'websocket') {
+    logger.warn(
+      '⚠️ WebSocket upgrade request reached Express middleware (should not happen)'
+    );
+    logger.warn(
+      '⚠️ This means the upgrade handler in server.js did not catch it'
+    );
+    // Don't call next() - let the HTTP server handle it
+    return;
+  }
+  next();
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Serve static files from public directory
+app.use('/js', express.static('src/public/js'));
 
 // Serve Hume SDK from node_modules
 app.use('/node_modules', express.static('node_modules'));
@@ -119,7 +142,14 @@ app.use('/api/users', userRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api', humeTestRoutes);
+app.use('/api', openaiTestRoutes);
+
+// 404 handler - but skip for WebSocket upgrade requests
 app.use((req, res) => {
+  // Don't handle WebSocket upgrade requests as 404
+  if (req.headers.upgrade === 'websocket' || req.url.startsWith('/ws/')) {
+    return; // Let WebSocket server handle it
+  }
   res.status(404).json({ error: 'Route not found' });
 });
 

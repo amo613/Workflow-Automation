@@ -64,7 +64,19 @@ export class PhoneCallJob extends BaseJob {
   }
 
   async execute(data) {
-    const { toNumber, config, configId } = data;
+    const { toNumber, config, configId, provider } = data;
+
+    // CRITICAL: Log provider value to diagnose issues
+    logger.info(`📞 Phone call job executing:`, {
+      hasProvider: !!provider,
+      provider,
+      hasConfig: !!config,
+      hasConfigId: !!configId,
+      toNumber: Array.isArray(toNumber)
+        ? `${toNumber.length} numbers`
+        : toNumber,
+      dataKeys: Object.keys(data),
+    });
 
     const targetNumbers = Array.isArray(toNumber) ? toNumber : [toNumber];
 
@@ -73,18 +85,32 @@ export class PhoneCallJob extends BaseJob {
     }
 
     let resolvedConfigId = null;
+    // CRITICAL: Default to hume for backward compatibility, but log if provider is missing
+    const callProvider = provider || 'hume';
 
-    if (configId) {
-      resolvedConfigId = configId;
-      logger.info(`Using existing config ID for batch: ${configId}`);
-    } else if (config) {
-      try {
-        logger.info('Creating Hume config for phone call batch...');
-        resolvedConfigId = await humeEVIConfigService.createHumeConfig(config);
-        logger.info(`Created config for batch: ${resolvedConfigId}`);
-      } catch (error) {
-        logger.error('Failed to create Hume config for batch:', error);
-        resolvedConfigId = null;
+    if (!provider) {
+      logger.warn(
+        `⚠️ Provider not specified in job data, defaulting to 'hume' for backward compatibility`
+      );
+    } else {
+      logger.info(`✅ Using provider: ${callProvider}`);
+    }
+
+    // Only create Hume config if provider is hume
+    if (callProvider === 'hume') {
+      if (configId) {
+        resolvedConfigId = configId;
+        logger.info(`Using existing config ID for batch: ${configId}`);
+      } else if (config) {
+        try {
+          logger.info('Creating Hume config for phone call batch...');
+          resolvedConfigId =
+            await humeEVIConfigService.createHumeConfig(config);
+          logger.info(`Created config for batch: ${resolvedConfigId}`);
+        } catch (error) {
+          logger.error('Failed to create Hume config for batch:', error);
+          resolvedConfigId = null;
+        }
       }
     }
 
@@ -93,9 +119,19 @@ export class PhoneCallJob extends BaseJob {
 
     for (const targetNumber of targetNumbers) {
       try {
+        // Pass provider and config to twilioService
+        // CRITICAL: Ensure provider is explicitly set in config
+        const configWithProvider = { ...config, provider: callProvider };
+        logger.info(`📞 Making outbound call:`, {
+          to: targetNumber,
+          provider: configWithProvider.provider,
+          hasConfig: !!config,
+          configKeys: config ? Object.keys(config) : [],
+        });
+
         const callResult = await twilioService.makeOutboundCall(
           targetNumber,
-          null,
+          configWithProvider,
           resolvedConfigId
         );
 
