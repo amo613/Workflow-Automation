@@ -46,37 +46,25 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
     let twilioConnectedResponseSent = false;
     let setupComplete = false;
     let sessionConfig = null;
-    let parsedConfig = null; // Config from Twilio Parameter tags
-    let hasActiveResponse = false; // Track if there's an active response being generated
-    let isCreatingResponse = false; // Gate creating responses to avoid overlaps
-    let audioChunkCount = 0; // Count audio chunks sent
-    // CRITICAL: Track consecutive audio chunks with signal for reliable speech detection
-    let consecutiveSpeechChunks = 0; // Count consecutive chunks with speech signal
-    const AMPLITUDE_THRESHOLD = 2; // Lower for high sensitivity
-    const SIGNAL_SAMPLES_RATIO = 0.03; // 3% samples with signal
-    const REQUIRED_CONSECUTIVE_CHUNKS_IDLE = 3; // when assistant is not speaking
-    const REQUIRED_CONSECUTIVE_CHUNKS_DURING_TTS = 8; // stronger requirement while assistant is speaking
-    let lastUserMediaAt = 0; // Timestamp of last inbound user audio chunk
-    let lastAssistantAudioAt = 0; // Timestamp of last assistant audio chunk we sent to Twilio
-    let lastCancelAt = 0; // Throttle cancels
+    let parsedConfig = null;
 
-    // Structured debug log of current turn-taking state
+    // Einfaches State-Tracking - OpenAI übernimmt das Turn-Taking
+    let hasActiveResponse = false;
+    let audioChunkCount = 0;
+    let lastAssistantAudioAt = 0;
+
+    // Hilfsfunktion zum Loggen des Gesprächsstatus
     const logTurnState = label => {
       try {
         logger.info(
           `🎯 Turn state [${label}] for call ${callSid || 'UNKNOWN'}`,
           {
             hasActiveResponse,
-            isCreatingResponse,
             openaiSessionReady,
             twilioConnected,
             hasStreamSid: !!streamSid,
             audioChunkCount,
-            consecutiveSpeechChunks,
-            sinceLastUserMs: Date.now() - lastUserMediaAt,
             sinceLastAssistantMs: Date.now() - lastAssistantAudioAt,
-            sinceLastCancelMs: Date.now() - lastCancelAt,
-            sinceLastCreateMs: Date.now() - lastResponseCreateAt,
           }
         );
       } catch (_e) {
@@ -86,9 +74,6 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
 
     const audioBuffer = [];
     const MAX_BUFFER_SIZE = 3;
-    // quick-create disabled; no pending flags needed
-    let lastResponseCreateAt = 0; // Cooldown for creating new responses
-    let lastResponseCreatedAt = 0; // Time when response.created arrived (for early-cancel guard)
 
     // Extract call SID from query params
     try {
@@ -103,7 +88,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
         fullUrl: `${req.headers.host}${req.url}`,
       });
 
-      // CRITICAL: If we have callSid from URL, we can setup OpenAI connection immediately
+      // Wenn wir die callSid haben, können wir direkt die OpenAI-Verbindung aufbauen
       if (callSid) {
         logger.info(
           `✅ Got callSid from URL - can setup OpenAI connection for call: ${callSid}`
@@ -167,9 +152,8 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
       }
 
       try {
-        // Connect to OpenAI Realtime API
-        // Model: gpt-realtime-mini (as requested)
-        // CRITICAL: Match Twilio's working example - use model and temperature in query string
+        // Verbindung zur OpenAI Realtime API aufbauen
+        // Model und Temperature kommen in die Query-String, wie im Twilio-Beispiel
         const temperature = parsedConfig?.temperature ?? 1.0;
         const openaiUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime-mini&temperature=${temperature}`;
 
@@ -182,7 +166,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           }
         );
 
-        // CRITICAL: Match Twilio's example - NO OpenAI-Beta header!
+        // Kein OpenAI-Beta Header nötig - einfach Authorization
         openaiWs = new WebSocket(openaiUrl, {
           headers: {
             Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -197,55 +181,51 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
             }
           );
 
-          // CRITICAL: Send session.update immediately after connection opens
-          // OpenAI Realtime API expects this BEFORE any other messages
-          // Based on OpenAI Realtime API documentation
-          // CRITICAL: Match Twilio's working example format - use audio/pcmu (μ-law) directly!
-          // This is the CORRECT format for Twilio Media Streams - no conversion needed!
+          // Session-Update direkt nach dem Öffnen der Verbindung senden
+          // OpenAI erwartet das vor allen anderen Nachrichten
+          // Wichtig: Wir verwenden audio/pcmu (μ-law) direkt, wie im Twilio-Beispiel
+          // Keine Umwandlung nötig - Twilio sendet μ-law und wir nutzen es direkt
           sessionConfig = {
             type: 'session.update',
             session: {
               type: 'realtime',
               model: 'gpt-realtime-mini',
-              output_modalities: ['audio'], // Twilio example uses output_modalities, not modalities
+              output_modalities: ['audio'],
               instructions:
                 parsedConfig?.instructions ||
                 'You are a helpful voice assistant. Keep responses brief, natural, and conversational. Respond with audio.',
-              // CRITICAL: Match Twilio's format - use audio object with nested format
               audio: {
                 input: {
                   format: {
-                    type: 'audio/pcmu', // CRITICAL: Use μ-law directly, not PCM16!
+                    type: 'audio/pcmu', // μ-law direkt verwenden, keine Umwandlung
                   },
                   turn_detection: {
-                    type: 'server_vad', // Twilio example uses server_vad - keep it for compatibility
+                    type: 'server_vad',
                     threshold:
                       parsedConfig?.vad_threshold !== undefined
                         ? parsedConfig.vad_threshold
-                        : 0.6,
+                        : 0.5,
                     prefix_padding_ms:
                       parsedConfig?.prefix_padding_ms !== undefined
                         ? parsedConfig.prefix_padding_ms
-                        : 350,
+                        : 300,
                     silence_duration_ms:
                       parsedConfig?.silence_duration_ms !== undefined
                         ? parsedConfig.silence_duration_ms
-                        : 800,
-                    create_response: true,
-                    interrupt_response: true, // CRITICAL: Enable interruptions!
+                        : 500,
+                    create_response: true, // OpenAI erstellt automatisch eine Response
+                    interrupt_response: true, // Unterbrechungen aktivieren
                   },
                 },
                 output: {
                   format: {
-                    type: 'audio/pcmu', // CRITICAL: Use μ-law directly, not PCM16!
+                    type: 'audio/pcmu', // μ-law direkt verwenden
                   },
                   voice: parsedConfig?.voice || 'alloy',
                 },
               },
               tools: parsedConfig?.tools || [],
               tool_choice: parsedConfig?.tool_choice || 'auto',
-              // CRITICAL: max_response_output_tokens is NOT allowed in this format!
-              // Remove it to match Twilio's working example
             },
           };
 
@@ -272,7 +252,8 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
             }
           );
 
-          // Mark as tentatively ready shortly after open to reduce start latency
+          // Session nach kurzer Zeit als bereit markieren, um Latenz zu reduzieren
+          // Falls wir schon Audio-Pakete gepuffert haben, senden wir sie sofort
           setTimeout(() => {
             if (!openaiSessionReady) {
               openaiSessionReady = true;
@@ -285,7 +266,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                   audioBufferLength: audioBuffer.length,
                 }
               );
-              // Flush any buffered audio immediately
+              // Gepufferte Audio-Pakete sofort senden
               if (
                 audioBuffer.length > 0 &&
                 openaiWs &&
@@ -312,19 +293,15 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 }
               }
             }
-          }, 300); // ~300ms to reduce initial delay
+          }, 300);
         });
 
         openaiWs.on('message', data => {
           try {
             const message = JSON.parse(data.toString());
 
-            // Log ALL OpenAI messages for debugging (including full message for unknown types)
-            // CRITICAL: Log the FULL message, not truncated, so we can see ALL response types
+            // Alle OpenAI-Nachrichten loggen für Debugging
             const messageStr = JSON.stringify(message);
-
-            // CRITICAL: Log EVERY message type with full details to identify the problem
-            // ESPECIALLY important for speech_started events during active responses!
             logger.info(`📥 OpenAI message received for call ${callSid}:`, {
               type: message.type,
               messageKeys: Object.keys(message),
@@ -335,8 +312,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
               hasItem: !!message.item,
               hasContent: !!message.content,
               hasEvent: !!message.event,
-              hasActiveResponse, // CRITICAL: Log this to see if we're in active response when speech is detected
-              // Log FULL message - no truncation for debugging
+              hasActiveResponse,
               fullMessage: messageStr,
             });
 
@@ -358,9 +334,8 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 item: message.item?.type,
               });
             }
-            // Handle response.output_audio.delta - AI-generated audio
-            // OpenAI Realtime API sends audio in response.output_audio.delta events
-            // The audio data is in message.delta (base64 encoded μ-law)
+            // AI-generiertes Audio - wird direkt an Twilio weitergeleitet
+            // Das Audio ist bereits base64-kodiertes μ-law, keine Umwandlung nötig
             else if (
               message.type === 'response.output_audio.delta' &&
               message.delta
@@ -369,16 +344,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 deltaLength: message.delta.length,
                 hasActiveResponse,
               });
-              if (!hasActiveResponse) {
-                logger.debug(
-                  `🔊 Audio delta while hasActiveResponse=false (likely right after cancel) for call ${callSid}`
-                );
-              }
-              if (!hasActiveResponse) {
-                logger.debug(
-                  `🔊 Audio delta while hasActiveResponse=false (likely right after cancel) for call ${callSid}`
-                );
-              }
+
               if (
                 twilioWs.readyState === twilioWs.OPEN &&
                 twilioConnected &&
@@ -386,7 +352,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 streamSid
               ) {
                 try {
-                  const audioDelta = message.delta; // This is already base64 μ-law!
+                  const audioDelta = message.delta; // Bereits base64 μ-law
 
                   mediaSequenceNumber += 1;
 
@@ -395,22 +361,17 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                     streamSid,
                     sequenceNumber: String(mediaSequenceNumber),
                     media: {
-                      payload: audioDelta, // Send μ-law directly, no conversion!
+                      payload: audioDelta, // Direkt weiterleiten, keine Umwandlung
                     },
                   };
 
                   twilioWs.send(JSON.stringify(twilioMessage));
 
-                  // Mark the time we sent assistant audio
                   lastAssistantAudioAt = Date.now();
                   if (mediaSequenceNumber % 20 === 0) {
                     logTurnState('assistant_audio_progress');
                   }
-                  if (mediaSequenceNumber % 20 === 0) {
-                    logTurnState('assistant_audio_progress');
-                  }
 
-                  // Log at debug level to reduce noise, but include hasActiveResponse for debugging
                   logger.debug(`✅ Sent audio to Twilio for call ${callSid}`, {
                     streamSid,
                     sequenceNumber: mediaSequenceNumber,
@@ -447,8 +408,6 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 output: message.output,
               });
               hasActiveResponse = false; // Mark that response is done
-              isCreatingResponse = false;
-              consecutiveSpeechChunks = 0; // Reset speech detection counter
               logTurnState('response_done');
             }
             // Handle response.created - response started
@@ -466,23 +425,17 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 );
               }
               hasActiveResponse = true; // Mark that we have an active response
-              isCreatingResponse = false;
-              consecutiveSpeechChunks = 0; // Reset speech detection counter when new response starts
-              lastResponseCreatedAt = Date.now();
               logTurnState('response_created');
             }
-            // Handle response.cancelled - response was cancelled (interrupted)
+            // Response wurde unterbrochen
             else if (message.type === 'response.cancelled') {
               logger.info(`⚠️ Response cancelled for call ${callSid}`, {
                 responseId: message.response?.id,
               });
-              hasActiveResponse = false; // Mark that response is cancelled
-              isCreatingResponse = false;
-              consecutiveSpeechChunks = 0; // Reset speech detection counter
+              hasActiveResponse = false;
               logTurnState('response_cancelled');
 
-              // CRITICAL: Send 'clear' event to Twilio to stop audio playback immediately
-              // This ensures Twilio stops playing the interrupted audio
+              // Twilio anweisen, das Audio sofort zu stoppen
               if (
                 twilioWs.readyState === twilioWs.OPEN &&
                 twilioConnected &&
@@ -524,169 +477,52 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 itemType: message.item?.type,
               });
             }
-            // Handle input_audio_buffer.speech_started - speech detected
+            // User hat angefangen zu sprechen
+            // OpenAI's interrupt_response: true übernimmt die Unterbrechung automatisch
+            // Wir müssen nur Twilio anweisen, das Audio zu stoppen
             else if (message.type === 'input_audio_buffer.speech_started') {
               logger.info(`🎤✅ Speech started detected for call ${callSid}`, {
-                event: message.event,
-                fullMessage: messageStr,
                 hasActiveResponse,
                 audioChunkCount,
               });
+              logTurnState('speech_started');
 
-              // Cancel only if we recently detected user media (avoid false triggers during TTS)
-              const now = Date.now();
-              const recentlyHeardUser = now - lastUserMediaAt < 800; // 0.8s window
-              const assistantSpeakingRecently =
-                now - lastAssistantAudioAt < 900; // recommended guard
-              const cancelThrottleOk = now - lastCancelAt > 1200; // recommended throttle
-              const earlyResponseGuardOk = now - lastResponseCreatedAt > 400; // recommended guard
-
+              // Wenn OpenAI während einer aktiven Response Speech erkennt,
+              // wird die Response automatisch unterbrochen. Wir stoppen nur Twilio's Audio.
               if (
-                recentlyHeardUser &&
-                !assistantSpeakingRecently &&
-                cancelThrottleOk &&
-                earlyResponseGuardOk &&
                 hasActiveResponse &&
-                openaiWs &&
-                openaiWs.readyState === 1
+                twilioWs.readyState === twilioWs.OPEN &&
+                twilioConnected &&
+                streamSid
               ) {
-                logger.warn(
-                  `🛑 USER SPEAKING DURING ACTIVE RESPONSE - CANCELING NOW for call ${callSid}`,
-                  {
-                    hasActiveResponse,
-                    openaiWsReady: openaiWs.readyState === 1,
-                    audioChunkCount,
-                  }
-                );
                 try {
-                  // CRITICAL: Send response.cancel IMMEDIATELY to stop OpenAI from generating more audio
-                  openaiWs.send(
-                    JSON.stringify({
-                      type: 'response.cancel',
-                    })
-                  );
-                  lastCancelAt = now;
-                  hasActiveResponse = false; // Mark response as cancelled immediately
-                  consecutiveSpeechChunks = 0; // Reset speech detection counter
-                  // quick-create disabled
-
-                  // Also send clear event to Twilio to stop audio playback
-                  if (
-                    twilioWs.readyState === twilioWs.OPEN &&
-                    twilioConnected &&
-                    streamSid
-                  ) {
-                    try {
-                      const clearMessage = {
-                        event: 'clear',
-                        streamSid,
-                      };
-                      twilioWs.send(JSON.stringify(clearMessage));
-                      logger.info(
-                        `✅ Sent clear event to Twilio to stop audio for call ${callSid}`,
-                        {
-                          streamSid,
-                        }
-                      );
-                    } catch (clearError) {
-                      logger.error(
-                        `❌ Error sending clear event to Twilio for call ${callSid}:`,
-                        clearError
-                      );
-                    }
-                  }
-
+                  const clearMessage = {
+                    event: 'clear',
+                    streamSid,
+                  };
+                  twilioWs.send(JSON.stringify(clearMessage));
                   logger.info(
-                    `✅ Sent response.cancel + clear to interrupt AI for call ${callSid}`
+                    `✅ Sent clear event to Twilio (OpenAI will handle interrupt) for call ${callSid}`
                   );
-                  logTurnState('cancel_sent');
-                } catch (error) {
+                } catch (clearError) {
                   logger.error(
-                    `❌ Error sending response.cancel for call ${callSid}:`,
-                    error
+                    `❌ Error sending clear event to Twilio for call ${callSid}:`,
+                    clearError
                   );
                 }
-              } else {
-                logger.debug(
-                  `🎤 Speech started but not cancelling (no recent user media) for call ${callSid}`
-                );
-                // Do not schedule quick-create on speech start to avoid duplicates
               }
             }
-            // Handle input_audio_buffer.speech_stopped - speech ended
+            // User hat aufgehört zu sprechen
+            // OpenAI's create_response: true erstellt automatisch eine Response
             else if (message.type === 'input_audio_buffer.speech_stopped') {
-              logger.info(`🔇✅ Speech stopped detected for call ${callSid}`, {
-                event: message.event,
-                fullMessage: messageStr,
-              });
+              logger.info(`🔇✅ Speech stopped detected for call ${callSid}`);
               logTurnState('speech_stopped');
-              // Single response trigger on speech stop with cooldown
-              const now = Date.now();
-              const createCooldownOk = now - lastResponseCreateAt > 1200;
-              if (
-                !hasActiveResponse &&
-                !isCreatingResponse &&
-                createCooldownOk
-              ) {
-                try {
-                  openaiWs.send(
-                    JSON.stringify({
-                      type: 'input_audio_buffer.commit',
-                    })
-                  );
-                  openaiWs.send(
-                    JSON.stringify({
-                      type: 'response.create',
-                    })
-                  );
-                  isCreatingResponse = true;
-                  lastResponseCreateAt = now;
-                  logger.info(
-                    `✅ response.create after speech_stopped for call ${callSid}`
-                  );
-                } catch (error) {
-                  logger.error(
-                    `❌ Error creating response after speech_stopped:`,
-                    {
-                      error: error.message,
-                    }
-                  );
-                }
-              }
             }
-            // Handle input_audio_buffer.committed - audio buffer committed
+            // Audio-Buffer wurde committed
+            // OpenAI's create_response: true erstellt automatisch eine Response
             else if (message.type === 'input_audio_buffer.committed') {
-              logger.info(`✅ Audio buffer committed for call ${callSid}`, {
-                event: message.event,
-                fullMessage: messageStr,
-              });
-              // If committed and no response, create with cooldown and gating
-              const now = Date.now();
-              const createCooldownOk = now - lastResponseCreateAt > 1200;
-              if (
-                !hasActiveResponse &&
-                !isCreatingResponse &&
-                createCooldownOk
-              ) {
-                logger.info(
-                  `🔄 No active response after audio committed - triggering response.create for call ${callSid}`
-                );
-                try {
-                  openaiWs.send(
-                    JSON.stringify({
-                      type: 'response.create',
-                    })
-                  );
-                  isCreatingResponse = true;
-                  lastResponseCreateAt = now;
-                  logger.info(`✅ Sent response.create for call ${callSid}`);
-                } catch (error) {
-                  logger.error(
-                    `❌ Error sending response.create for call ${callSid}:`,
-                    error
-                  );
-                }
-              }
+              logger.info(`✅ Audio buffer committed for call ${callSid}`);
+              logTurnState('audio_committed');
             }
             // Handle error events
             else if (message.type === 'error') {
@@ -694,15 +530,14 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 error: message.error,
               });
             }
-            // Handle session.created - CRITICAL: This confirms session is ready
+            // Session wurde erstellt - jetzt ist sie bereit
             else if (message.type === 'session.created') {
               logger.info(`✅ OpenAI session created for call ${callSid}`, {
                 sessionId: message.session?.id,
                 sessionObject: message.session,
                 fullMessage: JSON.stringify(message).substring(0, 500),
               });
-              // CRITICAL: Mark session as ready ONLY after session.created
-              // This ensures we don't send audio before session is ready
+              // Session als bereit markieren - erst jetzt können wir Audio senden
               openaiSessionReady = true;
               logger.info(
                 `✅ Session marked as ready - can now accept audio for call ${callSid}`,
@@ -1207,14 +1042,8 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
             );
           }
 
-          // CRITICAL: Match Twilio's example - send μ-law directly to OpenAI, no conversion!
-          // Twilio sends μ-law as base64, OpenAI accepts it directly when using audio/pcmu format
-          // CRITICAL: Only process inbound track (user's voice), not outbound (our voice)
-          // BUT: We MUST receive both tracks to ensure interruptions work!
-          // The track="both_tracks" in TwiML ensures we get both, but we only process inbound
+          // Nur inbound track verarbeiten (User-Sprache), nicht outbound (unsere Sprache)
           if (message.media.track === 'outbound') {
-            // Outbound track is what we send to the user - don't send it back to OpenAI
-            // But we MUST receive it (via track="both_tracks") to ensure the connection works correctly
             logger.debug(
               `🔇 Skipping outbound track for call ${callSid} (sequence: ${message.sequenceNumber})`
             );
@@ -1222,11 +1051,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           }
 
           const mulawBase64 = message.media.payload;
-          // Track last time we received inbound user audio
-          lastUserMediaAt = Date.now();
 
-          // CRITICAL: No audio statistics needed - we're using μ-law directly
-          // Just log that we received the audio chunk - use info level
           logger.info(
             `🔊 Audio chunk received from Twilio for call ${callSid}:`,
             {
@@ -1236,7 +1061,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
             }
           );
 
-          // No conversion needed - use μ-law base64 directly!
+          // μ-law direkt verwenden, keine Umwandlung nötig
           const audioBase64 = mulawBase64;
 
           // Check if socket is ready
@@ -1251,7 +1076,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           });
 
           if (!openaiSessionReady || !socketReady) {
-            // Buffer audio chunks if socket is not ready yet (store μ-law base64)
+            // Audio-Pakete puffer, wenn Session noch nicht bereit ist
             if (audioBuffer.length < MAX_BUFFER_SIZE) {
               audioBuffer.push(audioBase64);
               logger.info(
@@ -1265,7 +1090,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
             return;
           }
 
-          // Send buffered chunks first if any
+          // Gepufferte Audio-Pakete zuerst senden, falls vorhanden
           if (audioBuffer.length > 0) {
             logger.info(
               `📤 Sending ${audioBuffer.length} buffered audio chunks to OpenAI for call ${callSid}`
@@ -1277,10 +1102,10 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
                 openaiWs.send(
                   JSON.stringify({
                     type: 'input_audio_buffer.append',
-                    audio: bufferedMulaw, // Send μ-law directly
+                    audio: bufferedMulaw,
                   })
                 );
-                audioChunkCount++; // CRITICAL: Count buffered chunks too
+                audioChunkCount++;
               } catch (error) {
                 logger.error(
                   `Error sending buffered audio chunk to OpenAI for call ${callSid}:`,
@@ -1294,13 +1119,11 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           }
 
           try {
-            // CRITICAL: Match Twilio's example - send μ-law directly to OpenAI!
-            // Format: { type: 'input_audio_buffer.append', audio: base64μ-law }
-            // CRITICAL: Continue sending audio even during active responses!
-            // This allows OpenAI to detect speech and interrupt the response
+            // Audio direkt an OpenAI senden - μ-law Format, keine Umwandlung
+            // Wichtig: Auch während aktiver Responses senden, damit OpenAI Unterbrechungen erkennen kann
             const audioMessage = {
               type: 'input_audio_buffer.append',
-              audio: audioBase64, // Send μ-law base64 directly, no conversion!
+              audio: audioBase64,
             };
 
             const messageJson = JSON.stringify(audioMessage);
@@ -1308,127 +1131,11 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
 
             audioChunkCount++;
 
-            // CRITICAL: Manually detect speech during active response for INSTANT interruptions
-            // server_vad might not reliably detect speech during active responses,
-            // so we check audio level across consecutive chunks for more reliable and INSTANT detection
-            if (hasActiveResponse) {
-              try {
-                // Decode μ-law base64 to check audio level
-                const mulawBuffer = Buffer.from(audioBase64, 'base64');
-                // More sensitive speech detection: check if audio has signal
-                // μ-law is 8-bit, 0x7F is typically silence/center
-                let maxAmplitude = 0;
-                let signalSamples = 0;
-                for (let i = 0; i < mulawBuffer.length; i++) {
-                  const sample = Math.abs(mulawBuffer[i] - 0x7f); // 0x7f is μ-law silence
-                  maxAmplitude = Math.max(maxAmplitude, sample);
-                  if (sample > AMPLITUDE_THRESHOLD) {
-                    signalSamples++;
-                  }
-                }
-
-                // Check if this chunk has speech signal (very low threshold for INSTANT detection)
-                // At least 5% of samples must have signal to avoid false positives (was 10%)
-                // This is more sensitive to catch speech immediately, even quiet speech
-                const hasSignal =
-                  maxAmplitude > AMPLITUDE_THRESHOLD &&
-                  signalSamples > mulawBuffer.length * SIGNAL_SAMPLES_RATIO;
-
-                if (hasSignal) {
-                  consecutiveSpeechChunks++;
-                  // CRITICAL: Log at INFO level so we can see it in logs for debugging
-                  logger.info(
-                    `🔊 Speech signal detected during active response (chunk ${consecutiveSpeechChunks}, maxAmplitude: ${maxAmplitude}, signalSamples: ${signalSamples}/${mulawBuffer.length}, ${((signalSamples / mulawBuffer.length) * 100).toFixed(1)}%) for call ${callSid}`
-                  );
-
-                  // Dynamic requirement: require stronger, sustained user speech while assistant is speaking
-                  const dynamicRequired =
-                    Date.now() - lastAssistantAudioAt < 500
-                      ? REQUIRED_CONSECUTIVE_CHUNKS_DURING_TTS
-                      : REQUIRED_CONSECUTIVE_CHUNKS_IDLE;
-
-                  // If we have enough consecutive chunks with signal, user is definitely speaking!
-                  if (consecutiveSpeechChunks >= dynamicRequired) {
-                    // INSTANT: Trigger on first chunk with signal for immediate response like browser
-                    logger.warn(
-                      `🛑 INSTANT INTERRUPT: User speaking detected (${consecutiveSpeechChunks}/${dynamicRequired} chunks, maxAmplitude: ${maxAmplitude}, signalSamples: ${signalSamples}/${mulawBuffer.length}) - canceling NOW for call ${callSid}`
-                    );
-
-                    // Send response.cancel immediately
-                    openaiWs.send(
-                      JSON.stringify({
-                        type: 'response.cancel',
-                      })
-                    );
-                    hasActiveResponse = false;
-                    consecutiveSpeechChunks = 0; // Reset counter
-
-                    // Send clear event to Twilio
-                    if (
-                      twilioWs.readyState === twilioWs.OPEN &&
-                      twilioConnected &&
-                      streamSid
-                    ) {
-                      const clearMessage = {
-                        event: 'clear',
-                        streamSid,
-                      };
-                      twilioWs.send(JSON.stringify(clearMessage));
-                      logger.info(
-                        `✅ Sent instant response.cancel + clear for interrupt (required ${dynamicRequired}, maxAmplitude: ${maxAmplitude}) for call ${callSid}`
-                      );
-                    }
-                  }
-                } else {
-                  // No signal in this chunk, reset counter
-                  // CRITICAL: Log at debug level to see if chunks are being processed but no signal detected
-                  if (consecutiveSpeechChunks > 0) {
-                    logger.debug(
-                      `🔇 No speech signal in chunk, resetting counter (was ${consecutiveSpeechChunks}, maxAmplitude: ${maxAmplitude}, signalSamples: ${signalSamples}/${mulawBuffer.length}) for call ${callSid}`
-                    );
-                  } else if (hasActiveResponse) {
-                    // Log occasionally even when counter is 0 to confirm we're checking during active response
-                    if (audioChunkCount % 50 === 0) {
-                      logger.debug(
-                        `🔇 No speech signal detected during active response (chunk ${audioChunkCount}, maxAmplitude: ${maxAmplitude}) for call ${callSid}`
-                      );
-                    }
-                  }
-                  consecutiveSpeechChunks = 0;
-                }
-              } catch (audioCheckError) {
-                // Don't block audio sending if detection fails
-                logger.debug(
-                  `Audio level check failed during active response: ${audioCheckError.message}`
-                );
-                consecutiveSpeechChunks = 0; // Reset on error
-              }
-            } else {
-              // No active response, reset counter
-              consecutiveSpeechChunks = 0;
-            }
-
-            // Quick-create disabled to prevent duplicate response.create
-
-            // Log audio chunk sent - CRITICAL: Include hasActiveResponse to debug interruptions
-            // Log at debug level to reduce noise, but include key info
             logger.debug(`🎤 Sent audio chunk to OpenAI for call ${callSid}`, {
               payloadLength: mulawBase64.length,
-              openaiSocketReady: openaiWs?.readyState === 1,
-              openaiSessionReady,
-              messageType: audioMessage.type,
-              audioLength: audioBase64.length,
               audioChunkCount,
-              hasActiveResponse, // CRITICAL: Log this to see if we're sending audio during active response
-              consecutiveSpeechChunks, // Log speech detection counter
+              hasActiveResponse,
             });
-
-            // CRITICAL: Log at info level when we have active response to see what's happening
-            if (hasActiveResponse && audioChunkCount % 20 === 0) {
-              logger.info(
-                `🎤 Active response - audio chunks being processed (chunk ${audioChunkCount}, consecutiveSpeech: ${consecutiveSpeechChunks}) for call ${callSid}`
-              );
-            }
           } catch (sendError) {
             logger.error(`❌ Error calling input_audio_buffer.append:`, {
               error: sendError.message,

@@ -56,8 +56,8 @@ export function initOpenAIWebSocketServer(_httpServer) {
     }
 
     try {
-      // Connect to OpenAI Realtime API
-      // Model: gpt-realtime-mini (mini model for browser, PCM format)
+      // Verbindung zur OpenAI Realtime API aufbauen
+      // Browser verwendet PCM-Format, nicht μ-law wie Twilio
       const temperature = connectionConfig?.temperature ?? 1.0;
       const openaiUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime-mini&temperature=${temperature}`;
 
@@ -79,22 +79,22 @@ export function initOpenAIWebSocketServer(_httpServer) {
       openaiWs.on('open', () => {
         logger.info(`OpenAI Realtime API session opened: ${sessionId}`);
 
-        // Send session configuration immediately after connection opens
-        // CRITICAL: Use new format like Twilio (but PCM16 for browser, not PCMu)
+        // Session-Update direkt nach dem Öffnen senden
+        // Browser verwendet PCM-Format, Twilio verwendet μ-law
         sessionConfig = {
           type: 'session.update',
           session: {
             type: 'realtime',
             model: 'gpt-realtime-mini',
-            output_modalities: ['audio'], // Browser uses audio output
+            output_modalities: ['audio'],
             instructions:
               connectionConfig?.instructions ||
               'You are a helpful voice assistant. Keep responses brief, natural, and conversational.',
             audio: {
               input: {
                 format: {
-                  type: 'audio/pcm', // Browser uses PCM format (not 'audio/pcm16' - OpenAI doesn't support that)
-                  rate: 24000, // 24kHz for browser
+                  type: 'audio/pcm',
+                  rate: 24000, // 24kHz für Browser
                 },
                 turn_detection: {
                   type: 'server_vad',
@@ -102,8 +102,8 @@ export function initOpenAIWebSocketServer(_httpServer) {
                   prefix_padding_ms: connectionConfig?.prefix_padding_ms || 300,
                   silence_duration_ms:
                     connectionConfig?.silence_duration_ms || 500,
-                  create_response: true,
-                  interrupt_response: true,
+                  create_response: true, // OpenAI erstellt automatisch eine Response
+                  interrupt_response: true, // Unterbrechungen aktivieren
                 },
                 transcription: {
                   model: 'whisper-1',
@@ -111,8 +111,8 @@ export function initOpenAIWebSocketServer(_httpServer) {
               },
               output: {
                 format: {
-                  type: 'audio/pcm', // Browser uses PCM format (not 'audio/pcm16' - OpenAI doesn't support that)
-                  rate: 24000, // 24kHz for browser
+                  type: 'audio/pcm',
+                  rate: 24000, // 24kHz für Browser
                 },
                 voice: connectionConfig?.voice || 'alloy',
               },
@@ -144,11 +144,10 @@ export function initOpenAIWebSocketServer(_httpServer) {
       });
 
       openaiWs.on('message', data => {
-        // Forward all messages from OpenAI to browser immediately
+        // Alle Nachrichten von OpenAI sofort an Browser weiterleiten
         if (clientWs.readyState === clientWs.OPEN) {
           try {
             const jsonMsg = JSON.parse(data.toString());
-            // CRITICAL: Log all messages from OpenAI to diagnose missing audio
             logger.info(`📥 OpenAI message for browser session ${sessionId}:`, {
               type: jsonMsg.type,
               hasDelta: !!jsonMsg.delta,
@@ -221,9 +220,9 @@ export function initOpenAIWebSocketServer(_httpServer) {
         activeSessions.delete(sessionId);
       });
 
-      // Handle messages from browser
+      // Nachrichten vom Browser verarbeiten
       clientWs.on('message', data => {
-        // Stop processing if connection is already closed
+        // Verarbeitung stoppen, wenn Verbindung bereits geschlossen ist
         if (
           connectionClosedNotified ||
           !openaiWs ||
@@ -232,7 +231,7 @@ export function initOpenAIWebSocketServer(_httpServer) {
           return;
         }
 
-        // Parse message from browser
+        // Nachricht vom Browser parsen
         let message;
         try {
           message = JSON.parse(data.toString());
@@ -241,11 +240,10 @@ export function initOpenAIWebSocketServer(_httpServer) {
           return;
         }
 
-        // Forward audio_input messages to OpenAI IMMEDIATELY
+        // Audio-Nachrichten sofort an OpenAI weiterleiten
         if (message.type === 'input_audio_buffer.append' && openaiWs) {
           if (openaiWs.readyState === 1) {
             try {
-              // OpenAI expects input_audio_buffer.append with base64 audio
               openaiWs.send(JSON.stringify(message));
             } catch (error) {
               logger.error(`Error sending audio to OpenAI: ${error.message}`);
@@ -262,7 +260,7 @@ export function initOpenAIWebSocketServer(_httpServer) {
             }
           }
         }
-        // Forward other message types (response.create, response.cancel, etc.)
+        // Andere Nachrichtentypen weiterleiten (response.create, response.cancel, etc.)
         else if (openaiWs && openaiWs.readyState === 1) {
           try {
             openaiWs.send(JSON.stringify(message));
