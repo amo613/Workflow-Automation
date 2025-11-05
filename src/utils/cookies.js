@@ -4,7 +4,7 @@ export const cookies = {
   getOptions: () => ({
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000, // Expire after 15 minutes
   }),
 

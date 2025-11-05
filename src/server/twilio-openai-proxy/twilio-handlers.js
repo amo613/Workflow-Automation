@@ -139,7 +139,13 @@ export function setupTwilioHandlers({
           messageCallSid: message.call?.sid,
           messageStart: message.start,
           streamSid: message.streamSid,
-          fullMessage: JSON.stringify(message).substring(0, 800),
+          hasCustomParameters: !!message.start?.customParameters,
+          customParametersKeys: message.start?.customParameters
+            ? Object.keys(message.start.customParameters)
+            : [],
+          hasConfigInStart: !!message.start?.customParameters?.config,
+          hasConfigInRoot: !!message.customParameters?.config,
+          fullMessage: JSON.stringify(message).substring(0, 1500),
         });
 
         // Extract callSid from start event if we don't have it yet
@@ -210,6 +216,8 @@ export function setupTwilioHandlers({
                 voice: parsedConfigRef.current.voice,
                 turnDetectionType: parsedConfigRef.current.turn_detection_type,
                 hasConfig: !!parsedConfigRef.current,
+                hasUserId: !!parsedConfigRef.current.userId,
+                userId: parsedConfigRef.current.userId || null,
               }
             );
 

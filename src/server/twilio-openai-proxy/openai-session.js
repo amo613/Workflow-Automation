@@ -2,6 +2,10 @@ import WebSocket from 'ws';
 import logger from '#config/logger.js';
 import { OPENAI_API_KEY } from '#config/env.js';
 import { getCallFrom } from '#utils/ngrok.service.js';
+import { toolsRegistry } from '#tools/tools.registry.js';
+import { db } from '#config/database.js';
+import { integrations } from '#models/integration.model.js';
+import { eq, and } from 'drizzle-orm';
 
 /**
  * OpenAI Session Setup
@@ -13,6 +17,7 @@ export async function setupOpenAIConnection({
   callState,
   onOpenaiWsCreated,
   onSessionReady,
+  userId = null, // Optional: User ID from config
 }) {
   if (!callSid) {
     logger.error(`❌ Cannot setup OpenAI connection - callSid is missing!`);
@@ -59,11 +64,16 @@ export async function setupOpenAIConnection({
       onOpenaiWsCreated(openaiWs);
     }
 
-    openaiWs.on('open', () => {
+    openaiWs.on('open', async () => {
       logger.info(
         `✅ OpenAI Realtime API connection opened for Twilio call: ${callSid}`,
         {
           socketReady: openaiWs?.readyState === 1,
+          hasParsedConfig: !!parsedConfig,
+          hasUserId: !!userId,
+          userId: userId || null,
+          hasToolsInConfig: !!parsedConfig?.tools,
+          toolsInConfigLength: parsedConfig?.tools?.length || 0,
         }
       );
 
@@ -71,6 +81,59 @@ export async function setupOpenAIConnection({
       // OpenAI erwartet das vor allen anderen Nachrichten
       // Wichtig: Wir verwenden audio/pcmu (μ-law) direkt, wie im Twilio-Beispiel
       // Keine Umwandlung nötig - Twilio sendet μ-law und wir nutzen es direkt
+
+      // Load tools dynamically based on user integrations or config
+      let availableTools = parsedConfig?.tools || [];
+
+      logger.info(`🔍 Checking tool loading for call ${callSid}:`, {
+        hasUserId: !!userId,
+        userId: userId || null,
+        hasToolsInConfig: !!parsedConfig?.tools,
+        toolsInConfigLength: parsedConfig?.tools?.length || 0,
+        availableToolsLength: availableTools.length,
+      });
+
+      // If userId is provided, load tools from user integrations
+      // IMPORTANT: Check if tools array is empty or undefined, not just truthy
+      // An empty array [] is truthy, but ![] is false, so we need to check length
+      if (userId && (!parsedConfig?.tools || parsedConfig.tools.length === 0)) {
+        try {
+          logger.info(`🔍 Loading tools for user ${userId} in call ${callSid}`);
+          const userIntegrations = await db
+            .select()
+            .from(integrations)
+            .where(
+              and(
+                eq(integrations.user_id, userId),
+                eq(integrations.is_active, true),
+                eq(integrations.is_complete, true)
+              )
+            );
+
+          logger.info(
+            `🔍 Found ${userIntegrations.length} integrations for user ${userId} in call ${callSid}`
+          );
+          availableTools = toolsRegistry.getAvailableTools(userIntegrations);
+
+          logger.info(
+            `📦 Loaded ${availableTools.length} tools for user ${userId} in call ${callSid}`,
+            {
+              toolNames: availableTools.map(t => t.name),
+            }
+          );
+        } catch (error) {
+          logger.error(`Error loading tools for user ${userId}:`, error);
+          // Continue with empty tools array
+        }
+      } else {
+        logger.warn(`⚠️ NOT loading tools for call ${callSid}:`, {
+          hasUserId: !!userId,
+          userId: userId || null,
+          hasToolsInConfig: !!parsedConfig?.tools,
+          toolsInConfigLength: parsedConfig?.tools?.length || 0,
+        });
+      }
+
       const sessionConfig = {
         type: 'session.update',
         session: {
@@ -110,7 +173,7 @@ export async function setupOpenAIConnection({
               voice: parsedConfig?.voice || 'alloy',
             },
           },
-          tools: parsedConfig?.tools || [],
+          tools: availableTools,
           tool_choice: parsedConfig?.tool_choice || 'auto',
         },
       };

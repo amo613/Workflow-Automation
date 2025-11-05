@@ -42,7 +42,12 @@ export class WebSocketClient {
 
       // Connect to our server WebSocket proxy with config
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/api/openai-realtime/connect?sessionId=test-${Date.now()}&config=${encodeURIComponent(configParam)}`;
+      // Read auth token from cookie (if present) and pass in query to ensure WS upgrade sees it
+      const cookieMap = Object.fromEntries(
+        document.cookie.split(';').map(c => c.trim().split('='))
+      );
+      const authToken = cookieMap.token || '';
+      const wsUrl = `${protocol}//${window.location.host}/api/openai-realtime/connect?sessionId=test-${Date.now()}&config=${encodeURIComponent(configParam)}${authToken ? `&auth=${encodeURIComponent(authToken)}` : ''}`;
 
       this.logFn('🔄 Creating WebSocket connection to server proxy...', 'info');
       this.socket = new WebSocket(wsUrl);

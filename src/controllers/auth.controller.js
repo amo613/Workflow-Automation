@@ -73,7 +73,15 @@ export const signIn = async (req, res, next) => {
     cookies.set(res, 'token', token);
 
     logger.info(`User signed in successfully: ${email}`);
-    res.status(200).json({
+    const redirectTo = req.query.redirectTo;
+    const accept = req.headers['accept'] || '';
+    if (
+      redirectTo ||
+      (typeof accept === 'string' && accept.includes('text/html'))
+    ) {
+      return res.redirect(302, redirectTo || '/api/test-openai');
+    }
+    return res.status(200).json({
       message: 'User signed in successfully',
       user: {
         id: user.id,

@@ -119,6 +119,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           callSid: sid,
           parsedConfig: parsedConfigRef.current,
           callState,
+          userId: parsedConfigRef.current?.userId || null, // Pass userId from config
           onOpenaiWsCreated: ws => {
             openaiWs = ws;
             openaiWsRef.current = ws; // Update Ref immediately
@@ -142,6 +143,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           // Setup OpenAI Handlers
           setupOpenAIHandlers({
             openaiWs: newOpenaiWs,
+            userId: parsedConfigRef.current?.userId || null, // Pass userId from config
             callSid: sid,
             callState,
             twilioWs,

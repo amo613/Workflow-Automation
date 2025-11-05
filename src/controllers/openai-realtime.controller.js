@@ -152,6 +152,8 @@ export const makeOutboundCall = async (req, res) => {
       });
     }
 
+    const userId = req.user?.id || null;
+
     let configParams = null;
     if (config) {
       const validation = openAIRealtimeConfigService.validateConfig(config);
@@ -161,7 +163,14 @@ export const makeOutboundCall = async (req, res) => {
           errors: validation.errors,
         });
       }
-      configParams = config;
+      configParams = { ...config };
+    }
+
+    // CRITICAL: Add userId to configParams so it's available in Twilio calls
+    if (userId && configParams) {
+      configParams.userId = userId;
+    } else if (userId && !configParams) {
+      configParams = { userId };
     }
 
     // Create phone-call job
@@ -179,11 +188,11 @@ export const makeOutboundCall = async (req, res) => {
         ? `${toNumber.length} numbers`
         : toNumber,
       hasConfig: !!configParams,
+      hasUserId: !!userId,
+      userId,
       provider: jobData.provider,
       jobDataKeys: Object.keys(jobData),
     });
-
-    const userId = req.user?.id || null;
     const job = await createJob('phone-call', jobData, options || {}, userId);
 
     const numberCount = Array.isArray(toNumber) ? toNumber.length : 1;

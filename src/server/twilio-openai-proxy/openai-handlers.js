@@ -1,4 +1,8 @@
 import logger from '#config/logger.js';
+import { toolsRegistry } from '#tools/tools.registry.js';
+import { db } from '#config/database.js';
+import { integrations } from '#models/integration.model.js';
+import { eq, and } from 'drizzle-orm';
 
 /**
  * OpenAI Message Handlers
@@ -15,6 +19,7 @@ export function setupOpenAIHandlers({
   mediaSequenceNumberRef,
   onSessionReady,
   onAudioBufferFlush,
+  userId = null, // Optional: User ID from config
 }) {
   openaiWs.on('message', data => {
     try {
@@ -49,7 +54,11 @@ export function setupOpenAIHandlers({
         });
       }
       // Handle response.output_item.done - output item complete
-      else if (message.type === 'response.output_item.done') {
+      // BUT: Skip function_call types - they are handled below by the tool call handler
+      else if (
+        message.type === 'response.output_item.done' &&
+        message.item?.type !== 'function_call'
+      ) {
         logger.info(`✅ Output item done for call ${callSid}:`, {
           item: message.item?.type,
         });
@@ -227,9 +236,6 @@ export function setupOpenAIHandlers({
           hasStreamSid: !!streamSid.current,
         });
 
-        // Wenn OpenAI während einer aktiven Response Speech erkennt,
-        // müssen wir manuell response.cancel aufrufen
-
         // Twilio anweisen, das Audio zu stoppen
         if (
           twilioWs.readyState === twilioWs.OPEN &&
@@ -327,6 +333,122 @@ export function setupOpenAIHandlers({
             }
           }
         }
+      }
+      // Handle tool calls - response.output_item.done with function_call type
+      // OpenAI uses "function_call" not "tool_call" in the item type
+      else if (
+        message.type === 'response.output_item.done' &&
+        message.item?.type === 'function_call'
+      ) {
+        const toolCall = message.item;
+        logger.info(`🔧 Tool call received for call ${callSid}:`, {
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          hasArguments: !!toolCall.function?.arguments,
+        });
+
+        // Handle tool call asynchronously
+        (async () => {
+          try {
+            // Get user integrations if userId is provided
+            let userIntegrations = [];
+            if (userId) {
+              userIntegrations = await db
+                .select()
+                .from(integrations)
+                .where(
+                  and(
+                    eq(integrations.user_id, userId),
+                    eq(integrations.integration_type, 'GOOGLE_CALENDAR'),
+                    eq(integrations.is_active, true),
+                    eq(integrations.is_complete, true)
+                  )
+                );
+            }
+
+            // Get integration config for Google Calendar
+            const integrationConfig = userIntegrations.find(
+              i => i.integration_type === 'GOOGLE_CALENDAR'
+            );
+
+            // Get tool handler
+            const toolHandler = toolsRegistry.getToolHandler(toolCall.name);
+
+            if (!toolHandler) {
+              logger.warn(
+                `No handler found for tool ${toolCall.name} for call ${callSid}`
+              );
+
+              // Send error response to OpenAI
+              // OpenAI Realtime API expects function_call_output items via conversation.item.create
+              const callId = toolCall.call_id || toolCall.id;
+
+              openaiWs.send(
+                JSON.stringify({
+                  type: 'conversation.item.create',
+                  item: {
+                    type: 'function_call_output',
+                    call_id: callId,
+                    output: JSON.stringify({
+                      success: false,
+                      error: `Tool handler not found for ${toolCall.name}`,
+                    }),
+                  },
+                })
+              );
+              return;
+            }
+
+            // Execute tool handler
+            const result = await toolHandler(toolCall, {
+              integrationConfig,
+              logger: logger.child({ callSid, toolCallId: toolCall.id }),
+            });
+
+            // Send result back to OpenAI
+            // OpenAI Realtime API expects function_call_output items via conversation.item.create
+            const callId = toolCall.call_id || toolCall.id;
+
+            openaiWs.send(
+              JSON.stringify({
+                type: 'conversation.item.create',
+                item: {
+                  type: 'function_call_output',
+                  call_id: callId,
+                  output: result.output,
+                },
+              })
+            );
+
+            logger.info(`✅ Tool call completed for call ${callSid}:`, {
+              toolCallId: toolCall.id,
+              toolName: toolCall.name,
+            });
+          } catch (error) {
+            logger.error(
+              `❌ Error handling tool call for call ${callSid}:`,
+              error
+            );
+
+            // Send error response to OpenAI
+            // OpenAI Realtime API expects function_call_output items via conversation.item.create
+            const callId = toolCall.call_id || toolCall.id;
+
+            openaiWs.send(
+              JSON.stringify({
+                type: 'conversation.item.create',
+                item: {
+                  type: 'function_call_output',
+                  call_id: callId,
+                  output: JSON.stringify({
+                    success: false,
+                    error: error.message,
+                  }),
+                },
+              })
+            );
+          }
+        })();
       }
       // Log any unknown message types for debugging
       else {

@@ -19,6 +19,7 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import jobsRoutes from '#routes/jobs.routes.js';
 import humeTestRoutes from '#routes/hume-test.routes.js';
 import openaiTestRoutes from '#routes/openai-test.routes.js';
+import googleCalendarRoutes from '#routes/google-calendar.routes.js';
 
 const app = express();
 
@@ -137,12 +138,18 @@ app.get('/api', (req, res) => {
   res.status(200).json({ message: 'API is running!' });
 });
 
+// Simple login page (for browser login)
+app.get('/login', (req, res) => {
+  res.sendFile(process.cwd() + '/src/views/login.html');
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api', humeTestRoutes);
 app.use('/api', openaiTestRoutes);
+app.use('/api/integrations/google-calendar', googleCalendarRoutes);
 
 // 404 handler - but skip for WebSocket upgrade requests
 app.use((req, res) => {

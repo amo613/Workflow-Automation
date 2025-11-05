@@ -134,26 +134,6 @@ export class CallManager {
       });
     }
 
-    // Show/hide Twilio call section toggle
-    const showTwilioToggle = document.createElement('button');
-    showTwilioToggle.className = 'btn-connect';
-    showTwilioToggle.style.marginTop = '20px';
-    showTwilioToggle.style.background = '#6c757d';
-    showTwilioToggle.textContent = '📞 Show Twilio Call Section';
-    showTwilioToggle.addEventListener('click', () => {
-      const callSection = document.getElementById('callSection');
-      if (callSection) {
-        callSection.style.display =
-          callSection.style.display === 'none' ? 'block' : 'none';
-        showTwilioToggle.textContent =
-          callSection.style.display === 'none'
-            ? '📞 Show Twilio Call Section'
-            : '📞 Hide Twilio Call Section';
-      }
-    });
-    const container = document.querySelector('.container');
-    if (container) {
-      container.appendChild(showTwilioToggle);
-    }
+    // Twilio call section is now visible by default; toggle removed
   }
 }

@@ -12,7 +12,8 @@
     "#routes/*": "./src/routes/*",
     "#services/*": "./src/services/*",
     "#utils/*": "./src/utils/*",
-    "#validations/*": "./src/validations/*"
+    "#validations/*": "./src/validations/*",
+    "#tools/*": "./src/tools/*"
   },
   "scripts": {
     "dev": "node --watch src/index.js",
@@ -51,15 +52,18 @@
     "bullmq": "^5.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
     "express": "^5.1.0",
+    "googleapis": "^164.1.0",
     "helmet": "^8.1.0",
     "hume": "^0.15.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "node-cache": "^5.1.2",
     "nodemailer": "^7.0.10",
+    "pg": "^8.16.3",
     "redis": "^4.6.12",
     "twilio": "^5.10.4",
     "uuid": "^10.0.0",

@@ -413,7 +413,7 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
         <div id="transcriptContent" class="transcript-content"></div>
       </div>
 
-      <div class="call-section" id="callSection" style="display: none">
+      <div class="call-section" id="callSection" style="display: block">
         <h2>📞 Outbound Call (Twilio)</h2>
         <div class="input-group">
           <label for="phoneNumber"
@@ -440,6 +440,70 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
         <button id="callBtn" class="btn-call">Make Call</button>
       </div>
 
+      <div class="call-section">
+        <h2>Google Calendar</h2>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+          "
+        >
+          <div
+            id="gcalStatusDot"
+            style="
+              width: 10px;
+              height: 10px;
+              border-radius: 50%;
+              background: #c53030;
+            "
+          ></div>
+          <span id="gcalStatusText">Disconnected</span>
+        </div>
+        <button id="connectGoogle" class="btn-connect">
+          Connect Google Calendar
+        </button>
+        <div id="gcalSettings" style="margin-top: 12px; display: none">
+          <div class="config-row">
+            <div class="input-group">
+              <label>Timezone</label>
+              <input id="gcalTz" placeholder="Europe/Berlin" />
+            </div>
+            <div class="input-group">
+              <label>Min notice (hours)</label>
+              <input id="gcalMinNotice" type="number" min="0" />
+            </div>
+          </div>
+          <div class="config-row">
+            <div class="input-group">
+              <label>Max days in advance</label>
+              <input id="gcalMaxDays" type="number" min="0" />
+            </div>
+            <div class="input-group">
+              <label>Max duration (hours)</label>
+              <input id="gcalMaxDur" type="number" min="1" />
+            </div>
+          </div>
+          <div class="config-row full">
+            <div class="input-group">
+              <label>Mode</label>
+              <select id="gcalMode">
+                <option value="PERSONAL_ASSISTANT">
+                  Personal Assistant (can view, create, update, delete events)
+                </option>
+                <option value="MEETING_SCHEDULER">
+                  Meeting Scheduler (can only create events)
+                </option>
+              </select>
+            </div>
+          </div>
+          <button id="gcalSave" class="btn-save-config">
+            Save Calendar Settings
+          </button>
+        </div>
+      </div>
+
       <div class="log">
         <h2>Log</h2>
         <div id="logContent" class="log-content"></div>
@@ -447,5 +511,125 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
     </div>
 
     <script type="module" src="/js/openai-test/main.js"></script>
+    <script>
+      (function () {
+        const connectBtn = document.getElementById('connectGoogle');
+        const dot = document.getElementById('gcalStatusDot');
+        const txt = document.getElementById('gcalStatusText');
+        const panel = document.getElementById('gcalSettings');
+        const tz = document.getElementById('gcalTz');
+        const minH = document.getElementById('gcalMinNotice');
+        const maxD = document.getElementById('gcalMaxDays');
+        const maxH = document.getElementById('gcalMaxDur');
+        const mode = document.getElementById('gcalMode');
+        const saveBtn = document.getElementById('gcalSave');
+
+        async function refreshStatus() {
+          try {
+            const res = await fetch(
+              '/api/integrations/google-calendar/status',
+              { credentials: 'include' }
+            );
+            if (!res.ok) {
+              dot.style.background = '#c53030';
+              txt.textContent = 'Disconnected';
+              panel.style.display = 'none';
+              return;
+            }
+            const data = await res.json();
+            if (data.connected) {
+              dot.style.background = '#16a34a';
+              txt.textContent = 'Connected';
+              panel.style.display = 'block';
+              if (data.timezone) tz.value = data.timezone;
+              if (data.minimumNoticeHours != null)
+                minH.value = data.minimumNoticeHours;
+              if (data.maximumDaysAdvance != null)
+                maxD.value = data.maximumDaysAdvance;
+              if (data.maximumDurationHours != null)
+                maxH.value = data.maximumDurationHours;
+              if (data.mode) mode.value = data.mode;
+            } else {
+              dot.style.background = '#c53030';
+              txt.textContent = 'Disconnected';
+              panel.style.display = 'none';
+            }
+          } catch (e) {
+            dot.style.background = '#c53030';
+            txt.textContent = 'Disconnected';
+            panel.style.display = 'none';
+          }
+        }
+
+        if (location.search.includes('googleCalendar=connected')) {
+          const url = new URL(location.href);
+          url.searchParams.delete('googleCalendar');
+          history.replaceState({}, '', url);
+        }
+
+        connectBtn &&
+          connectBtn.addEventListener('click', async () => {
+            try {
+              const res = await fetch(
+                '/api/integrations/google-calendar/auth',
+                { credentials: 'include' }
+              );
+              if (!res.ok) {
+                const data = await res
+                  .json()
+                  .catch(() => ({ error: 'Failed to start OAuth' }));
+                throw new Error(data.error || 'Failed to start OAuth');
+              }
+              const data = await res.json();
+              if (data.authUrl) {
+                window.location.href = data.authUrl;
+              } else {
+                alert('Failed to get auth URL');
+              }
+            } catch (e) {
+              alert(e.message);
+            }
+          });
+
+        saveBtn &&
+          saveBtn.addEventListener('click', async () => {
+            try {
+              const res = await fetch(
+                '/api/integrations/google-calendar/settings',
+                {
+                  method: 'PUT',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    timezone: tz.value || undefined,
+                    minimumNoticeHours: minH.value
+                      ? Number(minH.value)
+                      : undefined,
+                    maximumDaysAdvance: maxD.value
+                      ? Number(maxD.value)
+                      : undefined,
+                    maximumDurationHours: maxH.value
+                      ? Number(maxH.value)
+                      : undefined,
+                    mode: mode.value || undefined,
+                  }),
+                }
+              );
+              if (!res.ok) {
+                const data = await res
+                  .json()
+                  .catch(() => ({ error: 'Failed to save' }));
+                throw new Error(data.error || 'Failed to save');
+              }
+              alert('Saved');
+            } catch (e) {
+              alert(e.message);
+            }
+          });
+
+        refreshStatus();
+        setTimeout(refreshStatus, 1500);
+      })();
+    </script>
   </body>
 </html>

@@ -98,9 +98,15 @@ server.on('upgrade', (request, socket, head) => {
         humeWss.emit('connection', ws, request);
       });
     } else if (pathname === '/api/openai-realtime/connect') {
-      logger.info('✅ Routing upgrade to OpenAI WebSocket server');
+      logger.info('✅ Routing upgrade to OpenAI WebSocket server', {
+        cookieHeader: request.headers.cookie ? 'present' : 'missing',
+        queryAuth: urlObj.searchParams.get('auth') ? 'present' : 'missing',
+        fullUrl,
+      });
       openaiWss.handleUpgrade(request, socket, head, ws => {
-        logger.info('✅ OpenAI WebSocket upgrade successful');
+        logger.info('✅ OpenAI WebSocket upgrade successful', {
+          cookieHeader: request.headers.cookie ? 'present' : 'missing',
+        });
         openaiWss.emit('connection', ws, request);
       });
     } else {
