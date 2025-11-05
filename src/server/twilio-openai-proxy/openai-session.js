@@ -70,6 +70,13 @@ export async function setupOpenAIConnection({
         {
           socketReady: openaiWs?.readyState === 1,
           hasParsedConfig: !!parsedConfig,
+          parsedConfigKeys: parsedConfig ? Object.keys(parsedConfig) : [],
+          hasInstructions: !!parsedConfig?.instructions,
+          instructionsType: typeof parsedConfig?.instructions,
+          instructionsValue: parsedConfig?.instructions
+            ? parsedConfig.instructions.substring(0, 100)
+            : null,
+          instructionsLength: parsedConfig?.instructions?.length || 0,
           hasUserId: !!userId,
           userId: userId || null,
           hasToolsInConfig: !!parsedConfig?.tools,
@@ -134,15 +141,37 @@ export async function setupOpenAIConnection({
         });
       }
 
+      // Base system prompt - always present
+      const baseInstructions = `You are a helpful voice assistant. Keep responses brief, natural, and conversational. Respond with audio.
+
+CRITICAL INSTRUCTIONS FOR TOOL USAGE:
+1. When you need to use a tool (like checking calendar or creating events), ALWAYS acknowledge the user FIRST with a brief confirmation BEFORE making the tool call. Examples:
+   - "Alles klar, ich prüfe das mal eben, eine Sekunde."
+   - "Ich checke das gleich für dich."
+   - "Okay, ich trage das gleich ein."
+   - "Ich schaue jetzt nach, einen Moment bitte."
+
+2. After completing the tool call, IMMEDIATELY provide a natural response with the results. Do NOT wait for the user to ask again. The user should not need to prompt you - you should automatically respond once the tool call is complete.
+
+3. If the user says "okay" or "ja" while you're using a tool, still respond with the results as soon as the tool call completes - don't wait for additional prompts.
+
+4. Always be proactive and informative - let the user know what you're doing and what you found.`;
+
+      // Combine with user-specific instructions if available
+      const instructions = parsedConfig?.instructions
+        ? `${baseInstructions}
+
+5. USER-SPECIFIC INSTRUCTIONS:
+${parsedConfig.instructions.trim()}`
+        : baseInstructions;
+
       const sessionConfig = {
         type: 'session.update',
         session: {
           type: 'realtime',
           model: 'gpt-realtime-mini',
           output_modalities: ['audio'],
-          instructions:
-            parsedConfig?.instructions ||
-            'You are a helpful voice assistant. Keep responses brief, natural, and conversational. Respond with audio.',
+          instructions,
           audio: {
             input: {
               format: {

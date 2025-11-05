@@ -424,6 +424,9 @@ export function setupOpenAIHandlers({
               toolCallId: toolCall.id,
               toolName: toolCall.name,
             });
+
+            // Note: We will trigger response.create when we receive conversation.item.done
+            // for the function_call_output, not immediately here
           } catch (error) {
             logger.error(
               `❌ Error handling tool call for call ${callSid}:`,
@@ -447,8 +450,41 @@ export function setupOpenAIHandlers({
                 },
               })
             );
+
+            // Note: We will trigger response.create when we receive conversation.item.done
+            // for the function_call_output, not immediately here
           }
         })();
+      }
+      // Handle conversation.item.done for function_call_output
+      // This is the signal that the tool result has been fully processed
+      // We should trigger a new response here
+      else if (
+        message.type === 'conversation.item.done' &&
+        message.item?.type === 'function_call_output'
+      ) {
+        logger.info(`✅ Function call output processed for call ${callSid}:`, {
+          itemId: message.item.id,
+          callId: message.item.call_id,
+        });
+
+        // Trigger a new response after tool result is fully processed
+        // This ensures the AI automatically responds after completing a tool call
+        if (openaiWs && openaiWs.readyState === 1) {
+          // Small delay to ensure OpenAI has fully processed the function_call_output
+          setTimeout(() => {
+            if (openaiWs && openaiWs.readyState === 1) {
+              openaiWs.send(
+                JSON.stringify({
+                  type: 'response.create',
+                })
+              );
+              logger.info(
+                `🔄 Triggered response.create after function_call_output processed for call ${callSid}`
+              );
+            }
+          }, 100); // 100ms delay to ensure OpenAI has processed the item
+        }
       }
       // Log any unknown message types for debugging
       else {

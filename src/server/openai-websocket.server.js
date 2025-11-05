@@ -220,15 +220,37 @@ export function initOpenAIWebSocketServer(_httpServer) {
           );
         }
 
+        // Base system prompt - always present
+        const baseInstructions = `You are a helpful voice assistant. Keep responses brief, natural, and conversational. Respond with audio.
+
+CRITICAL INSTRUCTIONS FOR TOOL USAGE:
+1. When you need to use a tool (like checking calendar or creating events), ALWAYS acknowledge the user FIRST with a brief confirmation BEFORE making the tool call. Examples:
+   - "Alles klar, ich prüfe das mal eben, eine Sekunde."
+   - "Ich checke das gleich für dich."
+   - "Okay, ich trage das gleich ein."
+   - "Ich schaue jetzt nach, einen Moment bitte."
+
+2. After completing the tool call, IMMEDIATELY provide a natural response with the results. Do NOT wait for the user to ask again. The user should not need to prompt you - you should automatically respond once the tool call is complete.
+
+3. If the user says "okay" or "ja" while you're using a tool, still respond with the results as soon as the tool call completes - don't wait for additional prompts.
+
+4. Always be proactive and informative - let the user know what you're doing and what you found.`;
+
+        // Combine with user-specific instructions if available
+        const instructions = connectionConfig?.instructions
+          ? `${baseInstructions}
+
+5. USER-SPECIFIC INSTRUCTIONS:
+${connectionConfig.instructions.trim()}`
+          : baseInstructions;
+
         sessionConfig = {
           type: 'session.update',
           session: {
             type: 'realtime',
             model: 'gpt-realtime-mini',
             output_modalities: ['audio'],
-            instructions:
-              connectionConfig?.instructions ||
-              'You are a helpful voice assistant. Keep responses brief, natural, and conversational.',
+            instructions,
             audio: {
               input: {
                 format: {
@@ -495,6 +517,40 @@ export function initOpenAIWebSocketServer(_httpServer) {
               // (after we've started handling the tool call asynchronously)
               clientWs.send(JSON.stringify(jsonMsg));
               return; // Don't forward again below
+            }
+
+            // Handle conversation.item.done for function_call_output
+            // This is the signal that the tool result has been fully processed
+            // We should trigger a new response here
+            if (
+              jsonMsg.type === 'conversation.item.done' &&
+              jsonMsg.item?.type === 'function_call_output'
+            ) {
+              logger.info(
+                `✅ Function call output processed for browser session ${sessionId}:`,
+                {
+                  itemId: jsonMsg.item.id,
+                  callId: jsonMsg.item.call_id,
+                }
+              );
+
+              // Trigger a new response after tool result is fully processed
+              // This ensures the AI automatically responds after completing a tool call
+              if (openaiWs && openaiWs.readyState === 1) {
+                // Small delay to ensure OpenAI has fully processed the function_call_output
+                setTimeout(() => {
+                  if (openaiWs && openaiWs.readyState === 1) {
+                    openaiWs.send(
+                      JSON.stringify({
+                        type: 'response.create',
+                      })
+                    );
+                    logger.info(
+                      `🔄 Triggered response.create after function_call_output processed for browser session ${sessionId}`
+                    );
+                  }
+                }, 100); // 100ms delay to ensure OpenAI has processed the item
+              }
             }
 
             // Forward all other messages to browser
