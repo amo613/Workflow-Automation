@@ -17,7 +17,6 @@ import { ExpressAdapter } from '@bull-board/express';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import jobsRoutes from '#routes/jobs.routes.js';
-import humeTestRoutes from '#routes/hume-test.routes.js';
 import openaiTestRoutes from '#routes/openai-test.routes.js';
 import googleCalendarRoutes from '#routes/google-calendar.routes.js';
 
@@ -72,7 +71,7 @@ app.use(
         ],
         workerSrc: ["'self'", 'blob:', 'https://storage.googleapis.com'],
         childSrc: ["'self'", 'blob:'],
-        connectSrc: ["'self'", 'wss:', 'ws:', 'https:', 'https://api.hume.ai'],
+        connectSrc: ["'self'", 'wss:', 'ws:', 'https:'],
       },
     },
   })
@@ -104,9 +103,6 @@ app.use(cookieParser());
 // Serve static files from public directory
 app.use('/js', express.static('src/public/js'));
 
-// Serve Hume SDK from node_modules
-app.use('/node_modules', express.static('node_modules'));
-
 app.use(
   morgan('combined', {
     stream: { write: message => logger.info(message.trim()) },
@@ -114,8 +110,6 @@ app.use(
 );
 
 app.use(cachePerformance());
-
-// Hume test route - add before security middleware to avoid bot detection
 
 app.use(securityMiddleware);
 
@@ -147,7 +141,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/jobs', jobsRoutes);
-app.use('/api', humeTestRoutes);
 app.use('/api', openaiTestRoutes);
 app.use('/api/integrations/google-calendar', googleCalendarRoutes);
 

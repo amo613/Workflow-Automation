@@ -1,8 +1,8 @@
 import logger from '#config/logger.js';
-import { toolsRegistry } from '#tools/tools.registry.js';
-import { db } from '#config/database.js';
-import { integrations } from '#models/integration.model.js';
-import { eq, and } from 'drizzle-orm';
+import {
+  executeToolCall,
+  handleToolCallResponse,
+} from '#utils/openai-tools.utils.js';
 
 /**
  * OpenAI Message Handlers
@@ -341,119 +341,17 @@ export function setupOpenAIHandlers({
         message.item?.type === 'function_call'
       ) {
         const toolCall = message.item;
-        logger.info(`🔧 Tool call received for call ${callSid}:`, {
-          toolCallId: toolCall.id,
-          toolName: toolCall.name,
-          hasArguments: !!toolCall.function?.arguments,
-        });
 
-        // Handle tool call asynchronously
+        // Handle tool call asynchronously using shared utility
         (async () => {
-          try {
-            // Get user integrations if userId is provided
-            let userIntegrations = [];
-            if (userId) {
-              userIntegrations = await db
-                .select()
-                .from(integrations)
-                .where(
-                  and(
-                    eq(integrations.user_id, userId),
-                    eq(integrations.integration_type, 'GOOGLE_CALENDAR'),
-                    eq(integrations.is_active, true),
-                    eq(integrations.is_complete, true)
-                  )
-                );
-            }
-
-            // Get integration config for Google Calendar
-            const integrationConfig = userIntegrations.find(
-              i => i.integration_type === 'GOOGLE_CALENDAR'
-            );
-
-            // Get tool handler
-            const toolHandler = toolsRegistry.getToolHandler(toolCall.name);
-
-            if (!toolHandler) {
-              logger.warn(
-                `No handler found for tool ${toolCall.name} for call ${callSid}`
-              );
-
-              // Send error response to OpenAI
-              // OpenAI Realtime API expects function_call_output items via conversation.item.create
-              const callId = toolCall.call_id || toolCall.id;
-
-              openaiWs.send(
-                JSON.stringify({
-                  type: 'conversation.item.create',
-                  item: {
-                    type: 'function_call_output',
-                    call_id: callId,
-                    output: JSON.stringify({
-                      success: false,
-                      error: `Tool handler not found for ${toolCall.name}`,
-                    }),
-                  },
-                })
-              );
-              return;
-            }
-
-            // Execute tool handler
-            const result = await toolHandler(toolCall, {
-              integrationConfig,
-              logger: logger.child({ callSid, toolCallId: toolCall.id }),
-            });
-
-            // Send result back to OpenAI
-            // OpenAI Realtime API expects function_call_output items via conversation.item.create
-            const callId = toolCall.call_id || toolCall.id;
-
-            openaiWs.send(
-              JSON.stringify({
-                type: 'conversation.item.create',
-                item: {
-                  type: 'function_call_output',
-                  call_id: callId,
-                  output: result.output,
-                },
-              })
-            );
-
-            logger.info(`✅ Tool call completed for call ${callSid}:`, {
-              toolCallId: toolCall.id,
-              toolName: toolCall.name,
-            });
-
-            // Note: We will trigger response.create when we receive conversation.item.done
-            // for the function_call_output, not immediately here
-          } catch (error) {
-            logger.error(
-              `❌ Error handling tool call for call ${callSid}:`,
-              error
-            );
-
-            // Send error response to OpenAI
-            // OpenAI Realtime API expects function_call_output items via conversation.item.create
-            const callId = toolCall.call_id || toolCall.id;
-
-            openaiWs.send(
-              JSON.stringify({
-                type: 'conversation.item.create',
-                item: {
-                  type: 'function_call_output',
-                  call_id: callId,
-                  output: JSON.stringify({
-                    success: false,
-                    error: error.message,
-                  }),
-                },
-              })
-            );
-
-            // Note: We will trigger response.create when we receive conversation.item.done
-            // for the function_call_output, not immediately here
-          }
+          await executeToolCall(
+            toolCall,
+            userId,
+            openaiWs,
+            callSid,
+            'twilio',
+            logger.child({ callSid, toolCallId: toolCall.id })
+          );
         })();
       }
       // Handle conversation.item.done for function_call_output
@@ -463,28 +361,7 @@ export function setupOpenAIHandlers({
         message.type === 'conversation.item.done' &&
         message.item?.type === 'function_call_output'
       ) {
-        logger.info(`✅ Function call output processed for call ${callSid}:`, {
-          itemId: message.item.id,
-          callId: message.item.call_id,
-        });
-
-        // Trigger a new response after tool result is fully processed
-        // This ensures the AI automatically responds after completing a tool call
-        if (openaiWs && openaiWs.readyState === 1) {
-          // Small delay to ensure OpenAI has fully processed the function_call_output
-          setTimeout(() => {
-            if (openaiWs && openaiWs.readyState === 1) {
-              openaiWs.send(
-                JSON.stringify({
-                  type: 'response.create',
-                })
-              );
-              logger.info(
-                `🔄 Triggered response.create after function_call_output processed for call ${callSid}`
-              );
-            }
-          }, 100); // 100ms delay to ensure OpenAI has processed the item
-        }
+        handleToolCallResponse(openaiWs, message, callSid, 'twilio');
       }
       // Log any unknown message types for debugging
       else {

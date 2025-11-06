@@ -4,7 +4,7 @@ import { jobQueue } from '../jobs/jobs.queue.js';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '#config/database.js';
 import { jobs as jobsTable } from '#models/job.model.js';
-import { eq, desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 // BullMQ dashboard categories
 const ALL_BULLMQ_STATES = [
@@ -213,8 +213,7 @@ export const getJobTypes = () => {
 
 export const getJobStats = async () => {
   try {
-    const counts = await jobQueue.getJobCounts();
-    return counts;
+    return await jobQueue.getJobCounts();
   } catch (error) {
     logger.error('Error getting job stats', { error: error.message });
     throw error;

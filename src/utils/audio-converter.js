@@ -2,7 +2,7 @@ import logger from '#config/logger.js';
 
 /**
  * Audio Converter Utilities
- * Converts between Twilio's μ-law format and Hume's PCM Linear16 format
+ * Converts between Twilio's μ-law format and PCM Linear16 format
  */
 
 // μ-law to PCM conversion lookup table (standard ITU-T G.711)
@@ -51,9 +51,9 @@ for (let i = 0; i < 65536; i++) {
 }
 
 /**
- * Convert μ-law (Twilio format) to PCM Linear16 (Hume format)
+ * Convert μ-law (Twilio format) to PCM Linear16 format
  * Twilio: 8-bit μ-law @ 8000Hz
- * Hume: 16-bit PCM Linear16 @ 16000Hz
+ * Output: 16-bit PCM Linear16 @ 16000Hz
  * @param {Buffer} mulawBuffer - μ-law audio buffer (8kHz, 8-bit)
  * @returns {Buffer} PCM Linear16 audio buffer (16kHz, 16-bit)
  */
@@ -89,8 +89,8 @@ export function mulawToPCM16(mulawBuffer) {
 }
 
 /**
- * Convert PCM Linear16 (Hume format) to μ-law (Twilio format)
- * Hume: 16-bit PCM Linear16 @ 16000Hz
+ * Convert PCM Linear16 to μ-law (Twilio format)
+ * Input: 16-bit PCM Linear16 @ 16000Hz
  * Twilio: 8-bit μ-law @ 8000Hz
  * @param {Buffer} pcm16Buffer - PCM Linear16 audio buffer (16kHz, 16-bit)
  * @returns {Buffer} μ-law audio buffer (8kHz, 8-bit)

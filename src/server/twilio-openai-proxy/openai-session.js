@@ -2,15 +2,9 @@ import WebSocket from 'ws';
 import logger from '#config/logger.js';
 import { OPENAI_API_KEY } from '#config/env.js';
 import { getCallFrom } from '#utils/ngrok.service.js';
-import { toolsRegistry } from '#tools/tools.registry.js';
-import { db } from '#config/database.js';
-import { integrations } from '#models/integration.model.js';
-import { eq, and } from 'drizzle-orm';
+import { loadToolsForUser } from '#utils/openai-tools.utils.js';
 
-/**
- * OpenAI Session Setup
- * Erstellt und verwaltet die OpenAI Realtime API Verbindung
- */
+// Creates a connection to the OpenAI Realtime Websocket and sets up the session
 export async function setupOpenAIConnection({
   callSid,
   parsedConfig,
@@ -41,7 +35,7 @@ export async function setupOpenAIConnection({
   }
 
   try {
-    // Verbindung zur OpenAI Realtime API aufbauen
+    // Verbindung zur OpenAI Realtime Socket aufbauen
     // Model und Temperature kommen in die Query-String, wie im Twilio-Beispiel
     const temperature = parsedConfig?.temperature ?? 1.0;
     const openaiUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime-mini&temperature=${temperature}`;
@@ -85,61 +79,15 @@ export async function setupOpenAIConnection({
       );
 
       // Session-Update direkt nach dem Öffnen der Verbindung senden
-      // OpenAI erwartet das vor allen anderen Nachrichten
-      // Wichtig: Wir verwenden audio/pcmu (μ-law) direkt, wie im Twilio-Beispiel
-      // Keine Umwandlung nötig - Twilio sendet μ-law und wir nutzen es direkt
+      // OpenAI braucht das vor allen anderen Nachrichten
 
       // Load tools dynamically based on user integrations or config
-      let availableTools = parsedConfig?.tools || [];
-
-      logger.info(`🔍 Checking tool loading for call ${callSid}:`, {
-        hasUserId: !!userId,
-        userId: userId || null,
-        hasToolsInConfig: !!parsedConfig?.tools,
-        toolsInConfigLength: parsedConfig?.tools?.length || 0,
-        availableToolsLength: availableTools.length,
-      });
-
-      // If userId is provided, load tools from user integrations
-      // IMPORTANT: Check if tools array is empty or undefined, not just truthy
-      // An empty array [] is truthy, but ![] is false, so we need to check length
-      if (userId && (!parsedConfig?.tools || parsedConfig.tools.length === 0)) {
-        try {
-          logger.info(`🔍 Loading tools for user ${userId} in call ${callSid}`);
-          const userIntegrations = await db
-            .select()
-            .from(integrations)
-            .where(
-              and(
-                eq(integrations.user_id, userId),
-                eq(integrations.is_active, true),
-                eq(integrations.is_complete, true)
-              )
-            );
-
-          logger.info(
-            `🔍 Found ${userIntegrations.length} integrations for user ${userId} in call ${callSid}`
-          );
-          availableTools = toolsRegistry.getAvailableTools(userIntegrations);
-
-          logger.info(
-            `📦 Loaded ${availableTools.length} tools for user ${userId} in call ${callSid}`,
-            {
-              toolNames: availableTools.map(t => t.name),
-            }
-          );
-        } catch (error) {
-          logger.error(`Error loading tools for user ${userId}:`, error);
-          // Continue with empty tools array
-        }
-      } else {
-        logger.warn(`⚠️ NOT loading tools for call ${callSid}:`, {
-          hasUserId: !!userId,
-          userId: userId || null,
-          hasToolsInConfig: !!parsedConfig?.tools,
-          toolsInConfigLength: parsedConfig?.tools?.length || 0,
-        });
-      }
+      const availableTools = await loadToolsForUser(
+        userId,
+        callSid,
+        parsedConfig?.tools,
+        'twilio'
+      );
 
       // Base system prompt - always present
       const baseInstructions = `You are a helpful voice assistant. Keep responses brief, natural, and conversational. Respond with audio.
@@ -230,7 +178,6 @@ ${parsedConfig.instructions.trim()}`
       );
 
       // Session nach kurzer Zeit als bereit markieren, um Latenz zu reduzieren
-      // Falls wir schon Audio-Pakete gepuffert haben, senden wir sie sofort
       setTimeout(() => {
         if (onSessionReady) {
           const currentReady = onSessionReady();

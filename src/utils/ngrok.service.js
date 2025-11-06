@@ -9,7 +9,7 @@ let ngrokUrl = null;
 // This is needed because Twilio might not send query params in the upgrade request
 const callSidToConfigMap = new Map();
 
-// Store callSid -> From (caller number) mapping temporarily for Hume metadata
+// Store callSid -> From (caller number) mapping temporarily for OpenAI metadata
 // The From field is only available in the webhook, not in the WebSocket start event
 const callSidToFromMap = new Map();
 
@@ -48,7 +48,7 @@ export function buildWebhookUrl(path) {
 /**
  * Store callSid -> configId mapping for WebSocket connection
  * @param {string} callSid - Twilio Call SID
- * @param {string} configId - Hume EVI Config ID
+ * @param {string} configId - Config ID (legacy, not used for OpenAI)
  */
 export function storeCallConfig(callSid, configId) {
   callSidToConfigMap.set(callSid, configId);
@@ -71,7 +71,7 @@ export function getCallConfig(callSid) {
 }
 
 /**
- * Store callSid -> From (caller number) mapping for Hume metadata
+ * Store callSid -> From (caller number) mapping for OpenAI metadata
  * @param {string} callSid - Twilio Call SID
  * @param {string} fromNumber - Twilio caller number (From field)
  */

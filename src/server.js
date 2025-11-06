@@ -3,8 +3,6 @@ import http from 'http';
 import 'dotenv/config';
 import { configDotenv } from 'dotenv';
 import logger from '#config/logger.js';
-import { initHumeWebSocketServer } from './server/hume-websocket.server.js';
-import { initTwilioHumeProxyServer } from './server/twilio-hume-proxy.server.js';
 import { initOpenAIWebSocketServer } from './server/openai-websocket.server.js';
 import { initTwilioOpenAIProxyServer } from './server/twilio-openai-proxy.server.js';
 import ngrok from '@ngrok/ngrok';
@@ -21,14 +19,6 @@ const server = http.createServer(app);
 // CRITICAL: Initialize WebSocket servers BEFORE registering upgrade handler
 // WebSocket servers must be ready before we handle upgrade requests
 logger.info('Initializing WebSocket servers...');
-
-// Initialize Hume WebSocket proxy server (for browser clients)
-const humeWss = initHumeWebSocketServer(server);
-logger.info('✅ Hume WebSocket server initialized');
-
-// Initialize Twilio-Hume Proxy server (for Twilio calls)
-const twilioWss = initTwilioHumeProxyServer(server);
-logger.info('✅ Twilio-Hume Proxy server initialized');
 
 // Initialize OpenAI WebSocket proxy server (for browser clients)
 const openaiWss = initOpenAIWebSocketServer(server);
@@ -75,27 +65,13 @@ server.on('upgrade', (request, socket, head) => {
     });
 
     // Route to appropriate WebSocket server based on path
-    if (pathname === '/ws/twilio/call') {
-      logger.info('✅ Routing upgrade to Twilio-Hume Proxy server', {
-        queryString: urlObj.search,
-      });
-      twilioWss.handleUpgrade(request, socket, head, ws => {
-        logger.info('✅ Twilio WebSocket upgrade successful');
-        twilioWss.emit('connection', ws, request);
-      });
-    } else if (pathname === '/ws/openai/call') {
+    if (pathname === '/ws/openai/call') {
       logger.info('✅ Routing upgrade to Twilio-OpenAI Proxy server', {
         queryString: urlObj.search,
       });
       twilioOpenaiWss.handleUpgrade(request, socket, head, ws => {
         logger.info('✅ Twilio-OpenAI WebSocket upgrade successful');
         twilioOpenaiWss.emit('connection', ws, request);
-      });
-    } else if (pathname === '/api/hume-evi/connect') {
-      logger.info('✅ Routing upgrade to Hume WebSocket server');
-      humeWss.handleUpgrade(request, socket, head, ws => {
-        logger.info('✅ Hume WebSocket upgrade successful');
-        humeWss.emit('connection', ws, request);
       });
     } else if (pathname === '/api/openai-realtime/connect') {
       logger.info('✅ Routing upgrade to OpenAI WebSocket server', {
@@ -127,9 +103,7 @@ server.listen(PORT, () => {
   logger.info(`🚀 Server listening on http://localhost:${PORT}`);
   logger.info(`🔌 WebSocket upgrade handler registered and ready`);
   logger.info(`📡 Waiting for WebSocket upgrade requests on:`);
-  logger.info(`   - /ws/twilio/call (Twilio Media Streams - Hume)`);
   logger.info(`   - /ws/openai/call (Twilio Media Streams - OpenAI)`);
-  logger.info(`   - /api/hume-evi/connect (Browser clients - Hume)`);
   logger.info(`   - /api/openai-realtime/connect (Browser clients - OpenAI)`);
 
   // Start ngrok tunnel
