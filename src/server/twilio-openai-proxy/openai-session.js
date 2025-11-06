@@ -3,6 +3,8 @@ import logger from '#config/logger.js';
 import { OPENAI_API_KEY } from '#config/env.js';
 import { getCallFrom } from '#utils/ngrok.service.js';
 import { loadToolsForUser } from '#utils/openai-tools.utils.js';
+import { getActiveWorkflow } from '#services/workflow.service.js';
+import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 
 // Creates a connection to the OpenAI Realtime Websocket and sets up the session
 export async function setupOpenAIConnection({
@@ -105,13 +107,46 @@ CRITICAL INSTRUCTIONS FOR TOOL USAGE:
 
 4. Always be proactive and informative - let the user know what you're doing and what you found.`;
 
-      // Combine with user-specific instructions if available
-      const instructions = parsedConfig?.instructions
-        ? `${baseInstructions}
+      // Load active workflow for user if available
+      let workflowPrompt = '';
+      if (userId) {
+        try {
+          const activeWorkflow = await getActiveWorkflow(userId);
+          if (activeWorkflow?.graph_json) {
+            workflowPrompt = compileWorkflowToPrompt(activeWorkflow.graph_json);
+            logger.info(
+              `Loaded active workflow ${activeWorkflow.id} for user ${userId}`,
+              {
+                workflowName: activeWorkflow.name,
+                promptLength: workflowPrompt.length,
+              }
+            );
+          }
+        } catch (error) {
+          logger.error(
+            `Error loading active workflow for user ${userId}:`,
+            error
+          );
+        }
+      }
 
-5. USER-SPECIFIC INSTRUCTIONS:
-${parsedConfig.instructions.trim()}`
-        : baseInstructions;
+      // Combine base instructions with workflow prompt and user-specific instructions
+      let instructions = baseInstructions;
+
+      if (workflowPrompt) {
+        instructions = `${instructions}
+
+WORKFLOW INSTRUCTIONS:
+Follow this workflow structure when interacting with the user:
+${workflowPrompt}`;
+      }
+
+      if (parsedConfig?.instructions) {
+        instructions = `${instructions}
+
+USER-SPECIFIC INSTRUCTIONS:
+${parsedConfig.instructions.trim()}`;
+      }
 
       const sessionConfig = {
         type: 'session.update',

@@ -280,6 +280,26 @@
         Disconnect
       </button>
 
+      <div class="call-section" style="margin-top: 20px">
+        <a
+          href="/workflows"
+          style="
+            display: block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          "
+        >
+          🔧 Workflow Builder
+        </a>
+      </div>
+
       <div class="config-section">
         <h2 id="configToggle">
           ⚙️ Configuration <span id="configToggleIcon">▼</span>
@@ -307,6 +327,23 @@
                 step="0.1"
                 value="1.0"
               />
+            </div>
+          </div>
+          <div class="config-row full">
+            <div class="input-group">
+              <label for="workflowPrompt"
+                >Active Workflow Prompt (Read-only):</label
+              >
+              <textarea
+                id="workflowPrompt"
+                readonly
+                placeholder="No active workflow. Create and activate a workflow in the Workflow Builder."
+                style="
+                  background-color: #e9ecef;
+                  cursor: not-allowed;
+                  color: #495057;
+                "
+              ></textarea>
             </div>
           </div>
           <div class="config-row full">

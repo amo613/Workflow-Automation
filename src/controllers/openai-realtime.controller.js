@@ -2,11 +2,32 @@ import logger from '#config/logger.js';
 import openAIRealtimeConfigService from '#services/openai-realtime-config.service.js';
 import { createJob } from '#services/jobs.service.js';
 import { getNgrokUrl, storeCallFrom } from '#utils/ngrok.service.js';
+import { getActiveWorkflow } from '#services/workflow.service.js';
+import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 
 export const getConfig = async (req, res) => {
   try {
     const defaultConfig = openAIRealtimeConfigService.getDefaultConfig();
-    res.json({ success: true, config: defaultConfig });
+
+    // Load active workflow prompt if user is authenticated
+    let workflowPrompt = '';
+    if (req.user?.id) {
+      try {
+        const activeWorkflow = await getActiveWorkflow(req.user.id);
+        if (activeWorkflow?.graph_json) {
+          workflowPrompt = compileWorkflowToPrompt(activeWorkflow.graph_json);
+        }
+      } catch (error) {
+        // Don't fail the whole request if workflow loading fails
+        logger.warn('Error loading active workflow for config:', error);
+      }
+    }
+
+    res.json({
+      success: true,
+      config: defaultConfig,
+      workflowPrompt: workflowPrompt || null,
+    });
   } catch (error) {
     logger.error('Error getting default config:', error);
     res.status(500).json({

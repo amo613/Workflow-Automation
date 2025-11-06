@@ -39,7 +39,10 @@ docker-compose -f docker-compose.dev.yml up -d --build
 echo "⏳ Waiting for the database to be ready..."
 docker-compose -f docker-compose.dev.yml exec -T neon-local psql -U neon -d neondb -c 'SELECT 1' >/dev/null 2>&1 || sleep 5
 
-# Run migrations with Drizzle inside the container
+# Generate and run migrations with Drizzle inside the container
+echo "📜 Generating database migrations..."
+docker-compose -f docker-compose.dev.yml exec -T app npm run db:generate
+
 echo "📜 Applying latest schema with Drizzle..."
 docker-compose -f docker-compose.dev.yml exec -T app npm run db:migrate
 

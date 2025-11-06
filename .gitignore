@@ -4,3 +4,13 @@ node_modules
 
 # Ignore logs
 logs/
+
+# Ignore build outputs
+dist/
+build/
+*.log
+
+# Ignore coverage
+coverage/
+
+

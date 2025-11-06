@@ -27,7 +27,9 @@
     "db:studio": "drizzle-kit studio",
     "dev:docker": "sh ./scripts/dev.sh",
     "prod:docker": "sh ./scripts/prod.sh",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "ui:build": "cd ui && npm install && npm run build",
+    "ui:dev": "cd ui && npm run dev"
   },
   "repository": {
     "type": "git",

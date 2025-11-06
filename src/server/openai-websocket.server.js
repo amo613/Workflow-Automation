@@ -8,6 +8,8 @@ import {
   executeToolCall,
   handleToolCallResponse,
 } from '#utils/openai-tools.utils.js';
+import { getActiveWorkflow } from '#services/workflow.service.js';
+import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 
 const activeSessions = new Map();
 
@@ -193,12 +195,48 @@ CRITICAL INSTRUCTIONS FOR TOOL USAGE:
 
 4. Always be proactive and informative - let the user know what you're doing and what you found.`;
 
-        const instructions = connectionConfig?.instructions
-          ? `${baseInstructions}
+        // Load active workflow for user if available
+        let workflowPrompt = '';
+        if (userId) {
+          try {
+            const activeWorkflow = await getActiveWorkflow(userId);
+            if (activeWorkflow?.graph_json) {
+              workflowPrompt = compileWorkflowToPrompt(
+                activeWorkflow.graph_json
+              );
+              logger.info(
+                `Loaded active workflow ${activeWorkflow.id} for user ${userId}`,
+                {
+                  workflowName: activeWorkflow.name,
+                  promptLength: workflowPrompt.length,
+                }
+              );
+            }
+          } catch (error) {
+            logger.error(
+              `Error loading active workflow for user ${userId}:`,
+              error
+            );
+          }
+        }
 
-5. USER-SPECIFIC INSTRUCTIONS:
-${connectionConfig.instructions.trim()}`
-          : baseInstructions;
+        // Combine base instructions with workflow prompt and user-specific instructions
+        let instructions = baseInstructions;
+
+        if (workflowPrompt) {
+          instructions = `${instructions}
+
+WORKFLOW INSTRUCTIONS:
+Follow this workflow structure when interacting with the user:
+${workflowPrompt}`;
+        }
+
+        if (connectionConfig?.instructions) {
+          instructions = `${instructions}
+
+USER-SPECIFIC INSTRUCTIONS:
+${connectionConfig.instructions.trim()}`;
+        }
 
         sessionConfig = {
           type: 'session.update',

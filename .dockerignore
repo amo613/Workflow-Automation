@@ -48,33 +48,9 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless/
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
+# Build artifacts (will be built inside container)
+dist/
+build/
 
 # Git
 .git
@@ -116,11 +92,6 @@ tests/
 # Neon Local data
 .neon_local/
 
-# Build artifacts
-dist/
-build/
-
 # Temporary files
 tmp/
 temp/
-

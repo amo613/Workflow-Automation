@@ -19,6 +19,12 @@ export class ConfigManager {
         this.currentConfig = data.config;
         this.applyToForm(data.config);
       }
+
+      // Load active workflow prompt from config response
+      const workflowPromptEl = document.getElementById('workflowPrompt');
+      if (workflowPromptEl) {
+        workflowPromptEl.value = data.workflowPrompt || '';
+      }
     } catch (error) {
       this.logFn(`⚠️ Failed to load default config: ${error.message}`, 'error');
     }

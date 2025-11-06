@@ -67,7 +67,16 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/**', 'coverage/**', 'logs/**', 'drizzle/**'],
+    ignores: [
+      'node_modules/**',
+      'coverage/**',
+      'logs/**',
+      'drizzle/**',
+      'dist/**',
+      'build/**',
+      'ui/node_modules/**',
+      'ui/dist/**',
+    ],
   },
   prettier,
 ];

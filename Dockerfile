@@ -8,11 +8,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (including dev for UI build)
+RUN npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
+
+# Build React UI (needs dev dependencies)
+RUN npm run ui:build
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -38,5 +41,7 @@ CMD ["npm", "run", "dev"]
 
 # Production stage
 FROM base AS production
+# Remove dev dependencies after build
+RUN npm prune --production && npm cache clean --force
 CMD ["npm", "start"]
 
