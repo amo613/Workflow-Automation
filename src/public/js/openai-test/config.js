@@ -34,6 +34,8 @@ export class ConfigManager {
     const prefixPaddingEl = document.getElementById('prefix_padding_ms');
     const silenceDurationEl = document.getElementById('silence_duration_ms');
     const toolWebSearchEl = document.getElementById('tool_web_search');
+    const accountEmailEl = document.getElementById('accountEmail');
+    const emailPasswordEl = document.getElementById('emailPassword');
 
     if (voiceEl) voiceEl.value = config.voice || 'alloy';
     if (temperatureEl) temperatureEl.value = config.temperature || 1.0;
@@ -50,6 +52,8 @@ export class ConfigManager {
       toolWebSearchEl.checked =
         config.tools?.some(t => t.type === 'function') || false;
     }
+    if (accountEmailEl) accountEmailEl.value = config.accountEmail || '';
+    if (emailPasswordEl) emailPasswordEl.value = config.emailPassword || '';
   }
 
   getFromForm() {
@@ -79,6 +83,8 @@ export class ConfigManager {
         document.getElementById('silence_duration_ms')?.value || 500
       ),
       tools: tools.length > 0 ? tools : [],
+      accountEmail: document.getElementById('accountEmail')?.value || '',
+      emailPassword: document.getElementById('emailPassword')?.value || '',
     };
   }
 

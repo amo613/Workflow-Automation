@@ -8,4 +8,6 @@ export const InternalFunctionName = {
   GOOGLE_CALENDAR_UPDATE_EVENT: 'googleCalendarUpdateEvent',
   GOOGLE_CALENDAR_DELETE_EVENT: 'googleCalendarDeleteEvent',
   GOOGLE_CALENDAR_LIST_EVENTS: 'googleCalendarListEvents',
+  // Email
+  EMAIL_SEND: 'emailSend',
 };

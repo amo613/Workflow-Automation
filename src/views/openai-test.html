@@ -380,7 +380,15 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
               />
             </div>
             <div class="input-group">
-              <label>Tools:</label>
+              <span
+                style="
+                  display: block;
+                  margin-bottom: 5px;
+                  color: #333;
+                  font-weight: 500;
+                "
+                >Tools:</span
+              >
               <div style="margin-top: 10px">
                 <div style="margin-bottom: 8px">
                   <input type="checkbox" id="tool_web_search" />
@@ -396,6 +404,36 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
                   </small>
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="config-row full">
+            <div class="input-group">
+              <label
+                for="accountEmail"
+                title="Get this from Gmail App Password settings"
+              >
+                Account Email (Gmail):
+              </label>
+              <input
+                type="email"
+                id="accountEmail"
+                placeholder="your-email@gmail.com (optional - uses ENV if not provided)"
+              />
+            </div>
+          </div>
+          <div class="config-row full">
+            <div class="input-group">
+              <label
+                for="emailPassword"
+                title="Get this from Gmail App Password settings (not your regular password)"
+              >
+                Email Password (App Password):
+              </label>
+              <input
+                type="password"
+                id="emailPassword"
+                placeholder="Your Gmail App Password (optional - uses ENV if not provided)"
+              />
             </div>
           </div>
           <button id="saveConfigBtn" class="btn-save-config">
@@ -467,27 +505,27 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
         <div id="gcalSettings" style="margin-top: 12px; display: none">
           <div class="config-row">
             <div class="input-group">
-              <label>Timezone</label>
+              <label for="gcalTz">Timezone</label>
               <input id="gcalTz" placeholder="Europe/Berlin" />
             </div>
             <div class="input-group">
-              <label>Min notice (hours)</label>
+              <label for="gcalMinNotice">Min notice (hours)</label>
               <input id="gcalMinNotice" type="number" min="0" />
             </div>
           </div>
           <div class="config-row">
             <div class="input-group">
-              <label>Max days in advance</label>
+              <label for="gcalMaxDays">Max days in advance</label>
               <input id="gcalMaxDays" type="number" min="0" />
             </div>
             <div class="input-group">
-              <label>Max duration (hours)</label>
+              <label for="gcalMaxDur">Max duration (hours)</label>
               <input id="gcalMaxDur" type="number" min="1" />
             </div>
           </div>
           <div class="config-row full">
             <div class="input-group">
-              <label>Mode</label>
+              <label for="gcalMode">Mode</label>
               <select id="gcalMode">
                 <option value="PERSONAL_ASSISTANT">
                   Personal Assistant (can view, create, update, delete events)

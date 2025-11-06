@@ -1,23 +1,10 @@
-/**
- * Shared OpenAI Tools Utilities
- * Gemeinsame Logik für Tool-Loading und Execution
- * für Twilio und Browser Sessions
- */
-
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
 import { toolsRegistry } from '#tools/tools.registry.js';
 import logger from '#config/logger.js';
 
-/**
- * Load tools for a user from database
- * @param {number|null} userId - User ID
- * @param {string} sessionIdentifier - Call SID or Session ID for logging
- * @param {Array} configTools - Tools from config (optional, for Twilio)
- * @param {string} sessionType - 'twilio' | 'browser'
- * @returns {Promise<Array>} Array of tool declarations
- */
+// Load tools for a user from database
 export async function loadToolsForUser(
   userId,
   sessionIdentifier,
@@ -79,23 +66,14 @@ export async function loadToolsForUser(
   }
 }
 
-/**
- * Execute a tool call
- * @param {Object} toolCall - Tool call from OpenAI
- * @param {number|null} userId - User ID
- * @param {WebSocket} openaiWs - OpenAI WebSocket connection
- * @param {string} sessionIdentifier - Call SID or Session ID for logging
- * @param {string} sessionType - 'twilio' | 'browser'
- * @param {Object} loggerContext - Logger context (child logger)
- * @returns {Promise<void>}
- */
 export async function executeToolCall(
   toolCall,
   userId,
   openaiWs,
   sessionIdentifier,
   sessionType = 'browser',
-  loggerContext = null
+  loggerContext = null,
+  uiConfig = null
 ) {
   const sessionLogger =
     loggerContext ||
@@ -167,6 +145,8 @@ export async function executeToolCall(
     // Execute tool handler
     const result = await toolHandler(toolCall, {
       integrationConfig,
+      uiConfig, // Pass UI config (e.g., accountEmail, emailPassword) to handlers
+      userId,
       logger: sessionLogger,
     });
 
@@ -199,7 +179,6 @@ export async function executeToolCall(
       error
     );
 
-    // Send error response to OpenAI
     const callId = toolCall.call_id || toolCall.id;
 
     if (openaiWs && openaiWs.readyState === 1) {
@@ -220,13 +199,7 @@ export async function executeToolCall(
   }
 }
 
-/**
- * Handle automatic response after tool call completion
- * @param {WebSocket} openaiWs - OpenAI WebSocket connection
- * @param {Object} message - OpenAI message with conversation.item.done
- * @param {string} sessionIdentifier - Call SID or Session ID for logging
- * @param {string} sessionType - 'twilio' | 'browser'
- */
+// Handle automatic response after tool call completion, have to do it manually
 export function handleToolCallResponse(
   openaiWs,
   message,
@@ -245,7 +218,7 @@ export function handleToolCallResponse(
       }
     );
 
-    // Trigger a new response after tool result is fully processed
+    // Trigger a new response after tool result is fully processed, have to do it manually because OpenAI doesn't support it yet :(
     if (openaiWs && openaiWs.readyState === 1) {
       setTimeout(() => {
         if (openaiWs && openaiWs.readyState === 1) {
@@ -258,7 +231,7 @@ export function handleToolCallResponse(
             `🔄 Triggered response.create after function_call_output processed for ${sessionType} session ${sessionIdentifier}`
           );
         }
-      }, 100); // 100ms delay to ensure OpenAI has processed the item
+      }, 100); // small delay to ensure OpenAI has processed the item otherwise it will be skipped
     }
   }
 }

@@ -303,6 +303,14 @@ ${connectionConfig.instructions.trim()}`
               // DO NOT forward this message to browser yet - we need to send tool_results first
               // We'll forward it after handling the tool call
               (async () => {
+                // Extract UI config (accountEmail, emailPassword) from connectionConfig
+                const uiConfig = connectionConfig
+                  ? {
+                      accountEmail: connectionConfig.accountEmail || null,
+                      emailPassword: connectionConfig.emailPassword || null,
+                    }
+                  : null;
+
                 await executeToolCall(
                   toolCall,
                   userId,
@@ -312,7 +320,8 @@ ${connectionConfig.instructions.trim()}`
                   logger.child({
                     sessionId,
                     toolCallId: toolCall.id,
-                  })
+                  }),
+                  uiConfig
                 );
               })();
 

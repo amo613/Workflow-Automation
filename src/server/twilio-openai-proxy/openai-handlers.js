@@ -4,10 +4,7 @@ import {
   handleToolCallResponse,
 } from '#utils/openai-tools.utils.js';
 
-/**
- * OpenAI Message Handlers
- * Verarbeitet alle Nachrichten von der OpenAI Realtime API
- */
+// Verarbeitet alle Nachrichten von OpenAI Realtime Socket
 export function setupOpenAIHandlers({
   openaiWs,
   callSid,
@@ -343,6 +340,7 @@ export function setupOpenAIHandlers({
         const toolCall = message.item;
 
         // Handle tool call asynchronously using shared utility
+        // For Twilio, there's no UI config, so pass null (will use ENV vars)
         (async () => {
           await executeToolCall(
             toolCall,
@@ -350,7 +348,8 @@ export function setupOpenAIHandlers({
             openaiWs,
             callSid,
             'twilio',
-            logger.child({ callSid, toolCallId: toolCall.id })
+            logger.child({ callSid, toolCallId: toolCall.id }),
+            null // No UI config for Twilio - will use ENV vars
           );
         })();
       }

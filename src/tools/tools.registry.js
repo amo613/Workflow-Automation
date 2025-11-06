@@ -5,6 +5,8 @@ import {
   deleteEventFunctionDeclaration,
 } from './calendar.tools.js';
 import { handleCalendarToolCall } from './calendar.handlers.js';
+import { sendEmailFunctionDeclaration } from './email.tools.js';
+import { handleEmailToolCall } from './email.handlers.js';
 import { InternalFunctionName } from './types.js';
 
 /**
@@ -37,8 +39,11 @@ export class ToolsRegistry {
       }
     }
 
+    // Email tool - always available (no integration required)
+    tools.push(sendEmailFunctionDeclaration());
+
     // Weitere Integrations können hier hinzugefügt werden
-    // z.B. Shopify, Email, etc.
+    // z.B. Shopify, etc.
 
     return tools;
   }
@@ -59,8 +64,13 @@ export class ToolsRegistry {
       return handleCalendarToolCall;
     }
 
+    // Email tool
+    if (functionName === InternalFunctionName.EMAIL_SEND) {
+      return handleEmailToolCall;
+    }
+
     // Weitere Handler können hier hinzugefügt werden
-    // z.B. Shopify, Email, etc.
+    // z.B. Shopify, etc.
 
     return null;
   }

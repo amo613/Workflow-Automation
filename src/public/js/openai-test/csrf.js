@@ -1,5 +1,3 @@
-import logger from '#config/logger.js';
-
 // Get CSRF token from cookie
 export function getCSRFToken() {
   const name = 'csrf-token=';
@@ -64,7 +62,7 @@ export async function fetchWithCSRF(url, options = {}) {
       bodyObj._csrf = token;
       options.body = JSON.stringify(bodyObj);
     } catch (e) {
-      logger.error(e);
+      console.error('Failed to parse JSON body for CSRF token:', e);
     }
   }
 

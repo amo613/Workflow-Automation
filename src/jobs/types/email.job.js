@@ -3,16 +3,6 @@ import { BaseJob } from './base.job.js';
 import logger from '#config/logger.js';
 import { ACCOUNT_EMAIL, EMAIL_PASSWORD } from '#config/env.js';
 
-const accountEmail = ACCOUNT_EMAIL;
-// Create transporter (singleton pattern)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: accountEmail,
-    pass: EMAIL_PASSWORD,
-  },
-});
-
 /**
  * Email Job Executor
  * Sends emails using nodemailer
@@ -66,7 +56,33 @@ export class EmailJob extends BaseJob {
   }
 
   async execute(data) {
-    const { to, subject, html, text } = data;
+    const {
+      to,
+      subject,
+      html,
+      text,
+      accountEmail: dataAccountEmail,
+      emailPassword: dataEmailPassword,
+    } = data;
+
+    // Use UI-provided credentials if available, otherwise fall back to ENV vars
+    const accountEmail = dataAccountEmail || ACCOUNT_EMAIL;
+    const emailPassword = dataEmailPassword || EMAIL_PASSWORD;
+
+    if (!accountEmail || !emailPassword) {
+      throw new Error(
+        'Email credentials not configured. Please provide accountEmail and emailPassword.'
+      );
+    }
+
+    // Create transporter with credentials (per-job, not singleton)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: accountEmail,
+        pass: emailPassword,
+      },
+    });
 
     // Normalize to array - support both single email and array of emails
     const recipients = Array.isArray(to) ? to : [to];
