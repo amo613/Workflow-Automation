@@ -5,7 +5,12 @@ import morgan from 'morgan';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from '#routes/auth.routes.js';
-import securityMiddleware from '#middleware/security.middleware.js';
+
+import {
+  generateCSRFTokenMiddleware,
+  csrfProtection,
+  originCheck,
+} from '#middleware/csrf.middleware.js';
 import userRoutes from '#routes/users.routes.js';
 import cacheRoutes from '#routes/cache.routes.js';
 import { initRedis } from '#config/cache.js';
@@ -39,7 +44,18 @@ createBullBoard({
 });
 app.use('/admin/queues', serverAdapter.getRouter());
 
-// Set a default user-agent if not provided for arcjet bot detection
+// WebSocket upgrade safety net
+app.use((req, res, next) => {
+  if (req.headers.upgrade === 'websocket') {
+    logger.warn(
+      '⚠️ WebSocket upgrade request reached Express middleware (should not happen)'
+    );
+    return;
+  }
+  next();
+});
+
+// Default user-agent for Arcjet bot detection
 app.use((req, res, next) => {
   if (!req.get('User-Agent')) {
     req.headers['user-agent'] = 'acquisitions-app/1.0';
@@ -76,31 +92,13 @@ app.use(
     },
   })
 );
-// CRITICAL: Skip ALL middleware for WebSocket upgrade requests
-// WebSocket upgrades should NOT go through Express middleware at all
-// They are handled directly at the HTTP server level in server.js
-// This middleware is just a safety net - upgrade requests should never reach here
-app.use((req, res, next) => {
-  // Log if an upgrade request somehow reaches Express (should not happen)
-  if (req.headers.upgrade === 'websocket') {
-    logger.warn(
-      '⚠️ WebSocket upgrade request reached Express middleware (should not happen)'
-    );
-    logger.warn(
-      '⚠️ This means the upgrade handler in server.js did not catch it'
-    );
-    // Don't call next() - let the HTTP server handle it
-    return;
-  }
-  next();
-});
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Serve static files from public directory
+// Serve static files
 app.use('/js', express.static('src/public/js'));
 
 app.use(
@@ -111,15 +109,12 @@ app.use(
 
 app.use(cachePerformance());
 
-app.use(securityMiddleware);
-
 app.get('/', (req, res) => {
   res.status(200).send('Hello World!');
 });
 
 app.get('/health', async (req, res) => {
   const cacheHealth = await cacheHealthCheck();
-
   res.status(200).send({
     status: 'OK',
     timestamp: new Date().toISOString(),
@@ -132,23 +127,33 @@ app.get('/api', (req, res) => {
   res.status(200).json({ message: 'API is running!' });
 });
 
-// Simple login page (for browser login)
 app.get('/login', (req, res) => {
   res.sendFile(process.cwd() + '/src/views/login.html');
 });
 
+// Auth routes (special: no CSRF on login/signup, has own protection)
 app.use('/api/auth', authRoutes);
+
+// Protected Routes (Auth + CSRF required)
+// CSRF Token generation for GET requests
+app.use(generateCSRFTokenMiddleware);
+
+// Origin/Referer check (additional security layer for browser clients)
+app.use(originCheck);
+
+// CSRF Protection (skips for Bearer tokens & Cookie headers automatically, for API clients)
+app.use(csrfProtection);
+
+// Protected API routes
 app.use('/api/users', userRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api', openaiTestRoutes);
 app.use('/api/integrations/google-calendar', googleCalendarRoutes);
 
-// 404 handler - but skip for WebSocket upgrade requests
 app.use((req, res) => {
-  // Don't handle WebSocket upgrade requests as 404
   if (req.headers.upgrade === 'websocket' || req.url.startsWith('/ws/')) {
-    return; // Let WebSocket server handle it
+    return;
   }
   res.status(404).json({ error: 'Route not found' });
 });

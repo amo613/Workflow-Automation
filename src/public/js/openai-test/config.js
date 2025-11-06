@@ -3,6 +3,8 @@
  * Handles OpenAI configuration management
  */
 
+import { addCSRFToFetchOptions } from './csrf.js';
+
 export class ConfigManager {
   constructor(logFn) {
     this.logFn = logFn;
@@ -85,11 +87,17 @@ export class ConfigManager {
       const config = this.getFromForm();
 
       // Validate config first
-      const validateResponse = await fetch('/api/test-openai/config/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      });
+      const validateResponse = await fetch(
+        '/api/test-openai/config/validate',
+        addCSRFToFetchOptions({
+          method: 'POST',
+          credentials: 'include', // Include cookies for CSRF token
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(config),
+        })
+      );
 
       const validateData = await validateResponse.json();
       if (!validateData.valid) {

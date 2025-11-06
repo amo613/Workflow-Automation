@@ -3,6 +3,8 @@
  * Handles outbound phone calls via Twilio
  */
 
+import { addCSRFToFetchOptions } from './csrf.js';
+
 export class CallManager {
   constructor(logFn, getConfigFromForm) {
     this.logFn = logFn;
@@ -64,16 +66,20 @@ export class CallManager {
       // Get config from form
       const config = this.getConfigFromForm();
 
-      const response = await fetch('/api/test-openai/call', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          toNumber,
-          config: { ...config, provider: 'openai' },
-        }),
-      });
+      const response = await fetch(
+        '/api/test-openai/call',
+        addCSRFToFetchOptions({
+          method: 'POST',
+          credentials: 'include', // Include cookies for CSRF token
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            toNumber,
+            config: { ...config, provider: 'openai' },
+          }),
+        })
+      );
 
       const data = await response.json();
 

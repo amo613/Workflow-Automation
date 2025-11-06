@@ -591,15 +591,36 @@ You are a helpful voice assistant. Keep responses brief, natural, and conversati
             }
           });
 
+        // Helper function to get CSRF token from cookie
+        function getCSRFToken() {
+          const name = 'csrf-token=';
+          const decodedCookie = decodeURIComponent(document.cookie);
+          const ca = decodedCookie.split(';');
+          for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') {
+              c = c.substring(1);
+            }
+            if (c.indexOf(name) === 0) {
+              return c.substring(name.length, c.length);
+            }
+          }
+          return null;
+        }
+
         saveBtn &&
           saveBtn.addEventListener('click', async () => {
             try {
+              const csrfToken = getCSRFToken();
               const res = await fetch(
                 '/api/integrations/google-calendar/settings',
                 {
                   method: 'PUT',
                   credentials: 'include',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+                  },
                   body: JSON.stringify({
                     timezone: tz.value || undefined,
                     minimumNoticeHours: minH.value

@@ -1,7 +1,7 @@
 import logger from '#config/logger.js';
 import { jobRegistry } from '../jobs/jobs.registry.js';
 import { jobQueue } from '../jobs/jobs.queue.js';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import { db } from '#config/database.js';
 import { jobs as jobsTable } from '#models/job.model.js';
 import { desc, eq } from 'drizzle-orm';
@@ -34,7 +34,7 @@ export const createJob = async (type, data, options = {}, userId = null) => {
       'default',
       { type, data, options, userId },
       {
-        jobId: uuidv4(),
+        jobId: crypto.randomUUID(),
         attempts,
         backoff: { type: 'exponential', delay: 1000 },
         timeout,
