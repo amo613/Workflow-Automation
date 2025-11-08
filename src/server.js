@@ -1,4 +1,5 @@
 import app from './app.js';
+import fastifyApp from './fastify-app.js';
 import http from 'http';
 import 'dotenv/config';
 import { configDotenv } from 'dotenv';
@@ -12,9 +13,44 @@ configDotenv({ quiet: true });
 
 const PORT = process.env.PORT || 3001;
 
+// Track if Fastify is ready
+let fastifyReady = false;
+
+// Hybrid Request Handler: Routes between Express and Fastify
+const requestHandler = (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathname = url.pathname;
+
+  // Routes migrated to Fastify
+  const fastifyRoutes = [
+    '/health',
+    '/api/auth/sign-up',
+    '/api/auth/sign-in',
+    '/api/auth/sign-out',
+  ];
+
+  // Check if pathname matches Fastify routes (exact match or prefix match)
+  const isFastifyRoute =
+    fastifyRoutes.includes(pathname) ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/workflows') ||
+    pathname.startsWith('/api/users') ||
+    pathname.startsWith('/api/cache') ||
+    pathname.startsWith('/api/jobs');
+
+  if (isFastifyRoute && fastifyReady) {
+    // Fastify handles the request (only if ready)
+    fastifyApp.server.emit('request', req, res);
+  } else {
+    // All other routes go to Express (for now)
+    // Also fallback to Express if Fastify is not ready yet
+    app(req, res);
+  }
+};
+
 // CRITICAL: Create HTTP server explicitly (NOT app.listen) to have control over upgrade events
 // This ensures the upgrade handler is registered BEFORE the server starts listening
-const server = http.createServer(app);
+const server = http.createServer(requestHandler);
 
 // CRITICAL: Initialize WebSocket servers BEFORE registering upgrade handler
 // WebSocket servers must be ready before we handle upgrade requests
@@ -97,33 +133,56 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-// NOW start listening - WebSocket servers and upgrade handler are ready
-// IMPORTANT: The upgrade handler is registered BEFORE listen() is called
-server.listen(PORT, () => {
-  logger.info(`🚀 Server listening on http://localhost:${PORT}`);
-  logger.info(`🔌 WebSocket upgrade handler registered and ready`);
-  logger.info(`📡 Waiting for WebSocket upgrade requests on:`);
-  logger.info(`   - /ws/openai/call (Twilio Media Streams - OpenAI)`);
-  logger.info(`   - /api/openai-realtime/connect (Browser clients - OpenAI)`);
+// Initialize Fastify and start server (async wrapper)
+(async () => {
+  try {
+    // Initialize Fastify (must be ready before server starts)
+    await fastifyApp.ready();
+    fastifyReady = true;
+    logger.info('✅ Fastify app initialized and ready');
 
-  // Start ngrok tunnel
-  (async () => {
-    try {
-      const ngrokAuthToken = NGROK_AUTH_TOKEN;
+    // NOW start listening - WebSocket servers and upgrade handler are ready
+    // IMPORTANT: The upgrade handler is registered BEFORE listen() is called
+    server.listen(PORT, () => {
+      logger.info(`🚀 Server listening on http://localhost:${PORT}`);
+      logger.info(`🔌 WebSocket upgrade handler registered and ready`);
+      logger.info(`📡 Waiting for WebSocket upgrade requests on:`);
+      logger.info(`   - /ws/openai/call (Twilio Media Streams - OpenAI)`);
+      logger.info(
+        `   - /api/openai-realtime/connect (Browser clients - OpenAI)`
+      );
+      logger.info(`🔄 Hybrid mode: Express + Fastify running in parallel`);
+      logger.info(`   - /health → Fastify`);
+      logger.info(`   - /api/auth/* → Fastify (migrated)`);
+      logger.info(`   - /api/workflows/* → Fastify (migrated)`);
+      logger.info(`   - /api/users/* → Fastify (migrated)`);
+      logger.info(`   - /api/cache/* → Fastify (migrated)`);
+      logger.info(`   - /api/jobs/* → Fastify (migrated)`);
+      logger.info(`   - All other routes → Express`);
 
-      const listener = await ngrok.connect({
-        addr: PORT,
-        authtoken: ngrokAuthToken,
-      });
+      // Start ngrok tunnel
+      (async () => {
+        try {
+          const ngrokAuthToken = NGROK_AUTH_TOKEN;
 
-      const ngrokPublicUrl = listener.url();
-      setNgrokUrl(ngrokPublicUrl);
+          const listener = await ngrok.connect({
+            addr: PORT,
+            authtoken: ngrokAuthToken,
+          });
 
-      logger.info(`✅ ngrok tunnel established at: ${ngrokPublicUrl}`);
-      logger.info(`🌐 Public URL: ${ngrokPublicUrl}`);
-    } catch (error) {
-      logger.error(`❌ Failed to start ngrok: ${error.message}`);
-      console.error('ngrok error:', error);
-    }
-  })();
-});
+          const ngrokPublicUrl = listener.url();
+          setNgrokUrl(ngrokPublicUrl);
+
+          logger.info(`✅ ngrok tunnel established at: ${ngrokPublicUrl}`);
+          logger.info(`🌐 Public URL: ${ngrokPublicUrl}`);
+        } catch (error) {
+          logger.error(`❌ Failed to start ngrok: ${error.message}`);
+          console.error('ngrok error:', error);
+        }
+      })();
+    });
+  } catch (error) {
+    logger.error('❌ Failed to initialize server:', error);
+    process.exit(1);
+  }
+})();

@@ -1,6 +1,7 @@
 /**
  * Workflow Compiler (Client-side)
  * Converts workflow graph JSON into a prompt string for OpenAI
+ * Uses the new format with 'next' references and node names
  */
 
 /**
@@ -60,6 +61,29 @@ function hasPathFromStartToEnd(nodes, edges) {
 }
 
 /**
+ * Get node name for display (name or id)
+ */
+function getNodeName(node) {
+  if (node.type === 'step' && node.data?.name) {
+    return node.data.name;
+  }
+  return node.id;
+}
+
+/**
+ * Find node by name or id
+ */
+function findNodeByNameOrId(nodes, nameOrId) {
+  // First try to find by name (for step nodes)
+  let node = nodes.find(n => n.type === 'step' && n.data?.name === nameOrId);
+  if (node) return node;
+
+  // Then try to find by id
+  node = nodes.find(n => n.id === nameOrId);
+  return node;
+}
+
+/**
  * Compile workflow graph to prompt text
  * @param {Object} graphJson - Workflow graph with nodes and edges
  * @returns {string} Compiled prompt text
@@ -71,12 +95,16 @@ export function compileWorkflowToPrompt(graphJson) {
     return 'Workflow is empty or invalid.';
   }
 
-  // Build adjacency list to traverse the graph
-  const adjacencyList = {};
+  // Build node map
   const nodeMap = {};
   nodes.forEach(node => {
-    adjacencyList[node.id] = [];
     nodeMap[node.id] = node;
+  });
+
+  // Build adjacency list for fallback (if next is not set)
+  const adjacencyList = {};
+  nodes.forEach(node => {
+    adjacencyList[node.id] = [];
   });
 
   edges.forEach(edge => {
@@ -101,6 +129,28 @@ export function compileWorkflowToPrompt(graphJson) {
     return '  '.repeat(depth);
   }
 
+  // Helper function to get next node reference
+  function getNextNode(currentNode, _depth) {
+    // Try to use 'next' field first
+    if (currentNode.data?.next) {
+      const nextNode = findNodeByNameOrId(nodes, currentNode.data.next);
+      if (nextNode) {
+        return { node: nextNode, name: getNodeName(nextNode) };
+      }
+    }
+
+    // Fallback to edges (for backward compatibility)
+    const children = adjacencyList[currentNode.id] || [];
+    if (children.length > 0) {
+      const nextNode = nodeMap[children[0].target];
+      if (nextNode) {
+        return { node: nextNode, name: getNodeName(nextNode) };
+      }
+    }
+
+    return null;
+  }
+
   // Helper function to traverse and compile (DFS with proper hierarchy)
   function traverse(nodeId, visited = new Set(), depth = 0) {
     if (visited.has(nodeId)) {
@@ -117,71 +167,89 @@ export function compileWorkflowToPrompt(graphJson) {
 
     // Process node based on type
     if (node.type === 'start') {
-      const text = node.data?.text?.trim();
-      if (text) {
-        lines.push(`${indent}START: ${text}`);
+      const action = node.data?.action || node.data?.text || '';
+      const next = getNextNode(node, depth);
+
+      if (action) {
+        lines.push(`${indent}START: ${action}`);
       } else {
         lines.push(`${indent}START`);
       }
+
+      if (next) {
+        lines.push(`${indent}next: "${next.name}"`);
+      }
     } else if (node.type === 'step') {
-      const text = node.data?.text?.trim();
-      if (text) {
-        lines.push(`${indent}STEP: ${text}`);
-      } else {
-        lines.push(`${indent}STEP`);
+      const name = node.data?.name || node.id;
+      const action = node.data?.action || node.data?.text || '';
+      const next = getNextNode(node, depth);
+
+      lines.push(`${indent}STEP: ${name}`);
+      if (action) {
+        lines.push(`${indent}  action: "${action}"`);
+      }
+      if (next) {
+        lines.push(`${indent}  next: "${next.name}"`);
       }
     } else if (node.type === 'if') {
-      const condition = node.data?.condition?.trim();
+      const condition = node.data?.condition || '';
+      const ifTrue = node.data?.ifTrue?.next || '';
+      const ifFalse = node.data?.ifFalse?.next || '';
+
+      // Fallback to edges if next is not set
+      const children = adjacencyList[nodeId] || [];
+      const trueEdge = children.find(c => c.sourceHandle === 'true');
+      const falseEdge = children.find(c => c.sourceHandle === 'false');
+
+      const trueNext = ifTrue
+        ? findNodeByNameOrId(nodes, ifTrue)
+        : trueEdge
+          ? nodeMap[trueEdge.target]
+          : null;
+      const falseNext = ifFalse
+        ? findNodeByNameOrId(nodes, ifFalse)
+        : falseEdge
+          ? nodeMap[falseEdge.target]
+          : null;
+
       if (condition) {
         lines.push(`${indent}IF ${condition}:`);
       } else {
         lines.push(`${indent}IF:`);
       }
+
+      if (trueNext) {
+        const trueLabel = node.data?.trueLabel || 'True';
+        lines.push(`${indent}  → ${trueLabel}:`);
+        lines.push(`${indent}    next: "${getNodeName(trueNext)}"`);
+        if (!visited.has(trueNext.id)) {
+          traverse(trueNext.id, new Set(visited), depth + 2);
+        }
+      }
+
+      if (falseNext) {
+        const falseLabel = node.data?.falseLabel || 'False';
+        lines.push(`${indent}  → ${falseLabel}:`);
+        lines.push(`${indent}    next: "${getNodeName(falseNext)}"`);
+        if (!visited.has(falseNext.id)) {
+          traverse(falseNext.id, new Set(visited), depth + 2);
+        }
+      }
     } else if (node.type === 'end') {
-      const text = node.data?.text?.trim();
-      if (text) {
-        lines.push(`${indent}END: ${text}`);
+      const action = node.data?.action || node.data?.text || '';
+      if (action) {
+        lines.push(`${indent}END: ${action}`);
       } else {
         lines.push(`${indent}END`);
       }
       return; // End node, stop traversal
     }
 
-    // Traverse children
-    const children = adjacencyList[nodeId] || [];
-
-    // For IF nodes, group children by sourceHandle (true/false)
-    if (node.type === 'if') {
-      const trueChildren = children.filter(c => c.sourceHandle === 'true');
-      const falseChildren = children.filter(c => c.sourceHandle === 'false');
-
-      // Process true branch if it exists
-      if (trueChildren.length > 0) {
-        const trueLabel = node.data?.trueLabel || 'True';
-        lines.push(`${indent}  → ${trueLabel}:`);
-        for (const child of trueChildren) {
-          if (!visited.has(child.target)) {
-            traverse(child.target, new Set(visited), depth + 2);
-          }
-        }
-      }
-
-      // Process false branch if it exists
-      if (falseChildren.length > 0) {
-        const falseLabel = node.data?.falseLabel || 'False';
-        lines.push(`${indent}  → ${falseLabel}:`);
-        for (const child of falseChildren) {
-          if (!visited.has(child.target)) {
-            traverse(child.target, new Set(visited), depth + 2);
-          }
-        }
-      }
-    } else {
-      // For non-IF nodes, traverse all children normally
-      for (const child of children) {
-        if (!visited.has(child.target)) {
-          traverse(child.target, new Set(visited), depth + 1);
-        }
+    // For non-IF nodes, continue traversal if not already handled
+    if (node.type !== 'if' && node.type !== 'end') {
+      const next = getNextNode(node, depth);
+      if (next && !visited.has(next.node.id)) {
+        traverse(next.node.id, new Set(visited), depth + 1);
       }
     }
   }

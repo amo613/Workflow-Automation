@@ -1,5 +1,12 @@
 import logger from '#config/logger.js';
 import { jwttoken } from '#utils/jwt.js';
+import { cookies } from '#utils/cookies.js';
+import { createExpressLikeReqRes } from '#middleware/fastify-helpers.js';
+
+// Helper: Get cookie maxAge from cookie options
+const getCookieMaxAge = () => {
+  return cookies.getAuthOptions().maxAge;
+};
 
 // Hybrid Authentication Middleware to support both API clients and browser clients and still be secured against CSRF attacks
 export const authenticateToken = (req, res, next) => {
@@ -67,7 +74,31 @@ export const authenticateToken = (req, res, next) => {
       });
     }
 
+    // Verify JWT token
     const decoded = jwttoken.verify(token);
+
+    // Check cookie expiration for cookie-based authentication
+    if (authMethod === 'cookie' || authMethod === 'cookie-header') {
+      const cookieMaxAge = getCookieMaxAge();
+      const tokenIssuedAt = decoded.iat * 1000; // Convert to milliseconds (JWT iat is in seconds)
+      const tokenAge = Date.now() - tokenIssuedAt;
+
+      if (tokenAge > cookieMaxAge) {
+        logger.warn('Authentication failed - cookie expired', {
+          path: req.path,
+          method: req.method,
+          tokenAge,
+          cookieMaxAge,
+          tokenIssuedAt: new Date(tokenIssuedAt).toISOString(),
+          email: decoded.email,
+        });
+        return res.status(401).json({
+          error: 'Authentication failed',
+          message: 'Cookie expired. Please log in again.',
+        });
+      }
+    }
+
     req.user = decoded;
     req.authMethod = authMethod;
 
@@ -120,5 +151,46 @@ export const requireRole = allowedRoles => {
         message: 'Error during role verification',
       });
     }
+  };
+};
+
+// Authentication middleware wrapper for Fastify
+export const authenticateTokenFastify = async (request, reply) => {
+  const { req, res } = createExpressLikeReqRes(request, reply);
+  req.user = null;
+  req.isApiClient = false;
+
+  return new Promise((resolve, reject) => {
+    const next = err => {
+      if (err) {
+        reject(err);
+      } else {
+        request.user = req.user;
+        request.isApiClient = req.isApiClient;
+        resolve();
+      }
+    };
+
+    authenticateToken(req, res, next);
+  });
+};
+
+// Role requirement middleware wrapper for Fastify
+export const requireRoleFastify = allowedRoles => {
+  return async (request, reply) => {
+    const { req, res } = createExpressLikeReqRes(request, reply);
+    req.user = request.user;
+
+    return new Promise((resolve, reject) => {
+      const next = err => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      };
+
+      requireRole(allowedRoles)(req, res, next);
+    });
   };
 };

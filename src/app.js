@@ -5,15 +5,18 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import authRoutes from '#routes/auth.routes.js';
+// Auth routes moved to Fastify - removed from Express
+// import authRoutes from '#routes/auth.routes.js';
 
 import {
   generateCSRFTokenMiddleware,
   csrfProtection,
   originCheck,
 } from '#middleware/csrf.middleware.js';
-import userRoutes from '#routes/users.routes.js';
-import cacheRoutes from '#routes/cache.routes.js';
+// User routes moved to Fastify - no longer needed here
+// import userRoutes from '#routes/users.routes.js';
+// Cache routes moved to Fastify - no longer needed here
+// import cacheRoutes from '#routes/cache.routes.js';
 import { initRedis } from '#config/cache.js';
 import { cachePerformance, cacheHealthCheck } from '#utils/cache.utils.js';
 import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
@@ -22,10 +25,9 @@ import { jobQueue } from './jobs/jobs.queue.js';
 import { ExpressAdapter } from '@bull-board/express';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
-import jobsRoutes from '#routes/jobs.routes.js';
 import openaiTestRoutes from '#routes/openai-test.routes.js';
 import googleCalendarRoutes from '#routes/google-calendar.routes.js';
-import workflowRoutes from '#routes/workflow.routes.js';
+//import workflowRoutes from '#routes/workflow.routes.js';
 
 const app = express();
 
@@ -133,11 +135,11 @@ app.get('/api', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(process.cwd() + '/src/views/login.html');
+  res.sendFile(process.cwd() + '/ui/login.html');
 });
 
-// Auth routes (special: no CSRF on login/signup, has own protection)
-app.use('/api/auth', authRoutes);
+// Auth routes moved to Fastify - no longer in Express
+// app.use('/api/auth', authRoutes);
 
 // Protected Routes (Auth + CSRF required)
 // CSRF Token generation for GET requests
@@ -150,12 +152,16 @@ app.use(originCheck);
 app.use(csrfProtection);
 
 // Protected API routes
-app.use('/api/users', userRoutes);
-app.use('/api/cache', cacheRoutes);
-app.use('/api/jobs', jobsRoutes);
+// User routes moved to Fastify - no longer in Express
+// app.use('/api/users', userRoutes);
+// Cache routes moved to Fastify - no longer in Express
+// app.use('/api/cache', cacheRoutes);
+// Jobs routes moved to Fastify - no longer in Express
+// app.use('/api/jobs', jobsRoutes);
 app.use('/api', openaiTestRoutes);
 app.use('/api/integrations/google-calendar', googleCalendarRoutes);
-app.use('/api/workflows', workflowRoutes);
+// Workflow routes moved to Fastify - no longer in Express
+// app.use('/api/workflows', workflowRoutes);
 
 // Fallback for SPA routes - serve index.html for all /workflows routes that don't match static files
 // This must come AFTER API routes but BEFORE the 404 handler

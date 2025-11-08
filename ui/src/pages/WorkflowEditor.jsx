@@ -13,6 +13,7 @@ import StartNode from '../components/nodes/StartNode';
 import IfNode from '../components/nodes/IfNode';
 import StepNode from '../components/nodes/StepNode';
 import EndNode from '../components/nodes/EndNode';
+import NodeSidebar from '../components/NodeSidebar';
 import { compileWorkflowToPrompt } from '../utils/workflow-compiler.js';
 
 const nodeTypes = {
@@ -35,6 +36,7 @@ function WorkflowEditor() {
   const [loading, setLoading] = useState(!isNew);
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [compiledPrompt, setCompiledPrompt] = useState('');
+  const [selectedNode, setSelectedNode] = useState(null);
 
   useEffect(() => {
     if (!isNew) {
@@ -46,7 +48,7 @@ function WorkflowEditor() {
           id: 'start-1',
           type: 'start',
           position: { x: 250, y: 100 },
-          data: { label: 'Start', text: '' },
+          data: { label: 'Start', action: '', next: '' },
         },
       ]);
       setEdges([]);
@@ -71,13 +73,19 @@ function WorkflowEditor() {
       setDescription(workflow.description || '');
 
       // Ensure nodes have proper data structure when loading from DB
+      // Support both old format (text) and new format (action, name, next)
       const loadedNodes = (workflow.graph_json.nodes || []).map(node => ({
         ...node,
         data: {
           ...node.data,
-          // Ensure data properties exist even if they're empty
-          text: node.data?.text || '',
+          // Migrate old 'text' to 'action' if needed
+          action: node.data?.action || node.data?.text || '',
+          // Ensure all properties exist
+          name: node.data?.name || '',
           condition: node.data?.condition || '',
+          next: node.data?.next || '',
+          ifTrue: node.data?.ifTrue || { next: '' },
+          ifFalse: node.data?.ifFalse || { next: '' },
           trueLabel: node.data?.trueLabel || 'True',
           falseLabel: node.data?.falseLabel || 'False',
         },
@@ -127,11 +135,16 @@ function WorkflowEditor() {
               : type === 'start'
                 ? 'Start'
                 : 'End',
-        text:
+        // New format
+        action:
           type === 'step' || type === 'start' || type === 'end'
             ? ''
             : undefined,
+        name: type === 'step' ? '' : undefined,
+        next: type === 'end' ? undefined : '',
         condition: type === 'if' ? '' : undefined,
+        ifTrue: type === 'if' ? { next: '' } : undefined,
+        ifFalse: type === 'if' ? { next: '' } : undefined,
         trueLabel: type === 'if' ? 'True' : undefined,
         falseLabel: type === 'if' ? 'False' : undefined,
       },
@@ -152,11 +165,20 @@ function WorkflowEditor() {
             newData,
             updatedData,
           });
-          return { ...node, data: updatedData };
+          const updatedNode = { ...node, data: updatedData };
+          // Update selected node if it's the one being updated
+          if (selectedNode && selectedNode.id === nodeId) {
+            setSelectedNode(updatedNode);
+          }
+          return updatedNode;
         }
         return node;
       })
     );
+  };
+
+  const onNodeClick = (event, node) => {
+    setSelectedNode(node);
   };
 
   const handleShowPrompt = () => {
@@ -283,176 +305,227 @@ function WorkflowEditor() {
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          fontSize: '18px',
+          color: '#667eea',
+          fontWeight: 600,
+        }}
+      >
+        <div
+          style={{
+            padding: '24px 48px',
+            background: 'white',
+            borderRadius: '24px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          ✨ Loading workflow...
+        </div>
+      </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div
+        id="workflow-header"
         style={{
-          padding: '1rem 2rem',
-          background: 'white',
-          borderBottom: '1px solid #e0e0e0',
+          padding: '0.75rem 1.5rem',
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(102, 126, 234, 0.1)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
         }}
       >
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Workflow Name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              flex: 1,
-            }}
-          />
-          <input
-            type="text"
-            placeholder="Description (optional)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            style={{
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              flex: 1,
-            }}
-          />
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{
-              padding: '0.5rem 1.5rem',
-              background: saving ? '#ccc' : '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-          <button
-            onClick={handleShowPrompt}
-            style={{
-              padding: '0.5rem 1.5rem',
-              background: '#17a2b8',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            📄 View Prompt
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '0.5rem 1.5rem',
-              background: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-        </div>
         <div
           style={{
-            marginTop: '1rem',
             display: 'flex',
-            gap: '0.5rem',
+            gap: '0.75rem',
+            alignItems: 'center',
+            flexWrap: 'nowrap',
           }}
         >
-          <button
-            onClick={() => addNode('step')}
+          <input
+            type="text"
+            placeholder="✨ Workflow Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="bubble-input"
             style={{
-              padding: '0.5rem 1rem',
-              background: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
+              flex: '0 1 200px',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              padding: '0.5rem 0.75rem',
+            }}
+          />
+          <input
+            type="text"
+            placeholder="📝 Description"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            className="bubble-input"
+            style={{
+              flex: '0 1 180px',
               fontSize: '0.875rem',
+              padding: '0.5rem 0.75rem',
+            }}
+          />
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginLeft: 'auto',
+              flexShrink: 0,
             }}
           >
-            + Step Node
-          </button>
-          <button
-            onClick={() => addNode('if')}
+            <button
+              onClick={() => addNode('step')}
+              className="bubble-btn"
+              style={{
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.8rem',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              }}
+            >
+              ➕ Step
+            </button>
+            <button
+              onClick={() => addNode('if')}
+              className="bubble-btn"
+              style={{
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.8rem',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              }}
+            >
+              🔀 If
+            </button>
+            <button
+              onClick={() => addNode('end')}
+              className="bubble-btn"
+              style={{
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.8rem',
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              }}
+            >
+              🏁 End
+            </button>
+          </div>
+          <div
             style={{
-              padding: '0.5rem 1rem',
-              background: '#ffc107',
-              color: '#333',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
+              display: 'flex',
+              gap: '0.5rem',
+              flexShrink: 0,
             }}
           >
-            + If Node
-          </button>
-          <button
-            onClick={() => addNode('end')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-            }}
-          >
-            + End Node
-          </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="bubble-btn"
+              style={{
+                padding: '0.4rem 0.9rem',
+                fontSize: '0.8rem',
+                background: saving
+                  ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
+                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                opacity: saving ? 0.6 : 1,
+                cursor: saving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? '💾...' : '💾 Save'}
+            </button>
+            <button
+              onClick={handleShowPrompt}
+              className="bubble-btn"
+              style={{
+                padding: '0.4rem 0.9rem',
+                fontSize: '0.8rem',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              }}
+            >
+              📄 Prompt
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="bubble-btn"
+              style={{
+                padding: '0.4rem 0.9rem',
+                fontSize: '0.8rem',
+                background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
+              }}
+            >
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
-      <div style={{ flex: 1, position: 'relative' }}>
-        <ReactFlow
-          nodes={nodes.map(node => {
-            const nodeData = {
-              ...node.data,
-              onNodeUpdate: onNodeUpdate,
-            };
-            // Debug: Log node data to see what's being passed
-            if (
-              node.type === 'start' ||
-              node.type === 'step' ||
-              node.type === 'end'
-            ) {
-              console.log('ReactFlow node data:', {
-                id: node.id,
-                type: node.type,
-                text: nodeData.text,
-                hasOnNodeUpdate: !!nodeData.onNodeUpdate,
-              });
-            }
-            return {
-              ...node,
-              data: nodeData,
-            };
-          })}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            paddingRight: selectedNode ? '400px' : '0',
+            transition: 'padding-right 0.3s',
+            boxSizing: 'border-box',
+          }}
         >
-          <Background />
-          <Controls />
-          <MiniMap />
-        </ReactFlow>
+          <ReactFlow
+            nodes={nodes.map(node => {
+              const nodeData = {
+                ...node.data,
+                onNodeUpdate: onNodeUpdate,
+              };
+              return {
+                ...node,
+                data: nodeData,
+              };
+            })}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
+            fitView
+          >
+            <Background />
+            <Controls />
+            <MiniMap
+              nodeColor={node => {
+                switch (node.type) {
+                  case 'start':
+                    return '#10b981';
+                  case 'step':
+                    return '#667eea';
+                  case 'if':
+                    return '#f59e0b';
+                  case 'end':
+                    return '#ef4444';
+                  default:
+                    return '#94a3b8';
+                }
+              }}
+              nodeStrokeWidth={3}
+              pannable={false}
+              zoomable={false}
+            />
+          </ReactFlow>
+        </div>
+
+        {/* Node Sidebar - inside canvas container */}
+        <NodeSidebar
+          selectedNode={selectedNode}
+          onNodeUpdate={onNodeUpdate}
+          nodes={nodes}
+          edges={edges}
+          onClose={() => setSelectedNode(null)}
+        />
       </div>
 
       {/* Prompt Preview Modal */}

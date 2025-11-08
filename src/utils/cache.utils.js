@@ -5,6 +5,7 @@ import {
   cacheStrategies,
   getCacheStats,
 } from '#middleware/cache.middleware.js';
+import { createExpressLikeReqRes } from '#middleware/fastify-helpers.js';
 import logger from '#config/logger.js';
 
 /**
@@ -240,7 +241,29 @@ export const jobRoutesCache = () => {
   });
 };
 
-// Cache performance middleware
+// Cache middleware for workflow routes
+export const workflowRoutesCache = () => {
+  return cache({
+    ttl: cacheStrategies.medium.ttl,
+    keyGenerator: req => {
+      const userId = req.user?.id || 'anonymous';
+      const path = req.originalUrl.replace('/api/workflows/', '');
+      return cacheKey.custom(
+        'workflows',
+        userId,
+        path,
+        JSON.stringify(req.query)
+      );
+    },
+    tags: ['workflows'],
+    skipIf: req => {
+      // Don't cache POST/PUT/DELETE requests (workflow modifications)
+      return req.method !== 'GET';
+    },
+  });
+};
+
+// Cache performance middleware (Express)
 export const cachePerformance = () => {
   return (req, res, next) => {
     const start = Date.now();
@@ -261,6 +284,75 @@ export const cachePerformance = () => {
     });
 
     next();
+  };
+};
+
+// Cache performance middleware (Fastify)
+export const fastifyCachePerformance = () => {
+  return {
+    onRequest: async request => {
+      request.startTime = Date.now();
+    },
+    onSend: async (request, reply) => {
+      const start = request.startTime || Date.now();
+      const duration = Date.now() - start;
+      const cacheStatus = reply.getHeader('X-Cache') || 'MISS';
+
+      logger.info('Cache Performance', {
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+        duration,
+        cacheStatus,
+        cacheKey: reply.getHeader('X-Cache-Key'),
+        cacheTTL: reply.getHeader('X-Cache-TTL'),
+      });
+    },
+  };
+};
+
+// Cache middleware wrapper for Fastify
+export const cacheMiddlewareFastify = cacheMiddlewareFn => {
+  return async (request, reply) => {
+    const cacheMiddleware = cacheMiddlewareFn();
+
+    const { req, res } = createExpressLikeReqRes(request, reply);
+
+    return new Promise((resolve, reject) => {
+      let responseSent = false;
+
+      // Wrap res.json and res.send to track if response was sent
+      const originalJson = res.json.bind(res);
+      const originalSend = res.send.bind(res);
+
+      res.json = data => {
+        if (!responseSent) {
+          responseSent = true;
+          originalJson(data);
+          resolve();
+        }
+      };
+
+      res.send = data => {
+        if (!responseSent) {
+          responseSent = true;
+          originalSend(data);
+          resolve();
+        }
+      };
+
+      const next = err => {
+        if (err) {
+          reject(err);
+        } else {
+          if (!responseSent) {
+            resolve();
+          }
+        }
+      };
+
+      cacheMiddleware(req, res, next);
+    });
   };
 };
 
@@ -317,8 +409,13 @@ export default {
   authRoutesCache,
   apiRoutesCache,
   jobRoutesCache,
+  workflowRoutesCache,
 
   // Performance
   cachePerformance,
+  fastifyCachePerformance,
   cacheHealthCheck,
+
+  // Fastify helpers
+  cacheMiddlewareFastify,
 };

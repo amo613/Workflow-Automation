@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import logger from '#config/logger.js';
 import { cookies } from '#utils/cookies.js';
+import { cookiesFastify } from '#utils/cookies-fastify.js';
 
 function generateCSRFToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -316,4 +317,117 @@ export const originCheck = (req, res, next) => {
   }
 
   next();
+};
+
+// Helper: Convert Fastify request/reply to Express-like req/res for middleware
+const createExpressLikeReqRes = (request, reply) => {
+  const req = {
+    ...request,
+    headers: request.headers,
+    cookies: request.cookies,
+    body: request.body,
+    params: request.params,
+    query: request.query,
+    user: request.user || null,
+    isApiClient: request.isApiClient || false,
+    ip: request.ip,
+    path: request.url.split('?')[0],
+    method: request.method,
+    originalUrl: request.url,
+    get: key => request.headers[key] || request.headers[key.toLowerCase()],
+  };
+
+  const res = {
+    status: code => {
+      reply.status(code);
+      return res;
+    },
+    json: data => {
+      reply.send(data);
+      return res;
+    },
+    send: data => {
+      reply.send(data);
+      return res;
+    },
+    cookie: (name, value, options) => {
+      cookiesFastify.set(reply, name, value, options);
+      return res;
+    },
+    clearCookie: (name, options) => {
+      cookiesFastify.clear(reply, name, options);
+      return res;
+    },
+    set: (key, value) => {
+      if (typeof key === 'object') {
+        Object.entries(key).forEach(([k, v]) => {
+          reply.header(k, v);
+        });
+      } else {
+        reply.header(key, value);
+      }
+      return res;
+    },
+    get: key => {
+      return reply.getHeader(key);
+    },
+    locals: {},
+  };
+
+  return { req, res };
+};
+
+// CSRF Token Generation Middleware (Fastify Hook)
+export const generateCSRFTokenFastify = async (request, reply) => {
+  const { req, res } = createExpressLikeReqRes(request, reply);
+
+  return new Promise((resolve, reject) => {
+    const next = err => {
+      if (err) {
+        reject(err);
+      } else {
+        // Copy csrfToken from res.locals to request if needed
+        if (res.locals.csrfToken) {
+          request.csrfToken = res.locals.csrfToken;
+        }
+        resolve();
+      }
+    };
+
+    generateCSRFTokenMiddleware(req, res, next);
+  });
+};
+
+// Origin/Referer Check (Fastify Hook)
+export const originCheckFastify = async (request, reply) => {
+  const { req, res } = createExpressLikeReqRes(request, reply);
+
+  return new Promise((resolve, reject) => {
+    const next = err => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    };
+
+    originCheck(req, res, next);
+  });
+};
+
+// CSRF Protection (Fastify Hook)
+export const csrfProtectionFastify = async (request, reply) => {
+  const { req, res } = createExpressLikeReqRes(request, reply);
+
+  return new Promise((resolve, reject) => {
+    const next = err => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    };
+
+    csrfProtection(req, res, next);
+  });
 };

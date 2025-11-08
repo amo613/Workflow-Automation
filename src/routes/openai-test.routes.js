@@ -19,7 +19,7 @@ const __dirname = dirname(__filename);
 
 router.get('/test-openai', authenticateToken, (req, res) => {
   try {
-    const htmlPath = join(__dirname, '../views/openai-test.html');
+    const htmlPath = join(__dirname, '../../ui/openai-test.html');
     const html = readFileSync(htmlPath, 'utf-8');
 
     res.setHeader('Content-Type', 'text/html');
