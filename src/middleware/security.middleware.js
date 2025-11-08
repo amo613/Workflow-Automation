@@ -248,3 +248,28 @@ const securityMiddleware = async (req, res, next) => {
 };
 
 export default securityMiddleware;
+
+// Fastify wrapper for security middleware
+export const securityMiddlewareFastify = async (request, reply) => {
+  const { createExpressLikeReqRes } = await import(
+    '#middleware/fastify-helpers.js'
+  );
+
+  const { req, res } = createExpressLikeReqRes(request, reply);
+
+  return new Promise((resolve, reject) => {
+    const next = err => {
+      if (err) {
+        reject(err);
+      } else {
+        // Copy user from req to request if it was set
+        if (req.user) {
+          request.user = req.user;
+        }
+        resolve();
+      }
+    };
+
+    securityMiddleware(req, res, next);
+  });
+};

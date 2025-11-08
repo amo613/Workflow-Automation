@@ -3,6 +3,9 @@ import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import staticFiles from '@fastify/static';
+import { join } from 'path';
+import { readFileSync } from 'fs';
 import logger from '#config/logger.js';
 import {
   cacheHealthCheck,
@@ -18,11 +21,24 @@ import { workflowRoutesFastify } from '#routes/workflow.routes.js';
 import { userRoutesFastify } from '#routes/users.routes.js';
 import { cacheRoutesFastify } from '#routes/cache.routes.js';
 import { jobsRoutesFastify } from '#routes/jobs.routes.js';
+import { openaiTestRoutesFastify } from '#routes/openai-test.routes.js';
+import { googleCalendarRoutesFastify } from '#routes/google-calendar.routes.js';
+import { initRedis } from '#config/cache.js';
+import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
 
 // Create Fastify instance
 // Note: We disable Fastify's built-in logger and use our own logger instead
 const fastify = Fastify({
   logger: false, // Use our own logger (winston) instead of Pino
+});
+
+// Initialize Redis cache (migrated from Express)
+// This should be initialized before both Express and Fastify use it
+initRedis().catch(err => {
+  logger.warn(
+    'Redis initialization failed, using memory cache only:',
+    err.message
+  );
 });
 
 // Register formbody plugin (for application/x-www-form-urlencoded)
@@ -63,6 +79,116 @@ fastify.register(helmet, {
       connectSrc: ["'self'", 'wss:', 'ws:', 'https:'],
     },
   },
+});
+
+// WebSocket upgrade safety net (migrated from Express)
+fastify.addHook('onRequest', async request => {
+  if (request.headers.upgrade === 'websocket') {
+    logger.warn(
+      '⚠️ WebSocket upgrade request reached Fastify middleware (should not happen)'
+    );
+    return;
+  }
+});
+
+// Default user-agent for Arcjet bot detection (migrated from Express)
+fastify.addHook('onRequest', async request => {
+  if (!request.headers['user-agent']) {
+    request.headers['user-agent'] = 'acquisitions-app/1.0';
+  }
+});
+
+// Morgan-like logging (migrated from Express)
+fastify.addHook('onResponse', async (request, reply) => {
+  const method = request.method;
+  const url = request.url;
+  const statusCode = reply.statusCode;
+  const userAgent = request.headers['user-agent'] || '-';
+  const ip = request.ip || '-';
+
+  logger.info(
+    `${ip} - - [${new Date().toISOString()}] "${method} ${url} HTTP/1.1" ${statusCode} - "${userAgent}"`
+  );
+});
+
+// Register static files plugin (only once - multiple prefixes not supported, so we serve manually)
+// Note: @fastify/static can only be registered once per Fastify instance
+// We'll serve static files manually for different roots
+fastify.register(staticFiles, {
+  root: join(process.cwd(), 'src/public/js'),
+  prefix: '/js/',
+});
+
+// For /workflows, we'll serve static files manually via routes
+// This avoids the sendFile decorator conflict
+fastify.get('/workflows/*', async (request, reply) => {
+  const url = request.url.replace('/workflows', '');
+  const filePath = join(process.cwd(), 'dist/workflows', url);
+
+  try {
+    // Check if it's a static file request (has extension)
+    if (url.includes('.') && !url.endsWith('/')) {
+      const file = readFileSync(filePath);
+      const ext = url.split('.').pop();
+      const contentType =
+        {
+          js: 'application/javascript',
+          css: 'text/css',
+          html: 'text/html',
+          json: 'application/json',
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          svg: 'image/svg+xml',
+          ico: 'image/x-icon',
+        }[ext] || 'application/octet-stream';
+
+      reply.type(contentType);
+      return reply.send(file);
+    } else {
+      // SPA Fallback - serve index.html
+      const indexPath = join(process.cwd(), 'dist/workflows/index.html');
+      const html = readFileSync(indexPath, 'utf-8');
+      reply.type('text/html');
+      return reply.send(html);
+    }
+  } catch (error) {
+    // If file not found, serve index.html (SPA fallback)
+    try {
+      const indexPath = join(process.cwd(), 'dist/workflows/index.html');
+      const html = readFileSync(indexPath, 'utf-8');
+      reply.type('text/html');
+      return reply.send(html);
+    } catch (fallbackError) {
+      logger.warn('Error serving workflow file', {
+        error: fallbackError.message,
+        url,
+      });
+      reply.status(404).send('File not found');
+      throw error;
+    }
+  }
+});
+
+// Root routes
+fastify.get('/', async (request, reply) => {
+  return reply.status(200).send('Hello World!');
+});
+
+fastify.get('/api', async (request, reply) => {
+  return reply.status(200).send({ message: 'API is running!' });
+});
+
+fastify.get('/login', async (request, reply) => {
+  try {
+    const htmlPath = join(process.cwd(), 'ui/login.html');
+    const html = readFileSync(htmlPath, 'utf-8');
+    reply.type('text/html');
+    return reply.send(html);
+  } catch (error) {
+    logger.error('Error serving login page', { error: error.message });
+    reply.status(500).send('Error loading login page');
+    throw error;
+  }
 });
 
 // Health check route (migrated from Express)
@@ -137,6 +263,48 @@ fastify.register(
   },
   { prefix: '' }
 );
+
+// Register openai-test routes with CSRF protection
+fastify.register(
+  async fastify => {
+    // Apply CSRF middleware hooks to all routes in this scope
+    fastify.addHook('onRequest', generateCSRFTokenFastify);
+    fastify.addHook('preHandler', originCheckFastify);
+    fastify.addHook('preHandler', csrfProtectionFastify);
+
+    fastify.register(openaiTestRoutesFastify, { prefix: '/api' });
+  },
+  { prefix: '' }
+);
+
+// Register google-calendar routes with CSRF protection
+fastify.register(
+  async fastify => {
+    // Apply CSRF middleware hooks to all routes in this scope
+    fastify.addHook('onRequest', generateCSRFTokenFastify);
+    fastify.addHook('preHandler', originCheckFastify);
+    fastify.addHook('preHandler', csrfProtectionFastify);
+
+    fastify.register(googleCalendarRoutesFastify, {
+      prefix: '/api/integrations/google-calendar',
+    });
+  },
+  { prefix: '' }
+);
+
+// 404 handler - must come after all routes
+// Skip WebSocket upgrade requests (they are handled by server.js upgrade handler)
+fastify.setNotFoundHandler((request, reply) => {
+  // Skip WebSocket upgrade requests - they are handled by server.js upgrade handler
+  if (
+    request.headers.upgrade === 'websocket' ||
+    request.url.startsWith('/ws/')
+  ) {
+    return; // Let the upgrade handler in server.js handle it
+  }
+
+  reply.status(404).send({ error: 'Route not found' });
+});
 
 // Error handler for Fastify
 fastify.setErrorHandler((error, request, reply) => {

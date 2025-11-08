@@ -36,7 +36,14 @@ const requestHandler = (req, res) => {
     pathname.startsWith('/api/workflows') ||
     pathname.startsWith('/api/users') ||
     pathname.startsWith('/api/cache') ||
-    pathname.startsWith('/api/jobs');
+    pathname.startsWith('/api/jobs') ||
+    pathname.startsWith('/api/test-openai') ||
+    pathname.startsWith('/api/integrations/google-calendar') ||
+    pathname === '/' ||
+    pathname === '/api' ||
+    pathname === '/login' ||
+    pathname.startsWith('/js/') ||
+    pathname.startsWith('/workflows');
 
   if (isFastifyRoute && fastifyReady) {
     // Fastify handles the request (only if ready)
@@ -158,6 +165,12 @@ server.on('upgrade', (request, socket, head) => {
       logger.info(`   - /api/users/* → Fastify (migrated)`);
       logger.info(`   - /api/cache/* → Fastify (migrated)`);
       logger.info(`   - /api/jobs/* → Fastify (migrated)`);
+      logger.info(`   - /api/test-openai/* → Fastify (migrated)`);
+      logger.info(
+        `   - /api/integrations/google-calendar/* → Fastify (migrated)`
+      );
+      logger.info(`   - /, /api, /login → Fastify (migrated)`);
+      logger.info(`   - /js/*, /workflows/* → Fastify (migrated)`);
       logger.info(`   - All other routes → Express`);
 
       // Start ngrok tunnel

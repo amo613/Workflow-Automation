@@ -5,7 +5,17 @@ import { getNgrokUrl, storeCallFrom } from '#utils/ngrok.service.js';
 import { getActiveWorkflow } from '#services/workflow.service.js';
 import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 
+// Helper: Detect if this is Fastify (has reply) or Express (has res)
+const isFastify = reply =>
+  reply &&
+  typeof reply.send === 'function' &&
+  typeof reply.status === 'function';
+
 export const getConfig = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const defaultConfig = openAIRealtimeConfigService.getDefaultConfig();
 
@@ -23,40 +33,75 @@ export const getConfig = async (req, res) => {
       }
     }
 
-    res.json({
+    const response = {
       success: true,
       config: defaultConfig,
       workflowPrompt: workflowPrompt || null,
-    });
+    };
+
+    if (isFastifyRequest) {
+      return reply.send(response);
+    } else {
+      return res.json(response);
+    }
   } catch (error) {
     logger.error('Error getting default config:', error);
-    res.status(500).json({
+    const errorResponse = {
       error: 'Failed to get configuration',
       message: error.message,
-    });
+    };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };
 
 export const validateConfig = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const configParams = req.body;
     const validation = openAIRealtimeConfigService.validateConfig(configParams);
 
     if (validation.valid) {
-      res.json({ success: true, valid: true });
+      const response = { success: true, valid: true };
+      if (isFastifyRequest) {
+        return reply.send(response);
+      } else {
+        return res.json(response);
+      }
     } else {
-      res.status(400).json({
+      const errorResponse = {
         success: false,
         valid: false,
         errors: validation.errors,
-      });
+      };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error('Invalid configuration');
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
   } catch (error) {
     logger.error('Error validating config:', error);
-    res.status(500).json({
+    const errorResponse = {
       error: 'Failed to validate configuration',
       message: error.message,
-    });
+    };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };
 
@@ -66,13 +111,22 @@ export const validateConfig = async (req, res) => {
  * @query {string} [config] - Optional base64 encoded config parameters
  */
 export const twilioWebhook = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const { CallSid, From, To, AccountSid, CallStatus, Direction } = req.body;
-    const configParam = req.query.config;
+    const configParam = req.query?.config;
 
     if (!CallSid) {
       logger.error('Twilio webhook called without CallSid');
-      return res.status(400).send('Missing CallSid');
+      if (isFastifyRequest) {
+        reply.status(400).send('Missing CallSid');
+        throw new Error('Missing CallSid');
+      } else {
+        return res.status(400).send('Missing CallSid');
+      }
     }
 
     // Get ngrok URL for WebSocket endpoint
@@ -81,7 +135,12 @@ export const twilioWebhook = async (req, res) => {
       logger.error(
         'Ngrok URL not available, cannot establish proxy connection'
       );
-      return res.status(503).send('Service temporarily unavailable');
+      if (isFastifyRequest) {
+        reply.status(503).send('Service temporarily unavailable');
+        throw new Error('Service temporarily unavailable');
+      } else {
+        return res.status(503).send('Service temporarily unavailable');
+      }
     }
 
     // Convert HTTP(S) URL to WebSocket URL
@@ -140,11 +199,21 @@ export const twilioWebhook = async (req, res) => {
     });
 
     // Set content type and status explicitly
-    res.status(200).type('text/xml');
-    res.send(twiml);
+    if (isFastifyRequest) {
+      reply.status(200).type('text/xml').send(twiml);
+      return;
+    } else {
+      res.status(200).type('text/xml');
+      return res.send(twiml);
+    }
   } catch (error) {
     logger.error('Error handling Twilio webhook:', error);
-    res.status(500).send('Error processing webhook');
+    if (isFastifyRequest) {
+      reply.status(500).send('Error processing webhook');
+      throw error;
+    } else {
+      return res.status(500).send('Error processing webhook');
+    }
   }
 };
 
@@ -156,21 +225,37 @@ export const twilioWebhook = async (req, res) => {
  * @body {Object} [options] - Optional job options (maxAttempts, timeout, priority)
  */
 export const makeOutboundCall = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const { toNumber, config, options } = req.body;
 
     if (!toNumber) {
-      return res.status(400).json({
+      const errorResponse = {
         error:
           'Phone number is required. Provide "toNumber" as a string or array of strings',
-      });
+      };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error(errorResponse.error);
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
 
     if (typeof toNumber !== 'string' && !Array.isArray(toNumber)) {
-      return res.status(400).json({
+      const errorResponse = {
         error:
           'Phone number "toNumber" must be a string or an array of strings',
-      });
+      };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error(errorResponse.error);
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
 
     const userId = req.user?.id || null;
@@ -179,10 +264,16 @@ export const makeOutboundCall = async (req, res) => {
     if (config) {
       const validation = openAIRealtimeConfigService.validateConfig(config);
       if (!validation.valid) {
-        return res.status(400).json({
+        const errorResponse = {
           error: 'Invalid configuration',
           errors: validation.errors,
-        });
+        };
+        if (isFastifyRequest) {
+          reply.status(400).send(errorResponse);
+          throw new Error('Invalid configuration');
+        } else {
+          return res.status(400).json(errorResponse);
+        }
       }
       configParams = { ...config };
     }
@@ -226,7 +317,7 @@ export const makeOutboundCall = async (req, res) => {
       numberCount,
     });
 
-    res.status(201).json({
+    const response = {
       success: true,
       message: 'Phone call job created and queued',
       jobId: job.id, // Also include jobId at top level for UI compatibility
@@ -237,12 +328,26 @@ export const makeOutboundCall = async (req, res) => {
       },
       toNumber: Array.isArray(toNumber) ? toNumber : [toNumber],
       provider: 'openai',
-    });
+    };
+
+    if (isFastifyRequest) {
+      reply.status(201).send(response);
+      return;
+    } else {
+      return res.status(201).json(response);
+    }
   } catch (error) {
     logger.error('Error creating phone call job:', error);
-    res.status(500).json({
+    const errorResponse = {
       error: 'Failed to create phone call job',
       message: error.message,
-    });
+    };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };

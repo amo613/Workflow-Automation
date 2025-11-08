@@ -5,11 +5,20 @@ import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
 
+// Helper: Detect if this is Fastify (has reply) or Express (has res)
+const isFastify = reply =>
+  reply &&
+  typeof reply.send === 'function' &&
+  typeof reply.status === 'function';
+
 /**
  * GET /api/integrations/google-calendar/auth
  * Startet OAuth Flow - gibt URL zurück
  */
 export const initiateAuth = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
   try {
     const userId = req.user.id;
     const state = { userId, timestamp: Date.now() };
@@ -18,13 +27,26 @@ export const initiateAuth = async (req, res) => {
 
     logger.info(`Initiating Google Calendar OAuth for user ${userId}`);
 
-    res.json({
+    const response = {
       authUrl,
       message: 'Redirect user to this URL to authorize',
-    });
+    };
+
+    if (isFastifyRequest) {
+      return reply.send(response);
+    } else {
+      return res.json(response);
+    }
   } catch (error) {
     logger.error('Error initiating OAuth:', error);
-    res.status(500).json({ error: 'Failed to initiate OAuth' });
+    const errorResponse = { error: 'Failed to initiate OAuth' };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };
 
@@ -33,11 +55,21 @@ export const initiateAuth = async (req, res) => {
  * OAuth Callback - speichert Tokens
  */
 export const handleCallback = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const { code, state } = req.query;
 
     if (!code) {
-      return res.status(400).json({ error: 'Authorization code missing' });
+      const errorResponse = { error: 'Authorization code missing' };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error('Authorization code missing');
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
 
     let stateData;
@@ -45,13 +77,25 @@ export const handleCallback = async (req, res) => {
       stateData = JSON.parse(state);
     } catch (error) {
       logger.error('Error parsing state:', error);
-      return res.status(400).json({ error: 'Invalid state parameter' });
+      const errorResponse = { error: 'Invalid state parameter' };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw error;
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
 
     const userId = stateData.userId;
 
     if (!userId) {
-      return res.status(400).json({ error: 'User ID missing in state' });
+      const errorResponse = { error: 'User ID missing in state' };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error('User ID missing in state');
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
 
     // Exchange code for tokens
@@ -120,13 +164,23 @@ export const handleCallback = async (req, res) => {
 
     // Redirect back to OpenAI test page with success flag
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    res.redirect(`${frontendUrl}/api/test-openai?googleCalendar=connected`);
+    const redirectUrl = `${frontendUrl}/api/test-openai?googleCalendar=connected`;
+
+    if (isFastifyRequest) {
+      return reply.redirect(redirectUrl);
+    } else {
+      return res.redirect(redirectUrl);
+    }
   } catch (error) {
     logger.error('Error handling OAuth callback:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(
-      `${frontendUrl}/integrations/google-calendar/error?message=${encodeURIComponent(error.message)}`
-    );
+    const errorRedirectUrl = `${frontendUrl}/integrations/google-calendar/error?message=${encodeURIComponent(error.message)}`;
+
+    if (isFastifyRequest) {
+      return reply.redirect(errorRedirectUrl);
+    } else {
+      return res.redirect(errorRedirectUrl);
+    }
   }
 };
 
@@ -135,6 +189,10 @@ export const handleCallback = async (req, res) => {
  * Get integration status
  */
 export const getStatus = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const userId = req.user.id;
 
@@ -150,13 +208,18 @@ export const getStatus = async (req, res) => {
       .limit(1);
 
     if (!integration[0]) {
-      return res.json({
+      const response = {
         connected: false,
         isComplete: false,
-      });
+      };
+      if (isFastifyRequest) {
+        return reply.send(response);
+      } else {
+        return res.json(response);
+      }
     }
 
-    res.json({
+    const response = {
       connected: true,
       isComplete: integration[0].is_complete,
       email: integration[0].email,
@@ -165,10 +228,23 @@ export const getStatus = async (req, res) => {
       minimumNoticeHours: integration[0].minimum_notice_hours,
       maximumDaysAdvance: integration[0].maximum_days_advance,
       maximumDurationHours: integration[0].maximum_duration_hours,
-    });
+    };
+
+    if (isFastifyRequest) {
+      return reply.send(response);
+    } else {
+      return res.json(response);
+    }
   } catch (error) {
     logger.error('Error getting integration status:', error);
-    res.status(500).json({ error: 'Failed to get status' });
+    const errorResponse = { error: 'Failed to get status' };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };
 
@@ -177,6 +253,10 @@ export const getStatus = async (req, res) => {
  * Disconnect Google Calendar integration
  */
 export const disconnect = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const userId = req.user.id;
 
@@ -191,13 +271,26 @@ export const disconnect = async (req, res) => {
 
     logger.info(`Disconnected Google Calendar integration for user ${userId}`);
 
-    res.json({
+    const response = {
       success: true,
       message: 'Google Calendar integration disconnected',
-    });
+    };
+
+    if (isFastifyRequest) {
+      return reply.send(response);
+    } else {
+      return res.json(response);
+    }
   } catch (error) {
     logger.error('Error disconnecting integration:', error);
-    res.status(500).json({ error: 'Failed to disconnect integration' });
+    const errorResponse = { error: 'Failed to disconnect integration' };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };
 
@@ -206,6 +299,10 @@ export const disconnect = async (req, res) => {
  * Update integration settings (timezone, notice/duration)
  */
 export const updateSettings = async (req, res) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
   try {
     const userId = req.user.id;
     const {
@@ -228,9 +325,13 @@ export const updateSettings = async (req, res) => {
       .limit(1);
 
     if (!existing) {
-      return res
-        .status(400)
-        .json({ error: 'Google Calendar not connected yet' });
+      const errorResponse = { error: 'Google Calendar not connected yet' };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error('Google Calendar not connected yet');
+      } else {
+        return res.status(400).json(errorResponse);
+      }
     }
 
     await db
@@ -248,9 +349,22 @@ export const updateSettings = async (req, res) => {
       })
       .where(eq(integrations.id, existing.id));
 
-    return res.json({ success: true });
+    const response = { success: true };
+
+    if (isFastifyRequest) {
+      return reply.send(response);
+    } else {
+      return res.json(response);
+    }
   } catch (error) {
     logger.error('Error updating integration settings:', error);
-    res.status(500).json({ error: 'Failed to update settings' });
+    const errorResponse = { error: 'Failed to update settings' };
+
+    if (isFastifyRequest) {
+      reply.status(500).send(errorResponse);
+      throw error;
+    } else {
+      return res.status(500).json(errorResponse);
+    }
   }
 };

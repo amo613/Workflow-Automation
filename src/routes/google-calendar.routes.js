@@ -1,5 +1,4 @@
-import express from 'express';
-import { authenticateToken } from '#middleware/auth.middleware.js';
+import { authenticateTokenFastify } from '#middleware/auth.middleware.js';
 import {
   initiateAuth,
   handleCallback,
@@ -8,13 +7,56 @@ import {
   updateSettings,
 } from '#controllers/google-calendar.controller.js';
 
-const router = express.Router();
+// Fastify plugin function
+export const googleCalendarRoutesFastify = async fastify => {
+  // OAuth Flow
+  // GET /api/integrations/google-calendar/auth
+  fastify.get(
+    '/auth',
+    {
+      preHandler: authenticateTokenFastify,
+    },
+    async (request, reply) => {
+      return initiateAuth(request, reply);
+    }
+  );
 
-// OAuth Flow
-router.get('/auth', authenticateToken, initiateAuth);
-router.get('/callback', handleCallback); // Kein Auth nötig, state enthält userId
-router.get('/status', authenticateToken, getStatus);
-router.put('/settings', authenticateToken, updateSettings);
-router.delete('/', authenticateToken, disconnect);
+  // GET /api/integrations/google-calendar/callback
+  // Kein Auth nötig, state enthält userId
+  fastify.get('/callback', async (request, reply) => {
+    return handleCallback(request, reply);
+  });
 
-export default router;
+  // GET /api/integrations/google-calendar/status
+  fastify.get(
+    '/status',
+    {
+      preHandler: authenticateTokenFastify,
+    },
+    async (request, reply) => {
+      return getStatus(request, reply);
+    }
+  );
+
+  // PUT /api/integrations/google-calendar/settings
+  fastify.put(
+    '/settings',
+    {
+      preHandler: authenticateTokenFastify,
+    },
+    async (request, reply) => {
+      return updateSettings(request, reply);
+    }
+  );
+
+  // DELETE /api/integrations/google-calendar
+  fastify.delete(
+    '/',
+    {
+      preHandler: authenticateTokenFastify,
+    },
+    async (request, reply) => {
+      return disconnect(request, reply);
+    }
+  );
+};
