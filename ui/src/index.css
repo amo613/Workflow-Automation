@@ -215,7 +215,11 @@ body::before {
 }
 
 .react-flow__background {
-  opacity: 0.3;
+  opacity: 0.8;
+}
+
+.react-flow__background-pattern {
+  opacity: 0.9;
 }
 
 /* React Flow Controls - Position higher */

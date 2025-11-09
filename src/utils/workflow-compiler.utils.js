@@ -3,6 +3,8 @@
  * Converts workflow graph JSON into a prompt string for OpenAI
  */
 
+import { toCamelCase, normalizeVariablesInText } from './variable-utils.js';
+
 /**
  * Check if there's a path from start node to end node
  * @param {Array} nodes - Array of workflow nodes
@@ -188,7 +190,46 @@ export function compileWorkflowToPrompt(graphJson) {
     return 'Workflow is empty or invalid.';
   }
 
-  return lines.join('\n');
+  let compiledPrompt = lines.join('\n');
+
+  // Normalize variables in prompt (convert to camelCase)
+  if (
+    graphJson.knowledge_base &&
+    Array.isArray(graphJson.knowledge_base) &&
+    graphJson.knowledge_base.length > 0
+  ) {
+    // Create map of original names to normalized names
+    const variableMap = {};
+    graphJson.knowledge_base.forEach(kb => {
+      if (kb.name && kb.name.trim()) {
+        const original = kb.name.trim();
+        const normalized = kb.normalizedName || toCamelCase(original);
+        if (original !== normalized) {
+          variableMap[original] = normalized;
+        }
+      }
+    });
+
+    // Normalize all variables in the prompt
+    if (Object.keys(variableMap).length > 0) {
+      compiledPrompt = normalizeVariablesInText(compiledPrompt, variableMap);
+    }
+
+    // Add Knowledge Base to prompt with normalized names
+    const knowledgeBaseText = graphJson.knowledge_base
+      .map(kb => {
+        const normalizedName = kb.normalizedName || toCamelCase(kb.name || '');
+        return `- ${normalizedName}: ${kb.text}`;
+      })
+      .join('\n');
+
+    compiledPrompt = `${compiledPrompt}
+
+KNOWLEDGE BASE:
+${knowledgeBaseText}`;
+  }
+
+  return compiledPrompt;
 }
 
 /**
