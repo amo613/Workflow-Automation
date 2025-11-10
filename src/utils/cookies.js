@@ -1,50 +1,44 @@
 import { NODE_ENV } from '#config/env.js';
 
 export const cookies = {
-  // Für Auth Token (JWT) - lax für fetch-Requests, aber weiterhin CSRF-sicher
-  // 'lax' erlaubt Cookies bei same-site fetch-Requests, blockiert aber cross-site
-  // WICHTIG: Muss mit Fastify cookiesFastify.getAuthOptions() übereinstimmen!
+  // Auth Token Cookie (JWT) - 15 Minuten Gültigkeit
+  // sameSite: 'lax' erlaubt fetch-Requests, bleibt aber CSRF-sicher
   getAuthOptions: () => ({
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: 'lax', // Lax für fetch-Requests, aber weiterhin CSRF-sicher (muss mit Fastify übereinstimmen!)
-    maxAge: 15 * 60 * 1000, // Expire after 15 minutes
-    path: '/', // Wichtig: Cookie muss für alle Pfade verfügbar sein
+    sameSite: 'lax',
+    maxAge: 15 * 60 * 1000,
+    path: '/',
   }),
 
-  // Für CSRF Token - muss JavaScript-accessible sein
+  // CSRF Token Cookie - muss von JavaScript lesbar sein
   getCSRFOptions: () => ({
-    httpOnly: false, // Muss von JavaScript lesbar sein
+    httpOnly: false,
     secure: NODE_ENV === 'production',
-    sameSite: 'strict', // Maximale CSRF-Sicherheit
+    sameSite: 'strict',
     maxAge: 15 * 60 * 1000,
   }),
 
-  // Legacy: für Kompatibilität
+  // Standard Cookie-Optionen
   getOptions: () => ({
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: 'strict', // Von 'lax' zu 'strict' geändert
+    sameSite: 'strict',
     maxAge: 15 * 60 * 1000,
   }),
 
   set: (res, name, value, options = {}) => {
-    // Für Auth Token: use strict
     if (name === 'token') {
       res.cookie(name, value, {
         ...cookies.getAuthOptions(),
         ...options,
       });
-    }
-    // Für CSRF Token: use strict but httpOnly: false
-    else if (name === 'csrf-token') {
+    } else if (name === 'csrf-token') {
       res.cookie(name, value, {
         ...cookies.getCSRFOptions(),
         ...options,
       });
-    }
-    // Default: strict
-    else {
+    } else {
       res.cookie(name, value, {
         ...cookies.getOptions(),
         ...options,
@@ -53,22 +47,17 @@ export const cookies = {
   },
 
   clear: (res, name, options = {}) => {
-    // Für Auth Token: use strict
     if (name === 'token') {
       res.clearCookie(name, {
         ...cookies.getAuthOptions(),
         ...options,
       });
-    }
-    // Für CSRF Token: use strict but httpOnly: false
-    else if (name === 'csrf-token') {
+    } else if (name === 'csrf-token') {
       res.clearCookie(name, {
         ...cookies.getCSRFOptions(),
         ...options,
       });
-    }
-    // Default: strict
-    else {
+    } else {
       res.clearCookie(name, {
         ...cookies.getOptions(),
         ...options,

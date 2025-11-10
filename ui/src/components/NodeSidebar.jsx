@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toCamelCase } from '../utils/variable-utils.js';
 
-function NodeSidebar({
-  selectedNode,
-  onNodeUpdate,
-  nodes,
-  edges,
-  onClose,
-  knowledgeBase = [],
-}) {
+function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
   const [localData, setLocalData] = useState({});
   const previousValueRef = useRef({});
   const [showVariables, setShowVariables] = useState(false);
@@ -66,33 +59,17 @@ function NodeSidebar({
   const handleBlur = (field, e) => {
     const value = e.target.value;
     if (value && typeof value === 'string') {
-      // Create variable map from knowledge base
-      const variableMap = {};
-      knowledgeBase.forEach(kb => {
-        if (kb.name && kb.name.trim()) {
-          const original = kb.name.trim();
-          const normalized = kb.normalizedName || toCamelCase(original);
-          if (original !== normalized) {
-            variableMap[original] = normalized;
-          }
-        }
-      });
-      const normalizedValue = normalizeVariablesInText(value, variableMap);
+      // Normalize variables in text (simple camelCase conversion)
+      const normalizedValue = normalizeVariablesInText(value, {});
       if (normalizedValue !== value) {
         handleUpdate(field, normalizedValue);
       }
     }
   };
 
-  // Get available variables from knowledge base (normalized to camelCase)
+  // Get available variables (empty for call flows - no knowledge base)
   const getAvailableVariables = () => {
-    const variables = knowledgeBase
-      .filter(kb => kb.name && kb.name.trim())
-      .map(kb => {
-        // Use normalizedName if available, otherwise convert to camelCase
-        return kb.normalizedName || toCamelCase(kb.name);
-      });
-    return variables;
+    return [];
   };
 
   // Auto-complete for variables: when { is typed, add } and show variable list

@@ -6,14 +6,14 @@ import { loadToolsForUser } from '#utils/openai-tools.utils.js';
 import { getActiveWorkflow } from '#services/workflow.service.js';
 import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 
-// Creates a connection to the OpenAI Realtime Websocket and sets up the session
+// Erstellt eine Verbindung zum OpenAI Realtime WebSocket und konfiguriert die Session
 export async function setupOpenAIConnection({
   callSid,
   parsedConfig,
   callState,
   onOpenaiWsCreated,
   onSessionReady,
-  userId = null, // Optional: User ID from config
+  userId = null,
 }) {
   if (!callSid) {
     logger.error(`❌ Cannot setup OpenAI connection - callSid is missing!`);
@@ -37,8 +37,6 @@ export async function setupOpenAIConnection({
   }
 
   try {
-    // Verbindung zur OpenAI Realtime Socket aufbauen
-    // Model und Temperature kommen in die Query-String, wie im Twilio-Beispiel
     const temperature = parsedConfig?.temperature ?? 1.0;
     const openaiUrl = `wss://api.openai.com/v1/realtime?model=gpt-realtime-mini&temperature=${temperature}`;
 
@@ -48,14 +46,12 @@ export async function setupOpenAIConnection({
       temperature,
     });
 
-    // Kein OpenAI-Beta Header nötig - einfach Authorization
     const openaiWs = new WebSocket(openaiUrl, {
       headers: {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
     });
 
-    // Notify that WebSocket was created IMMEDIATELY (before it opens)
     if (onOpenaiWsCreated) {
       onOpenaiWsCreated(openaiWs);
     }
@@ -67,6 +63,11 @@ export async function setupOpenAIConnection({
           socketReady: openaiWs?.readyState === 1,
           hasParsedConfig: !!parsedConfig,
           parsedConfigKeys: parsedConfig ? Object.keys(parsedConfig) : [],
+          hasPrompt: !!parsedConfig?.prompt,
+          promptLength: parsedConfig?.prompt?.length || 0,
+          promptPreview: parsedConfig?.prompt
+            ? parsedConfig.prompt.substring(0, 100)
+            : null,
           hasInstructions: !!parsedConfig?.instructions,
           instructionsType: typeof parsedConfig?.instructions,
           instructionsValue: parsedConfig?.instructions
@@ -107,18 +108,35 @@ CRITICAL INSTRUCTIONS FOR TOOL USAGE:
 
 4. Always be proactive and informative - let the user know what you're doing and what you found.`;
 
-      // Load active workflow for user if available
-      let workflowPrompt = '';
-      if (userId) {
+      // Instructions zusammenstellen: Base + Prompt + User-spezifische Instructions
+      let instructions = baseInstructions;
+      let finalPrompt = '';
+
+      if (parsedConfig?.prompt) {
+        // Prompt vom Call Agent Node hat Priorität
+        finalPrompt = parsedConfig.prompt.trim();
+        logger.info(`Using prompt from Call Agent Node`, {
+          promptLength: finalPrompt.length,
+          promptPreview: finalPrompt.substring(0, 200),
+          hasKnowledgeBase: finalPrompt.includes('KNOWLEDGE BASE'),
+          knowledgeBaseSection: finalPrompt.includes('KNOWLEDGE BASE')
+            ? finalPrompt.substring(
+                finalPrompt.indexOf('KNOWLEDGE BASE'),
+                finalPrompt.indexOf('KNOWLEDGE BASE') + 500
+              )
+            : null,
+        });
+      } else if (userId) {
+        // Fallback: Aktiven Workflow laden, wenn kein Prompt im Config
         try {
           const activeWorkflow = await getActiveWorkflow(userId);
           if (activeWorkflow?.graph_json) {
-            workflowPrompt = compileWorkflowToPrompt(activeWorkflow.graph_json);
+            finalPrompt = compileWorkflowToPrompt(activeWorkflow.graph_json);
             logger.info(
               `Loaded active workflow ${activeWorkflow.id} for user ${userId}`,
               {
                 workflowName: activeWorkflow.name,
-                promptLength: workflowPrompt.length,
+                promptLength: finalPrompt.length,
               }
             );
           }
@@ -130,15 +148,22 @@ CRITICAL INSTRUCTIONS FOR TOOL USAGE:
         }
       }
 
-      // Combine base instructions with workflow prompt and user-specific instructions
-      let instructions = baseInstructions;
-
-      if (workflowPrompt) {
+      if (finalPrompt) {
         instructions = `${instructions}
 
-WORKFLOW INSTRUCTIONS:
-Follow this workflow structure when interacting with the user:
-${workflowPrompt}`;
+CALL PROMPT:
+${finalPrompt}`;
+
+        logger.info('Final instructions prepared', {
+          instructionsLength: instructions.length,
+          hasKnowledgeBase: instructions.includes('KNOWLEDGE BASE'),
+          knowledgeBaseInInstructions: instructions.includes('KNOWLEDGE BASE')
+            ? instructions.substring(
+                instructions.indexOf('KNOWLEDGE BASE'),
+                instructions.indexOf('KNOWLEDGE BASE') + 500
+              )
+            : null,
+        });
       }
 
       if (parsedConfig?.instructions) {
@@ -194,11 +219,17 @@ ${parsedConfig.instructions.trim()}`;
         hasOutputModalities: !!sessionConfig.session.output_modalities,
         outputModalities: sessionConfig.session.output_modalities,
         hasInstructions: !!sessionConfig.session.instructions,
+        instructionsLength: sessionConfig.session.instructions?.length || 0,
+        instructionsPreview: sessionConfig.session.instructions
+          ? sessionConfig.session.instructions.substring(0, 200)
+          : null,
         hasVoice: !!sessionConfig.session.audio?.output?.voice,
         inputAudioFormat: sessionConfig.session.audio?.input?.format?.type,
         outputAudioFormat: sessionConfig.session.audio?.output?.format?.type,
         turnDetectionType:
           sessionConfig.session.audio?.input?.turn_detection?.type,
+        hasPrompt: !!parsedConfig?.prompt,
+        promptLength: parsedConfig?.prompt?.length || 0,
         fullConfig: JSON.stringify(sessionConfig, null, 2),
       });
 

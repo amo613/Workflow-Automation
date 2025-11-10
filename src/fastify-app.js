@@ -23,6 +23,10 @@ import { cacheRoutesFastify } from '#routes/cache.routes.js';
 import { jobsRoutesFastify } from '#routes/jobs.routes.js';
 import { openaiTestRoutesFastify } from '#routes/openai-test.routes.js';
 import { googleCalendarRoutesFastify } from '#routes/google-calendar.routes.js';
+import knowledgeBaseRoutes from '#routes/knowledge-base.routes.js';
+import fullWorkflowRoutes from '#routes/full-workflow.routes.js';
+import webhookRoutes from '#routes/webhook.routes.js';
+import inngestRoutes from '#routes/inngest.routes.js';
 import { initRedis } from '#config/cache.js';
 import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
 
@@ -291,6 +295,47 @@ fastify.register(
   },
   { prefix: '' }
 );
+
+// Register knowledge-base routes with CSRF protection
+fastify.register(
+  async fastify => {
+    // Apply CSRF middleware hooks to all routes in this scope
+    fastify.addHook('onRequest', generateCSRFTokenFastify);
+    fastify.addHook('preHandler', originCheckFastify);
+    fastify.addHook('preHandler', csrfProtectionFastify);
+
+    fastify.register(knowledgeBaseRoutes, { prefix: '' });
+  },
+  { prefix: '' }
+);
+
+// Register full-workflow routes with CSRF protection
+fastify.register(
+  async fastify => {
+    // Apply CSRF middleware hooks to all routes in this scope
+    fastify.addHook('onRequest', generateCSRFTokenFastify);
+    fastify.addHook('preHandler', originCheckFastify);
+    fastify.addHook('preHandler', csrfProtectionFastify);
+
+    fastify.register(fullWorkflowRoutes, { prefix: '' });
+  },
+  { prefix: '' }
+);
+
+// Register webhook routes (NO CSRF protection - webhooks are public)
+// Webhooks don't require authentication, but we validate the webhook ID
+fastify.register(webhookRoutes);
+
+// Register Inngest routes (NO CSRF protection - Inngest handles its own auth)
+// Note: Re-enabled after Node 20 upgrade
+try {
+  fastify.register(inngestRoutes);
+} catch (error) {
+  logger.error('Failed to register Inngest routes', { error: error.message });
+  logger.warn(
+    'Continuing without Inngest - workflows will not execute via Inngest'
+  );
+}
 
 // 404 handler - must come after all routes
 // Skip WebSocket upgrade requests (they are handled by server.js upgrade handler)

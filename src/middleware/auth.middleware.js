@@ -3,39 +3,32 @@ import { jwttoken } from '#utils/jwt.js';
 import { cookies } from '#utils/cookies.js';
 import { createExpressLikeReqRes } from '#middleware/fastify-helpers.js';
 
-// Helper: Get cookie maxAge from cookie options
 const getCookieMaxAge = () => {
   return cookies.getAuthOptions().maxAge;
 };
 
-// Hybrid Authentication Middleware to support both API clients and browser clients and still be secured against CSRF attacks
+// Authentifiziert Requests von API-Clients (Bearer Token) und Browsern (Cookies)
+// Browser-Requests benötigen CSRF-Schutz, API-Clients nicht
 export const authenticateToken = (req, res, next) => {
   try {
     let token = null;
     let authMethod = null;
 
-    // Method 1: Try Bearer Token from Authorization header (for API clients)
+    // Bearer Token aus Authorization Header (für API-Clients)
     const authHeader = req.headers.authorization;
     if (authHeader) {
       const authHeaderStr = String(authHeader).trim();
-
-      // Support standard Bearer format: "Bearer token"
       if (authHeaderStr.toLowerCase().startsWith('bearer ')) {
-        token = authHeaderStr.substring(7).trim(); // Remove 'Bearer ' prefix
-
-        // Handle case where token might be in format "Bearer token=<token>" (from cookie)
+        token = authHeaderStr.substring(7).trim();
         if (token.startsWith('token=')) {
-          token = token.substring(6).trim(); // Remove 'token=' prefix
+          token = token.substring(6).trim();
         }
-
         authMethod = 'bearer';
-        // Mark request as API client, no CSRF needed
         req.isApiClient = true;
       }
     }
 
-    // Method 2: Try Cookie Header for API clients like Postman, or API requests from other services
-    // Support "Cookie: token=<jwt>" format
+    // Cookie Header für API-Clients wie Postman
     if (!token && req.headers.cookie) {
       const cookieHeader = String(req.headers.cookie);
       const tokenMatch = cookieHeader
@@ -45,16 +38,14 @@ export const authenticateToken = (req, res, next) => {
       if (tokenMatch) {
         token = tokenMatch.substring(6).trim();
         authMethod = 'cookie-header';
-        // Mark request as API client no CSRF needed - Cookie Header = API Client
         req.isApiClient = true;
       }
     }
 
-    // Method 3: Try Cookie for browser clients - actual HTTP cookie
+    // HTTP Cookie für Browser-Clients
     if (!token && req.cookies.token) {
       token = req.cookies.token;
       authMethod = 'cookie';
-      // Mark request as browser client (CSRF protection required)
       req.isApiClient = false;
     }
 
@@ -74,13 +65,12 @@ export const authenticateToken = (req, res, next) => {
       });
     }
 
-    // Verify JWT token
     const decoded = jwttoken.verify(token);
 
-    // Check cookie expiration for cookie-based authentication
+    // Cookie-Ablauf prüfen (15 Minuten)
     if (authMethod === 'cookie' || authMethod === 'cookie-header') {
       const cookieMaxAge = getCookieMaxAge();
-      const tokenIssuedAt = decoded.iat * 1000; // Convert to milliseconds (JWT iat is in seconds)
+      const tokenIssuedAt = decoded.iat * 1000;
       const tokenAge = Date.now() - tokenIssuedAt;
 
       if (tokenAge > cookieMaxAge) {
@@ -92,6 +82,20 @@ export const authenticateToken = (req, res, next) => {
           tokenIssuedAt: new Date(tokenIssuedAt).toISOString(),
           email: decoded.email,
         });
+
+        const acceptHeader = req.headers.accept || '';
+        const isBrowserRequest =
+          acceptHeader.includes('text/html') ||
+          authMethod === 'cookie' ||
+          (!req.isApiClient && !req.headers['x-requested-with']);
+
+        if (isBrowserRequest) {
+          res.clearCookie('token', { path: '/' });
+          res.clearCookie('csrf-token', { path: '/' });
+          const returnUrl = encodeURIComponent(req.originalUrl || req.url);
+          return res.redirect(302, `/login?redirectTo=${returnUrl}`);
+        }
+
         return res.status(401).json({
           error: 'Authentication failed',
           message: 'Cookie expired. Please log in again.',
@@ -109,7 +113,26 @@ export const authenticateToken = (req, res, next) => {
   } catch (e) {
     logger.error('Authentication error:', e);
 
-    if (e.message === 'Failed to authenticate token') {
+    const isTokenError =
+      e.message === 'Failed to authenticate token' ||
+      e.message === 'jwt expired' ||
+      e.message === 'jwt malformed' ||
+      e.name === 'TokenExpiredError' ||
+      e.name === 'JsonWebTokenError';
+
+    if (isTokenError) {
+      const acceptHeader = req.headers?.accept || '';
+      const isBrowserRequest =
+        acceptHeader.includes('text/html') ||
+        (!req.isApiClient && !req.headers?.['x-requested-with']);
+
+      if (isBrowserRequest) {
+        res.clearCookie('token', { path: '/' });
+        res.clearCookie('csrf-token', { path: '/' });
+        const returnUrl = encodeURIComponent(req.originalUrl || req.url);
+        return res.redirect(302, `/login?redirectTo=${returnUrl}`);
+      }
+
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'Invalid or expired token',
@@ -154,7 +177,7 @@ export const requireRole = allowedRoles => {
   };
 };
 
-// Authentication middleware wrapper for Fastify
+// Fastify-Wrapper für Authentifizierung
 export const authenticateTokenFastify = async (request, reply) => {
   const { req, res } = createExpressLikeReqRes(request, reply);
   req.user = null;
@@ -175,7 +198,7 @@ export const authenticateTokenFastify = async (request, reply) => {
   });
 };
 
-// Role requirement middleware wrapper for Fastify
+// Fastify-Wrapper für Rollenprüfung
 export const requireRoleFastify = allowedRoles => {
   return async (request, reply) => {
     const { req, res } = createExpressLikeReqRes(request, reply);

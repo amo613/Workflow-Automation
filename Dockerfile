@@ -1,6 +1,7 @@
 
 # Base image with Node.js
-FROM node:18-alpine AS base
+# Upgraded to Node 20 for Inngest compatibility
+FROM node:20-alpine AS base
 
 # Set working directory
 WORKDIR /app

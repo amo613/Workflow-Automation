@@ -1,6 +1,9 @@
 import { Routes, Route, Link } from 'react-router-dom';
 import WorkflowList from './pages/WorkflowList';
 import WorkflowEditor from './pages/WorkflowEditor';
+import ChooseWorkflowType from './pages/ChooseWorkflowType';
+import FullWorkflowList from './pages/FullWorkflowList';
+import FullWorkflowEditor from './pages/FullWorkflowEditor';
 
 function App() {
   return (
@@ -16,7 +19,7 @@ function App() {
         }}
       >
         <Link
-          to="/"
+          to="/workflows/choose"
           style={{
             textDecoration: 'none',
             color: '#333',
@@ -40,9 +43,16 @@ function App() {
         </a>
       </nav>
       <Routes>
-        <Route path="/" element={<WorkflowList />} />
-        <Route path="/new" element={<WorkflowEditor />} />
-        <Route path="/edit/:id" element={<WorkflowEditor />} />
+        <Route path="/choose" element={<ChooseWorkflowType />} />
+        <Route path="workflows/" element={<WorkflowList />} />
+        <Route path="workflows/new" element={<WorkflowEditor />} />
+        <Route path="workflows/edit/:id" element={<WorkflowEditor />} />
+        <Route path="/fullWorkflows" element={<FullWorkflowList />} />
+        <Route path="/fullWorkflows/new" element={<FullWorkflowEditor />} />
+        <Route
+          path="/fullWorkflows/edit/:id"
+          element={<FullWorkflowEditor />}
+        />
       </Routes>
     </div>
   );

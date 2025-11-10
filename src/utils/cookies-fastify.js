@@ -1,28 +1,26 @@
 import { NODE_ENV } from '#config/env.js';
 
-// Fastify-compatible cookie utilities
-// Wrapper around Fastify's cookie methods to match Express API
-
+// Fastify Cookie Utilities
+// Wrapper um Fastify's Cookie-Methoden, kompatibel mit Express API
 export const cookiesFastify = {
-  // Für Auth Token (JWT) - lax für fetch-Requests, aber weiterhin CSRF-sicher
-  // WICHTIG: Muss mit Express cookies.getAuthOptions() übereinstimmen!
+  // Auth Token Cookie (JWT) - 15 Minuten Gültigkeit
   getAuthOptions: () => ({
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: 'lax', // Lax für fetch-Requests, aber weiterhin CSRF-sicher (muss mit Express übereinstimmen!)
-    maxAge: 15 * 60 * 1000, // Expire after 15 minutes
-    path: '/', // Wichtig: Cookie muss für alle Pfade verfügbar sein
+    sameSite: 'lax',
+    maxAge: 15 * 60 * 1000,
+    path: '/',
   }),
 
-  // Für CSRF Token - muss JavaScript-accessible sein
+  // CSRF Token Cookie - muss von JavaScript lesbar sein
   getCSRFOptions: () => ({
-    httpOnly: false, // Muss von JavaScript lesbar sein
+    httpOnly: false,
     secure: NODE_ENV === 'production',
-    sameSite: 'strict', // Maximale CSRF-Sicherheit
+    sameSite: 'strict',
     maxAge: 15 * 60 * 1000,
   }),
 
-  // Legacy: für Kompatibilität
+  // Standard Cookie-Optionen
   getOptions: () => ({
     httpOnly: true,
     secure: NODE_ENV === 'production',
@@ -31,22 +29,17 @@ export const cookiesFastify = {
   }),
 
   set: (reply, name, value, options = {}) => {
-    // Für Auth Token: use lax
     if (name === 'token') {
       reply.setCookie(name, value, {
         ...cookiesFastify.getAuthOptions(),
         ...options,
       });
-    }
-    // Für CSRF Token: use strict but httpOnly: false
-    else if (name === 'csrf-token') {
+    } else if (name === 'csrf-token') {
       reply.setCookie(name, value, {
         ...cookiesFastify.getCSRFOptions(),
         ...options,
       });
-    }
-    // Default: strict
-    else {
+    } else {
       reply.setCookie(name, value, {
         ...cookiesFastify.getOptions(),
         ...options,
@@ -55,22 +48,17 @@ export const cookiesFastify = {
   },
 
   clear: (reply, name, options = {}) => {
-    // Für Auth Token: use lax
     if (name === 'token') {
       reply.clearCookie(name, {
         ...cookiesFastify.getAuthOptions(),
         ...options,
       });
-    }
-    // Für CSRF Token: use strict but httpOnly: false
-    else if (name === 'csrf-token') {
+    } else if (name === 'csrf-token') {
       reply.clearCookie(name, {
         ...cookiesFastify.getCSRFOptions(),
         ...options,
       });
-    }
-    // Default: strict
-    else {
+    } else {
       reply.clearCookie(name, {
         ...cookiesFastify.getOptions(),
         ...options,

@@ -14,7 +14,6 @@ import IfNode from '../components/nodes/IfNode';
 import StepNode from '../components/nodes/StepNode';
 import EndNode from '../components/nodes/EndNode';
 import NodeSidebar from '../components/NodeSidebar';
-import KnowledgeBaseSidebar from '../components/KnowledgeBaseSidebar';
 import { compileWorkflowToPrompt } from '../utils/workflow-compiler.js';
 
 const nodeTypes = {
@@ -38,8 +37,6 @@ function WorkflowEditor() {
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [compiledPrompt, setCompiledPrompt] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
-  const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
-  const [knowledgeBase, setKnowledgeBase] = useState([]);
 
   useEffect(() => {
     if (!isNew) {
@@ -96,7 +93,6 @@ function WorkflowEditor() {
 
       setNodes(loadedNodes);
       setEdges(workflow.graph_json.edges || []);
-      setKnowledgeBase(workflow.graph_json.knowledge_base || []);
 
       // Debug: Log loaded nodes to see their structure
       console.log('Loaded nodes from DB:', loadedNodes);
@@ -212,7 +208,6 @@ function WorkflowEditor() {
     const graphJson = {
       nodes: cleanNodes,
       edges: cleanEdges,
-      knowledge_base: knowledgeBase,
     };
 
     const prompt = compileWorkflowToPrompt(graphJson);
@@ -266,7 +261,6 @@ function WorkflowEditor() {
       const graphJson = {
         nodes: cleanNodes,
         edges: cleanEdges,
-        knowledge_base: knowledgeBase,
       };
 
       const url = isNew ? '/api/workflows' : `/api/workflows/${id}`;
@@ -446,19 +440,6 @@ function WorkflowEditor() {
               {saving ? '💾...' : '💾 Save'}
             </button>
             <button
-              onClick={() => setShowKnowledgeBase(!showKnowledgeBase)}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.9rem',
-                fontSize: '0.8rem',
-                background: showKnowledgeBase
-                  ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
-                  : 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)',
-              }}
-            >
-              📚 Knowledge Base
-            </button>
-            <button
               onClick={handleShowPrompt}
               className="bubble-btn"
               style={{
@@ -488,7 +469,7 @@ function WorkflowEditor() {
           style={{
             width: '100%',
             height: '100%',
-            paddingRight: selectedNode || showKnowledgeBase ? '400px' : '0',
+            paddingRight: selectedNode ? '400px' : '0',
             transition: 'padding-right 0.3s',
             boxSizing: 'border-box',
           }}
@@ -544,16 +525,6 @@ function WorkflowEditor() {
             nodes={nodes}
             edges={edges}
             onClose={() => setSelectedNode(null)}
-            knowledgeBase={knowledgeBase}
-          />
-        )}
-
-        {/* Knowledge Base Sidebar - inside canvas container */}
-        {showKnowledgeBase && (
-          <KnowledgeBaseSidebar
-            knowledgeBase={knowledgeBase}
-            onUpdate={setKnowledgeBase}
-            onClose={() => setShowKnowledgeBase(false)}
           />
         )}
       </div>

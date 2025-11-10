@@ -34,11 +34,15 @@ const requestHandler = (req, res) => {
     fastifyRoutes.includes(pathname) ||
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/api/workflows') ||
+    pathname.startsWith('/api/full-workflows') ||
+    pathname.startsWith('/api/knowledge-base') ||
     pathname.startsWith('/api/users') ||
     pathname.startsWith('/api/cache') ||
     pathname.startsWith('/api/jobs') ||
     pathname.startsWith('/api/test-openai') ||
     pathname.startsWith('/api/integrations/google-calendar') ||
+    pathname.startsWith('/api/inngest') ||
+    pathname.startsWith('/api/webhooks') ||
     pathname === '/' ||
     pathname === '/api' ||
     pathname === '/login' ||
@@ -162,6 +166,10 @@ server.on('upgrade', (request, socket, head) => {
       logger.info(`   - /health → Fastify`);
       logger.info(`   - /api/auth/* → Fastify (migrated)`);
       logger.info(`   - /api/workflows/* → Fastify (migrated)`);
+      logger.info(`   - /api/full-workflows/* → Fastify (migrated)`);
+      logger.info(`   - /api/knowledge-base/* → Fastify (migrated)`);
+      logger.info(`   - /api/inngest/* → Fastify (migrated)`);
+      logger.info(`   - /api/webhooks/* → Fastify (migrated)`);
       logger.info(`   - /api/users/* → Fastify (migrated)`);
       logger.info(`   - /api/cache/* → Fastify (migrated)`);
       logger.info(`   - /api/jobs/* → Fastify (migrated)`);

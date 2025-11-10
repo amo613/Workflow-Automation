@@ -88,8 +88,7 @@ export class PhoneCallJob extends BaseJob {
 
         const callResult = await twilioService.makeOutboundCall(
           targetNumber,
-          config,
-          null
+          config
         );
 
         if (callResult.success) {

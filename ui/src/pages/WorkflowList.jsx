@@ -162,7 +162,7 @@ function WorkflowList() {
           🎨 My Workflows
         </h1>
         <Link
-          to="/new"
+          to="/choose"
           className="bubble-btn"
           style={{
             display: 'flex',
@@ -209,7 +209,7 @@ function WorkflowList() {
             journey!
           </p>
           <Link
-            to="/new"
+            to="/choose"
             className="bubble-btn"
             style={{
               display: 'inline-flex',
@@ -221,7 +221,7 @@ function WorkflowList() {
             }}
           >
             <span style={{ fontSize: '18px' }}>🚀</span>
-            Create Workflow
+            Create New Workflow
           </Link>
         </div>
       ) : (
