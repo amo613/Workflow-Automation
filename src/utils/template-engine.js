@@ -1,7 +1,3 @@
-/**
- * Template Engine for Full Workflows
- * Resolves variables in templates like {{variable}} or {{node.output.field}}
- */
 
 /**
  * Resolve template variables
@@ -41,9 +37,7 @@ export function resolveTemplate(template, context = {}) {
           const outputPath = parts.slice(2).join('.');
           const nodeOutput = context.nodeOutputs[nodeId];
           if (nodeOutput) {
-            value = outputPath
-              ? getNestedValue(nodeOutput, outputPath)
-              : nodeOutput;
+            value = outputPath ? getNestedValue(nodeOutput, outputPath) : nodeOutput;
           }
         }
       }
@@ -159,3 +153,4 @@ export function validateTemplate(template, context = {}) {
     missing,
   };
 }
+

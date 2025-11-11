@@ -12,7 +12,6 @@ Diese Anwendung nutzt **Inngest** als Serverless-Workflow-Orchestrierungs-Engine
 **Inngest** wird für komplexe, mehrstufige Workflows verwendet (Full Workflows mit mehreren Nodes).
 
 **Vorteile von Inngest:**
-
 - Automatische Retries mit exponentieller Backoff
 - Step-by-Step-Execution mit Checkpointing
 - Bessere Observability und Debugging
@@ -20,7 +19,6 @@ Diese Anwendung nutzt **Inngest** als Serverless-Workflow-Orchestrierungs-Engine
 - Automatische Fehlerbehandlung und Logging
 
 **Nachteile:**
-
 - Externe Abhängigkeit (Cloud-Service)
 - Setup erforderlich (Dev Server oder Cloud Account)
 
@@ -86,8 +84,8 @@ INNGEST_APP_ID=acquisitions-app
 ```env
 # Inngest Configuration
 INNGEST_APP_ID=acquisitions-app
-INNGEST_SIGNING_KEY=sign_xxxxxxxxxxxxx  # Aus Inngest Dashboard
-INNGEST_EVENT_KEY=xxxxxxxxxxxxx          # Aus Inngest Dashboard
+INNGEST_SIGNING_KEY= # Aus Inngest Dashboard
+INNGEST_EVENT_KEY= # Aus Inngest Dashboard
 ```
 
 ### 3. Inngest Dev Server (Development)
@@ -99,7 +97,7 @@ INNGEST_EVENT_KEY=xxxxxxxxxxxxx          # Aus Inngest Dashboard
 npm install -g inngest
 
 # Starte Dev Server
-inngest dev
+npx inngest-cli@latest dev
 ```
 
 Der Dev Server läuft standardmäßig auf `http://localhost:8288`.
@@ -112,7 +110,6 @@ Wenn die App in Docker läuft, muss der Dev Server auf dem Host laufen. Die App 
 In Production nutzt die App Inngest Cloud. Die App muss öffentlich erreichbar sein (z.B. via ngrok oder Deployment).
 
 **App URL konfigurieren:**
-
 1. Gehe zu Inngest Dashboard
 2. Öffne deine App
 3. Setze die **App URL** auf deine öffentliche URL (z.B. `https://your-app.com`)
@@ -125,13 +122,11 @@ In Production nutzt die App Inngest Cloud. Die App muss öffentlich erreichbar s
 Der Inngest Client wird automatisch konfiguriert basierend auf `NODE_ENV`:
 
 **Development:**
-
 - `isDev: true` - Nutzt Dev Server
 - `baseUrl: http://host.docker.internal:8288` - Dev Server URL
 - `signingKey: undefined` - Keine Signing Key (Dev Mode)
 
 **Production:**
-
 - `signingKey: INNGEST_SIGNING_KEY` - Aus Environment Variable
 - `eventKey: INNGEST_EVENT_KEY` - Aus Environment Variable
 - Nutzt Inngest Cloud (keine baseUrl nötig)
@@ -145,12 +140,10 @@ Die Routes registrieren die Inngest Functions bei Fastify:
 - **Plugin:** `inngest/fastify`
 
 **Development:**
-
 - `skipSignatureValidation: true` - Keine Signatur-Validierung
 - `signingKey: null` - Explizit null setzen
 
 **Production:**
-
 - `signingKey: inngest.signingKey` - Signatur-Validierung aktiviert
 
 ## Inngest Functions
@@ -160,14 +153,12 @@ Die Routes registrieren die Inngest Functions bei Fastify:
 **Event:** `workflow/triggered`
 
 **Steps:**
-
 1. **load-workflow** - Lädt Workflow aus Datenbank
 2. **execute-workflow** - Führt Workflow aus
 
 **Retries:** 3 (automatisch mit exponentieller Backoff)
 
 **Input:**
-
 ```javascript
 {
   workflowId: number,
@@ -177,7 +168,6 @@ Die Routes registrieren die Inngest Functions bei Fastify:
 ```
 
 **Output:**
-
 ```javascript
 {
   success: true,
@@ -217,7 +207,6 @@ await triggerWorkflow(workflowId, userId, input);
 - **Schnelles Iterieren** möglich
 
 **Setup:**
-
 1. Starte Inngest Dev Server: `inngest dev`
 2. Starte deine App
 3. Dev Server scannt automatisch nach Functions
@@ -230,7 +219,6 @@ await triggerWorkflow(workflowId, userId, input);
 - **Signatur-Validierung** aktiviert
 
 **Setup:**
-
 1. Setze `INNGEST_SIGNING_KEY` und `INNGEST_EVENT_KEY` in `.env.production`
 2. Setze App URL im Inngest Dashboard
 3. Deploye deine App
@@ -243,7 +231,6 @@ await triggerWorkflow(workflowId, userId, input);
 **Problem:** Inngest versucht Cloud-Mode zu nutzen, aber Dev Server läuft.
 
 **Lösung:**
-
 1. Prüfe, ob `INNGEST_SIGNING_KEY` in Development gesetzt ist → Entfernen!
 2. Prüfe, ob `isDev: true` in `inngest.js` gesetzt ist
 3. Prüfe, ob Dev Server läuft: `inngest dev`
@@ -253,7 +240,6 @@ await triggerWorkflow(workflowId, userId, input);
 **Problem:** Inngest kann die App nicht erreichen.
 
 **Lösung:**
-
 1. **Development:** Prüfe, ob App auf `http://host.docker.internal:8288` erreichbar ist
 2. **Production:** Prüfe, ob App öffentlich erreichbar ist und App URL im Dashboard korrekt ist
 3. Prüfe, ob `/api/inngest` Route registriert ist
@@ -263,7 +249,6 @@ await triggerWorkflow(workflowId, userId, input);
 **Problem:** Dev Server findet keine Functions.
 
 **Lösung:**
-
 1. Prüfe, ob `inngest.routes.js` in `fastify-app.js` registriert ist
 2. Prüfe, ob Functions in `inngest.routes.js` registriert sind
 3. Prüfe Logs: `Inngest routes registered`
@@ -273,7 +258,6 @@ await triggerWorkflow(workflowId, userId, input);
 **Problem:** Signatur-Validierung schlägt fehl.
 
 **Lösung:**
-
 1. Prüfe, ob `INNGEST_SIGNING_KEY` korrekt gesetzt ist
 2. Prüfe, ob Signing Key im Inngest Dashboard korrekt ist
 3. Prüfe, ob App URL im Dashboard korrekt ist
@@ -298,7 +282,6 @@ await triggerWorkflow(workflowId, userId, input);
 ### Application Logs
 
 Die App loggt alle Inngest-Operationen:
-
 - `Inngest client initialized`
 - `Inngest routes registered`
 - `Triggering workflow via Inngest`
@@ -310,14 +293,13 @@ Die App loggt alle Inngest-Operationen:
 Für neue Workflows wird Inngest empfohlen. Bestehende BullMQ Jobs bleiben unverändert.
 
 **Wann Inngest nutzen:**
-
 - Komplexe, mehrstufige Workflows
 - Workflows mit vielen Nodes
 - Workflows mit Conditional Logic
 - Workflows mit Retries nötig
 
 **Wann BullMQ nutzen:**
-
 - Einfache, synchrone Jobs
 - Phone Calls, Emails
 - Einzelne, atomare Operationen
+

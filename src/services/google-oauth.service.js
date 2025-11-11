@@ -9,39 +9,73 @@ export class GoogleOAuthService {
   constructor() {
     this.clientId = process.env.GOOGLE_CLIENT_ID;
     this.clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    this.redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    // Base URL for redirects - we'll append the specific callback path
+    this.baseRedirectUri = process.env.GOOGLE_REDIRECT_URI_BASE || process.env.GOOGLE_REDIRECT_URI;
 
-    if (!this.clientId || !this.clientSecret || !this.redirectUri) {
+    if (!this.clientId || !this.clientSecret || !this.baseRedirectUri) {
       logger.warn(
-        'Google OAuth credentials not fully configured. Google Calendar integration will not work.'
+        'Google OAuth credentials not fully configured. Google integrations will not work.'
       );
     }
+  }
+
+  /**
+   * Get redirect URI for a specific integration type
+   * @param {string} integrationType - 'GOOGLE_CALENDAR' or 'GOOGLE_SHEETS'
+   * @returns {string} Full redirect URI
+   */
+  getRedirectUri(integrationType = 'GOOGLE_CALENDAR') {
+    // If baseRedirectUri already contains a full path, use it as-is (backward compatibility)
+    if (this.baseRedirectUri.includes('/api/integrations/')) {
+      return this.baseRedirectUri;
+    }
+
+    // Otherwise, append the appropriate callback path
+    const callbackPath = integrationType === 'GOOGLE_SHEETS'
+      ? '/api/integrations/google-sheets/callback'
+      : '/api/integrations/google-calendar/callback';
+
+    return `${this.baseRedirectUri}${callbackPath}`;
   }
 
   /**
    * Generiere OAuth URL für Browser
    * @param {number} userId - User ID for state parameter
    * @param {string} state - Additional state data
+   * @param {string} integrationType - Integration type ('GOOGLE_CALENDAR' or 'GOOGLE_SHEETS')
    * @returns {string} OAuth authorization URL
    */
-  getAuthUrl(userId, state = {}) {
-    if (!this.clientId || !this.clientSecret || !this.redirectUri) {
+  getAuthUrl(userId, state = {}, integrationType = 'GOOGLE_CALENDAR') {
+    if (!this.clientId || !this.clientSecret || !this.baseRedirectUri) {
       throw new Error('Google OAuth credentials not configured');
     }
+
+    const redirectUri = this.getRedirectUri(integrationType);
 
     const oauth2Client = new google.auth.OAuth2(
       this.clientId,
       this.clientSecret,
-      this.redirectUri
+      redirectUri
     );
 
-    const scopes = [
-      'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/calendar.events',
-    ];
+    // Set scopes based on integration type
+    let scopes = [];
+    if (integrationType === 'GOOGLE_SHEETS') {
+      scopes = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive.readonly', // For listing spreadsheets
+      ];
+    } else {
+      // Default: Google Calendar
+      scopes = [
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/calendar.events',
+      ];
+    }
 
     const stateData = JSON.stringify({
       userId,
+      integrationType,
       ...state,
       timestamp: Date.now(),
     });
@@ -53,7 +87,7 @@ export class GoogleOAuthService {
       state: stateData,
     });
 
-    logger.info(`Generated OAuth URL for user ${userId}`);
+    logger.info(`Generated OAuth URL for user ${userId} (${integrationType})`);
     return authUrl;
   }
 
@@ -62,15 +96,17 @@ export class GoogleOAuthService {
    * @param {string} code - Authorization code from Google
    * @returns {Promise<{accessToken: string, refreshToken: string, expiresAt: Date | null}>}
    */
-  async exchangeCodeForTokens(code) {
-    if (!this.clientId || !this.clientSecret || !this.redirectUri) {
+  async exchangeCodeForTokens(code, integrationType = 'GOOGLE_CALENDAR') {
+    if (!this.clientId || !this.clientSecret || !this.baseRedirectUri) {
       throw new Error('Google OAuth credentials not configured');
     }
+
+    const redirectUri = this.getRedirectUri(integrationType);
 
     const oauth2Client = new google.auth.OAuth2(
       this.clientId,
       this.clientSecret,
-      this.redirectUri
+      redirectUri
     );
 
     try {
@@ -94,15 +130,17 @@ export class GoogleOAuthService {
    * @param {string} refreshToken - Refresh token
    * @returns {Promise<{accessToken: string, expiresAt: Date | null}>}
    */
-  async refreshAccessToken(refreshToken) {
-    if (!this.clientId || !this.clientSecret) {
+  async refreshAccessToken(refreshToken, integrationType = 'GOOGLE_CALENDAR') {
+    if (!this.clientId || !this.clientSecret || !this.baseRedirectUri) {
       throw new Error('Google OAuth credentials not configured');
     }
+
+    const redirectUri = this.getRedirectUri(integrationType);
 
     const oauth2Client = new google.auth.OAuth2(
       this.clientId,
       this.clientSecret,
-      this.redirectUri
+      redirectUri
     );
 
     oauth2Client.setCredentials({ refresh_token: refreshToken });

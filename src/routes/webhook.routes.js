@@ -7,9 +7,9 @@ import { triggerWorkflow } from '#services/full-workflow/trigger.service.js';
  * Allows external services to trigger workflows via webhooks
  */
 async function webhookRoutes(fastify) {
-  // Apply timing hooks
+  // Apply timing hooks (but not onRequest to avoid body reading issues)
   const timingHooks = requestTimingHooks('Webhook');
-  fastify.addHook('onRequest', timingHooks.onRequest);
+  // Skip onRequest hook for webhooks to avoid body reading conflicts
   fastify.addHook('onResponse', timingHooks.onResponse);
 
   // Webhook endpoint - NO authentication required (webhooks are public)
@@ -23,15 +23,25 @@ async function webhookRoutes(fastify) {
           webhookId: { type: 'string', minLength: 1 },
         },
       },
-      body: {
-        type: 'object',
-        // Allow any body structure for webhook payloads
-      },
     },
+    // Disable schema validation for body to avoid body reading conflicts
+    attachValidation: true,
     handler: async (request, reply) => {
       try {
         const { webhookId } = request.params;
-        const payload = request.body || {};
+        // Fastify automatically parses JSON body
+        // Access request.body directly - it's already parsed by Fastify
+        // If body is not parsed yet, parse it manually
+        let payload = request.body || {};
+        
+        // If body is a string (not parsed), try to parse it
+        if (typeof payload === 'string') {
+          try {
+            payload = JSON.parse(payload);
+          } catch (e) {
+            payload = {};
+          }
+        }
 
         // Find workflow by webhook ID
         // For now, webhookId is the workflow ID

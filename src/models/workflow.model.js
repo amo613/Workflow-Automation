@@ -23,6 +23,9 @@ export const workflows = pgTable('workflows', {
   // Workflow graph (React Flow JSON structure)
   graph_json: jsonb('graph_json').notNull(),
 
+  // Trigger configuration (for trigger nodes)
+  trigger_config: jsonb('trigger_config'),
+
   // Status
   is_active: boolean('is_active').default(false),
 

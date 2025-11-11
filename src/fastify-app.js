@@ -23,6 +23,7 @@ import { cacheRoutesFastify } from '#routes/cache.routes.js';
 import { jobsRoutesFastify } from '#routes/jobs.routes.js';
 import { openaiTestRoutesFastify } from '#routes/openai-test.routes.js';
 import { googleCalendarRoutesFastify } from '#routes/google-calendar.routes.js';
+import { googleSheetsRoutesFastify } from '#routes/google-sheets.routes.js';
 import knowledgeBaseRoutes from '#routes/knowledge-base.routes.js';
 import fullWorkflowRoutes from '#routes/full-workflow.routes.js';
 import webhookRoutes from '#routes/webhook.routes.js';
@@ -34,6 +35,7 @@ import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
 // Note: We disable Fastify's built-in logger and use our own logger instead
 const fastify = Fastify({
   logger: false, // Use our own logger (winston) instead of Pino
+  bodyLimit: 1048576, // 1MB body limit (default is 1MB)
 });
 
 // Initialize Redis cache (migrated from Express)
@@ -296,6 +298,21 @@ fastify.register(
   { prefix: '' }
 );
 
+// Register google-sheets routes with CSRF protection
+fastify.register(
+  async fastify => {
+    // Apply CSRF middleware hooks to all routes in this scope
+    fastify.addHook('onRequest', generateCSRFTokenFastify);
+    fastify.addHook('preHandler', originCheckFastify);
+    fastify.addHook('preHandler', csrfProtectionFastify);
+
+    fastify.register(googleSheetsRoutesFastify, {
+      prefix: '/api/integrations/google-sheets',
+    });
+  },
+  { prefix: '' }
+);
+
 // Register knowledge-base routes with CSRF protection
 fastify.register(
   async fastify => {
@@ -353,15 +370,39 @@ fastify.setNotFoundHandler((request, reply) => {
 
 // Error handler for Fastify
 fastify.setErrorHandler((error, request, reply) => {
+  // Check if response was already sent
+  if (reply.sent) {
+    logger.warn('Response already sent, ignoring error:', error.message);
+    return;
+  }
+  
   logger.error('Fastify error:', error);
-  reply.status(error.statusCode || 500).send({
-    error: error.message || 'Internal server error',
-  });
+  
+  // Only send response if not already sent
+  if (!reply.sent) {
+    reply.status(error.statusCode || 500).send({
+      error: error.message || 'Internal server error',
+    });
+  }
 });
 
 // Ready hook - called when Fastify is ready
 fastify.addHook('onReady', async () => {
   logger.info('✅ Fastify app is ready');
+  
+  // Log all registered routes for debugging
+  const routes = [];
+  fastify.printRoutes().split('\n').forEach(line => {
+    if (line.includes('google-sheets')) {
+      routes.push(line.trim());
+    }
+  });
+  if (routes.length > 0) {
+    logger.info(`✅ Google Sheets routes registered: ${routes.length} routes`);
+    routes.forEach(route => logger.info(`   - ${route}`));
+  } else {
+    logger.warn('⚠️ No Google Sheets routes found in registered routes');
+  }
 });
 
 export default fastify;

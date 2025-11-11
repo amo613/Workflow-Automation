@@ -4,6 +4,7 @@ import WorkflowEditor from './pages/WorkflowEditor';
 import ChooseWorkflowType from './pages/ChooseWorkflowType';
 import FullWorkflowList from './pages/FullWorkflowList';
 import FullWorkflowEditor from './pages/FullWorkflowEditor';
+import OAuthCallback from './pages/OAuthCallback';
 
 function App() {
   return (
@@ -44,14 +45,18 @@ function App() {
       </nav>
       <Routes>
         <Route path="/choose" element={<ChooseWorkflowType />} />
-        <Route path="workflows/" element={<WorkflowList />} />
-        <Route path="workflows/new" element={<WorkflowEditor />} />
-        <Route path="workflows/edit/:id" element={<WorkflowEditor />} />
+        <Route path="/workflows/" element={<WorkflowList />} />
+        <Route path="/workflows/new" element={<WorkflowEditor />} />
+        <Route path="/workflows/edit/:id" element={<WorkflowEditor />} />
         <Route path="/fullWorkflows" element={<FullWorkflowList />} />
         <Route path="/fullWorkflows/new" element={<FullWorkflowEditor />} />
         <Route
           path="/fullWorkflows/edit/:id"
           element={<FullWorkflowEditor />}
+        />
+        <Route
+          path="/oauth-callback/:integrationType"
+          element={<OAuthCallback />}
         />
       </Routes>
     </div>

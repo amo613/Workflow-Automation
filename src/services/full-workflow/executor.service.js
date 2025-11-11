@@ -5,15 +5,36 @@ import { executeNode } from './node-handlers/index.js';
 
 /**
  * Execute a full workflow
- * @param {Object} workflow - Workflow object from database
+ * @param {number|Object} workflowIdOrWorkflow - Workflow ID or Workflow object
  * @param {Object} input - Workflow input data
  * @param {number} userId - User ID (optional, for node handlers that need it)
+ * @param {Array} nodes - Optional: nodes array (if workflow is ID)
+ * @param {Array} edges - Optional: edges array (if workflow is ID)
  * @returns {Promise<Object>} - Execution result
  */
-export async function executeWorkflow(workflow, input = {}, userId = null) {
+export async function executeWorkflow(
+  workflowIdOrWorkflow,
+  input = {},
+  userId = null,
+  nodes = null,
+  edges = null
+) {
   try {
-    const workflowJson = workflow.workflow_json || {};
-    const { nodes, edges } = workflowJson;
+    // Handle both workflow ID and workflow object
+    let workflow;
+    let workflowJson;
+    
+    if (typeof workflowIdOrWorkflow === 'number') {
+      // If it's an ID, we need to fetch the workflow
+      // For now, assume nodes and edges are provided
+      workflowJson = { nodes: nodes || [], edges: edges || [] };
+    } else {
+      // It's a workflow object
+      workflow = workflowIdOrWorkflow;
+      workflowJson = workflow.workflow_json || {};
+      nodes = nodes || workflowJson.nodes || [];
+      edges = edges || workflowJson.edges || [];
+    }
 
     if (!nodes || nodes.length === 0) {
       throw new Error('Workflow has no nodes');
@@ -33,10 +54,15 @@ export async function executeWorkflow(workflow, input = {}, userId = null) {
       }
     }
 
-    // Find start node
-    const startNode = nodes.find(node => node.type === 'start');
+    // Find start node or trigger node
+    // Priority: trigger nodes > start node
+    const triggerNodes = nodes.filter(
+      node => node.type === 'google-sheets-trigger' || node.type === 'start'
+    );
+    const startNode = triggerNodes.length > 0 ? triggerNodes[0] : null;
+
     if (!startNode) {
-      throw new Error('Workflow has no start node');
+      throw new Error('Workflow has no start node or trigger node');
     }
 
     // Build adjacency list for graph traversal
@@ -60,6 +86,7 @@ export async function executeWorkflow(workflow, input = {}, userId = null) {
     // Execute workflow starting from start node
     const executionLog = [];
     const visited = new Set();
+    const executedEdges = new Set(); // Track which edges were executed
     const executionResult = await executeNodeRecursive(
       startNode.id,
       nodeMap,
@@ -67,12 +94,14 @@ export async function executeWorkflow(workflow, input = {}, userId = null) {
       context,
       edges,
       visited,
-      executionLog
+      executionLog,
+      executedEdges
     );
 
     logger.info('Workflow execution completed', {
-      workflowId: workflow.id,
+      workflowId: workflow?.id || workflowIdOrWorkflow,
       nodesExecuted: executionLog.length,
+      edgesExecuted: executedEdges.size,
       result: executionResult,
     });
 
@@ -82,10 +111,11 @@ export async function executeWorkflow(workflow, input = {}, userId = null) {
       result: executionResult,
       variables: Object.fromEntries(context.variables),
       nodeOutputs: Object.fromEntries(context.nodeOutputs),
+      executedEdges: Array.from(executedEdges), // Return executed edge IDs
     };
   } catch (error) {
     logger.error('Error executing workflow', {
-      workflowId: workflow.id,
+      workflowId: workflow?.id || workflowIdOrWorkflow,
       error: error.message,
       stack: error.stack,
     });
@@ -111,7 +141,8 @@ async function executeNodeRecursive(
   context,
   edges,
   visited,
-  executionLog
+  executionLog,
+  executedEdges
 ) {
   // Cycle detection
   if (visited.has(nodeId)) {
@@ -185,10 +216,29 @@ async function executeNodeRecursive(
       templateContext
     );
 
+    // Find the edge that matches the condition result
+    const handleId = conditionResult ? 'true' : 'false';
+    const matchingEdge = edges.find(
+      edge => edge.source === nodeId && edge.sourceHandle === handleId
+    );
+
     const nextNodeId = conditionResult
       ? findNextNode(nodeId, adjacencyList, 'true', edges)
       : findNextNode(nodeId, adjacencyList, 'false', edges);
 
+    // Mark the executed edge
+    if (matchingEdge) {
+      executedEdges.add(matchingEdge.id);
+      logger.debug('If node condition evaluated', {
+        nodeId,
+        conditionResult,
+        handleId,
+        edgeId: matchingEdge.id,
+        nextNodeId,
+      });
+    }
+
+    // Only execute the matching path, not both
     if (nextNodeId) {
       return executeNodeRecursive(
         nextNodeId,
@@ -197,7 +247,8 @@ async function executeNodeRecursive(
         context,
         edges,
         new Set(visited), // Reset visited for new branch
-        executionLog
+        executionLog,
+        executedEdges
       );
     }
 
@@ -218,6 +269,15 @@ async function executeNodeRecursive(
     // For now, execute first next node (sequential execution)
     // TODO: Handle parallel execution for multiple outgoing edges
     const nextNode = nextNodes[0];
+    
+    // Find and mark the executed edge
+    const matchingEdge = edges.find(
+      edge => edge.source === nodeId && edge.target === nextNode.target
+    );
+    if (matchingEdge) {
+      executedEdges.add(matchingEdge.id);
+    }
+    
     return executeNodeRecursive(
       nextNode.target,
       nodeMap,
@@ -225,7 +285,8 @@ async function executeNodeRecursive(
       context,
       edges,
       visited,
-      executionLog
+      executionLog,
+      executedEdges
     );
   }
 

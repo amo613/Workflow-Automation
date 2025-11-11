@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import VariableAutocomplete from './VariableAutocomplete';
 
 /**
@@ -12,6 +12,7 @@ export default function NodeSidebarN8N({
   onNodeUpdate,
   onClose,
   onDeleteNode,
+  workflowId = null,
 }) {
   const [activeTab, setActiveTab] = useState('parameters');
   const [outputView, setOutputView] = useState('table'); // table, json, schema
@@ -23,6 +24,11 @@ export default function NodeSidebarN8N({
   const [executingSingleNode, setExecutingSingleNode] = useState(false);
   const lastNodeIdRef = useRef(null);
   const [draggedVariable, setDraggedVariable] = useState(null);
+  const [googleSheetsStatus, setGoogleSheetsStatus] = useState(null);
+  const [spreadsheets, setSpreadsheets] = useState([]);
+  const [sheets, setSheets] = useState([]);
+  const [showSpreadsheetModal, setShowSpreadsheetModal] = useState(false);
+  const [showSheetModal, setShowSheetModal] = useState(false);
 
   // Fetch knowledge base entries when component mounts or when call-agent node is selected
   useEffect(() => {
@@ -31,6 +37,31 @@ export default function NodeSidebarN8N({
       fetchWorkflows();
     }
   }, [selectedNode?.id, selectedNode?.type]);
+
+  // Fetch Google Sheets status when google-sheets or google-sheets-trigger node is selected
+  useEffect(() => {
+    if (selectedNode?.type === 'google-sheets' || selectedNode?.type === 'google-sheets-trigger') {
+      fetchGoogleSheetsStatus();
+    }
+  }, [selectedNode?.id, selectedNode?.type]);
+
+  // Fetch spreadsheets when connected
+  useEffect(() => {
+    if (
+      (selectedNode?.type === 'google-sheets' || selectedNode?.type === 'google-sheets-trigger') &&
+      googleSheetsStatus?.connected
+    ) {
+      console.log('Auto-fetching spreadsheets because connected:', googleSheetsStatus);
+      fetchSpreadsheets();
+    }
+  }, [selectedNode?.type, googleSheetsStatus?.connected]);
+
+  // Fetch sheets when spreadsheetId changes
+  useEffect(() => {
+    if (localData.spreadsheetId && localData.spreadsheetId !== '') {
+      fetchSheets(localData.spreadsheetId);
+    }
+  }, [localData.spreadsheetId]);
 
   const fetchKnowledgeBaseEntries = async () => {
     try {
@@ -58,6 +89,158 @@ export default function NodeSidebarN8N({
     }
   };
 
+  const fetchGoogleSheetsStatus = async () => {
+    try {
+      const response = await fetch('/api/integrations/google-sheets/status', {
+        credentials: 'include',
+        cache: 'no-cache',
+      });
+      if (!response.ok) {
+        console.error('Status response not OK:', response.status);
+        throw new Error('Failed to fetch status');
+      }
+      const data = await response.json();
+      console.log('Google Sheets status:', data);
+      setGoogleSheetsStatus(data);
+      
+      // If connected, automatically fetch spreadsheets
+      if (data.connected) {
+        fetchSpreadsheets();
+      }
+    } catch (error) {
+      console.error('Error fetching Google Sheets status:', error);
+      setGoogleSheetsStatus({ connected: false });
+    }
+  };
+
+  const fetchSpreadsheets = async () => {
+    try {
+      console.log('Fetching spreadsheets...');
+      const response = await fetch('/api/integrations/google-sheets/spreadsheets', {
+        credentials: 'include',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('Spreadsheets response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch spreadsheets:', response.status, errorText);
+        throw new Error(`Failed to fetch spreadsheets: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Spreadsheets response data:', data);
+      
+      if (data.success && data.data && Array.isArray(data.data)) {
+        console.log(`Setting ${data.data.length} spreadsheets`);
+        setSpreadsheets(data.data);
+      } else if (Array.isArray(data.data)) {
+        console.log(`Setting ${data.data.length} spreadsheets (direct array)`);
+        setSpreadsheets(data.data);
+      } else {
+        console.warn('No spreadsheets data in response:', data);
+        setSpreadsheets([]);
+      }
+    } catch (error) {
+      console.error('Error fetching spreadsheets:', error);
+      setSpreadsheets([]);
+      alert(`Failed to load spreadsheets: ${error.message}`);
+    }
+  };
+
+  const fetchSheets = async (spreadsheetId) => {
+    if (!spreadsheetId) {
+      console.warn('No spreadsheetId provided to fetchSheets');
+      setSheets([]);
+      return;
+    }
+    
+    try {
+      console.log('Fetching sheets for spreadsheet:', spreadsheetId);
+      const response = await fetch(
+        `/api/integrations/google-sheets/spreadsheets/${spreadsheetId}/sheets`,
+        {
+          credentials: 'include',
+          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      console.log('Sheets response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch sheets:', response.status, errorText);
+        throw new Error(`Failed to fetch sheets: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Sheets response data:', data);
+      
+      if (data.success && data.data && Array.isArray(data.data)) {
+        console.log(`Setting ${data.data.length} sheets`);
+        setSheets(data.data);
+      } else if (Array.isArray(data.data)) {
+        console.log(`Setting ${data.data.length} sheets (direct array)`);
+        setSheets(data.data);
+      } else {
+        console.warn('No sheets data in response:', data);
+        setSheets([]);
+      }
+    } catch (error) {
+      console.error('Error fetching sheets:', error);
+      setSheets([]);
+      alert(`Failed to load sheets: ${error.message}`);
+    }
+  };
+
+  const handleGoogleSheetsAuth = async () => {
+    try {
+      // Build return URL for redirect after OAuth
+      const returnUrl = workflowId ? `/fullWorkflows/${workflowId}` : '/fullWorkflows';
+      const authUrl = `/api/integrations/google-sheets/auth?returnUrl=${encodeURIComponent(returnUrl)}${workflowId ? `&workflowId=${workflowId}` : ''}`;
+      
+      const response = await fetch(authUrl, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to initiate auth' }));
+        throw new Error(errorData.error || 'Failed to initiate auth');
+      }
+      const data = await response.json();
+      if (data.authUrl) {
+        // Redirect directly to OAuth (no popup)
+        window.location.href = data.authUrl;
+      } else {
+        throw new Error('No auth URL received');
+      }
+    } catch (error) {
+      console.error('Error initiating Google Sheets auth:', error);
+      alert(`Failed to initiate Google Sheets authentication: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleGoogleSheetsDisconnect = async () => {
+    try {
+      const response = await fetch('/api/integrations/google-sheets', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to disconnect');
+      setGoogleSheetsStatus({ connected: false });
+      alert('Google Sheets disconnected successfully');
+    } catch (error) {
+      console.error('Error disconnecting Google Sheets:', error);
+      alert('Failed to disconnect Google Sheets');
+    }
+  };
+
   // Get available variables from previous nodes
   const getAvailableVariables = () => {
     if (!selectedNode || !nodes || !edges) {
@@ -72,19 +255,41 @@ export default function NodeSidebarN8N({
 
     // Add outputs from previous nodes
     previousNodeIds.forEach(nodeId => {
-      const node = nodes.find(n => n.id === nodeId);
-      if (node && node.data) {
-        // Add node output
-        variables.push({
-          name: `${nodeId}.output`,
-          path: `${nodeId}.output`,
-          value: node.data.output,
-          type: 'node-output',
-          description: `Output from ${node.data.name || nodeId}`,
-        });
+      // Check if this is the selected node (for immediate updates)
+      const isSelectedNode = nodeId === selectedNode.id;
+      
+      // Use selectedNode if it's the current node, otherwise use nodes array
+      let node;
+      if (isSelectedNode) {
+        node = selectedNode;
+      } else {
+        node = nodes.find(n => n.id === nodeId);
+      }
+      
+      if (!node || !node.data) return;
+      
+      // Use localData.output if this is the selected node and localData has output
+      // Otherwise use node.data.output
+      let output;
+      if (isSelectedNode && localData.output !== undefined) {
+        output = localData.output;
+      } else {
+        output = node.data.output;
+      }
+      
+      if (!output) return;
+      
+      // Add node output
+      variables.push({
+        name: `${nodeId}.output`,
+        path: `${nodeId}.output`,
+        value: output,
+        type: 'node-output',
+        description: `Output from ${node.data.name || nodeId}`,
+      });
 
-        // Add nested fields if output is an object
-        if (node.data.output && typeof node.data.output === 'object') {
+      // Add nested fields if output is an object
+      if (output && typeof output === 'object') {
           const addNestedFields = (obj, prefix) => {
             Object.keys(obj).forEach(key => {
               const value = obj[key];
@@ -107,51 +312,72 @@ export default function NodeSidebarN8N({
             });
           };
 
-          addNestedFields(node.data.output, `${nodeId}.output`);
+          addNestedFields(output, `${nodeId}.output`);
         }
       }
-    });
+    );
 
     // Add previous.output if there's exactly one previous node
     if (previousNodeIds.length === 1) {
-      const prevNode = nodes.find(n => n.id === previousNodeIds[0]);
-      if (prevNode && prevNode.data && prevNode.data.output) {
-        variables.push({
-          name: 'previous.output',
-          path: 'previous.output',
-          value: prevNode.data.output,
-          type: 'previous-output',
-          description: 'Output from previous node',
-        });
+      const prevNodeId = previousNodeIds[0];
+      const isSelectedNode = prevNodeId === selectedNode.id;
+      
+      // Use selectedNode if it's the current node, otherwise use nodes array
+      let prevNode;
+      if (isSelectedNode) {
+        prevNode = selectedNode;
+      } else {
+        prevNode = nodes.find(n => n.id === prevNodeId);
+      }
+      
+      if (!prevNode || !prevNode.data) return variables;
+      
+      // Use localData.output if this is the selected node and localData has output
+      // Otherwise use prevNode.data.output
+      let output;
+      if (isSelectedNode && localData.output !== undefined) {
+        output = localData.output;
+      } else {
+        output = prevNode.data.output;
+      }
+      
+      if (!output) return variables;
+      
+      variables.push({
+        name: 'previous.output',
+        path: 'previous.output',
+        value: output,
+        type: 'previous-output',
+        description: 'Output from previous node',
+      });
 
-        if (
-          typeof prevNode.data.output === 'object' &&
-          prevNode.data.output !== null
-        ) {
-          const addNestedFields = (obj, prefix) => {
-            Object.keys(obj).forEach(key => {
-              const value = obj[key];
-              const fullPath = `${prefix}.${key}`;
-              variables.push({
-                name: fullPath,
-                path: fullPath,
-                value,
-                type: 'previous-output-field',
-                description: `Field from previous node: ${key}`,
-              });
-
-              if (
-                typeof value === 'object' &&
-                value !== null &&
-                !Array.isArray(value)
-              ) {
-                addNestedFields(value, fullPath);
-              }
+      if (
+        typeof output === 'object' &&
+        output !== null
+      ) {
+        const addNestedFields = (obj, prefix) => {
+          Object.keys(obj).forEach(key => {
+            const value = obj[key];
+            const fullPath = `${prefix}.${key}`;
+            variables.push({
+              name: fullPath,
+              path: fullPath,
+              value,
+              type: 'previous-output-field',
+              description: `Field from previous node: ${key}`,
             });
-          };
 
-          addNestedFields(prevNode.data.output, 'previous.output');
-        }
+            if (
+              typeof value === 'object' &&
+              value !== null &&
+              !Array.isArray(value)
+            ) {
+              addNestedFields(value, fullPath);
+            }
+          });
+        };
+
+        addNestedFields(output, 'previous.output');
       }
     }
 
@@ -165,6 +391,19 @@ export default function NodeSidebarN8N({
     } else if (!selectedNode) {
       setLocalData({});
       lastNodeIdRef.current = null;
+    } else if (selectedNode && selectedNode.id === lastNodeIdRef.current) {
+      // Update localData when selectedNode changes (e.g., after node update)
+      // But preserve localData.output if it exists (for immediate updates)
+      // Only update if selectedNode.data.output is different from localData.output
+      setLocalData(prevData => {
+        const newData = { ...selectedNode.data };
+        // Preserve localData.output if it exists and is not null/undefined
+        // This ensures that when a node is executed, the output is preserved
+        if (prevData.output !== undefined && prevData.output !== null) {
+          newData.output = prevData.output;
+        }
+        return newData;
+      });
     }
   }, [selectedNode?.id]);
 
@@ -176,40 +415,92 @@ export default function NodeSidebarN8N({
     }
   };
 
-  // Get input data from previous nodes
+  // Get input data from all previous nodes
   const getInputData = () => {
     if (!selectedNode || !nodes || !edges) return null;
 
     const incomingEdges = edges.filter(edge => edge.target === selectedNode.id);
     if (incomingEdges.length === 0) return null;
 
-    // Get output from first previous node
-    const previousNodeId = incomingEdges[0].source;
-    const previousNode = nodes.find(n => n.id === previousNodeId);
+    // Get all previous nodes with their outputs
+    const previousNodes = incomingEdges.map(edge => {
+      // Check if this is the selected node (for immediate updates)
+      const isSelectedNode = edge.source === selectedNode.id;
+      
+      // Use selectedNode if it's the current node, otherwise use nodes array
+      let node;
+      if (isSelectedNode) {
+        node = selectedNode;
+      } else {
+        node = nodes.find(n => n.id === edge.source);
+      }
+      
+      if (!node) return null;
+      
+      // Use localData.output if this is the selected node and localData has output
+      // Otherwise use node.data.output
+      let output;
+      if (isSelectedNode && localData.output !== undefined) {
+        output = localData.output;
+      } else {
+        output = node.data?.output;
+      }
+      
+      if (output === undefined || output === null) return null;
 
-    if (!previousNode) return null;
+      // Get node type label
+      const nodeTypeLabels = {
+        'http-request': 'HTTP Request',
+        'webhook': 'Webhook',
+        'call-agent': 'Call Agent',
+        'variable-set': 'Set Variable',
+        'if': 'If Condition',
+        'wait': 'Wait',
+        'database-query': 'Database Query',
+        'google-sheets': 'Google Sheets',
+        'knowledge-base-query': 'Knowledge Base Query',
+        'start': 'Start',
+        'end': 'End',
+      };
 
-    // Check for output in node.data.output
-    const output = previousNode.data?.output;
-    if (output === undefined || output === null) return null;
+      return {
+        nodeId: node.id,
+        nodeType: node.type,
+        nodeName: node.data?.name || nodeTypeLabels[node.type] || node.type,
+        output: output,
+      };
+    }).filter(Boolean);
 
-    return output;
+    if (previousNodes.length === 0) return null;
+
+    // If only one node, return its output directly (backward compatibility)
+    if (previousNodes.length === 1) {
+      return previousNodes[0].output;
+    }
+
+    // If multiple nodes, return array of node outputs
+    return previousNodes;
   };
 
   // Get output data from current node
   const getOutputData = () => {
     if (!selectedNode) return null;
 
-    // Check for output in node.data.output
-    const output = selectedNode.data?.output;
+    // Check localData first (for immediate updates), then node.data
+    const output = localData.output !== undefined 
+      ? localData.output 
+      : selectedNode.data?.output;
+    
     if (output === undefined || output === null) return null;
 
     return output;
   };
 
-  const inputData = getInputData();
-  const outputData = getOutputData();
-  const availableVariables = getAvailableVariables();
+  // Force re-calculation of input/output data when nodes or localData changes
+  // Use useMemo to ensure recalculation when dependencies change
+  const inputData = useMemo(() => getInputData(), [localData, nodes, edges, selectedNode]);
+  const outputData = useMemo(() => getOutputData(), [localData, selectedNode]);
+  const availableVariables = useMemo(() => getAvailableVariables(), [localData, nodes, edges, selectedNode]);
 
   // Render data as table
   const renderTable = data => {
@@ -1008,6 +1299,7 @@ export default function NodeSidebarN8N({
       case 'google-sheets':
         return (
           <>
+            {/* Resource Dropdown */}
             <div style={{ marginBottom: '1rem' }}>
               <label
                 style={{
@@ -1018,32 +1310,11 @@ export default function NodeSidebarN8N({
                   color: 'white',
                 }}
               >
-                Spreadsheet ID
+                Resource
               </label>
-              <VariableAutocomplete
-                value={localData.spreadsheet_id || ''}
-                onChange={e => handleUpdate('spreadsheet_id', e.target.value)}
-                availableVariables={availableVariables}
-                placeholder="Enter spreadsheet ID or {{spreadsheetId}}"
-              />
-            </div>
-            <div style={{ marginBottom: '1rem' }}>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  color: 'white',
-                }}
-              >
-                Range
-              </label>
-              <input
-                type="text"
-                value={localData.range || ''}
-                onChange={e => handleUpdate('range', e.target.value)}
-                placeholder="Sheet1!A1:B10"
+              <select
+                value={localData.resource || 'Sheet Within Document'}
+                onChange={e => handleUpdate('resource', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -1053,8 +1324,13 @@ export default function NodeSidebarN8N({
                   background: '#2a2a2a',
                   color: 'white',
                 }}
-              />
+              >
+                <option value="Document">Document</option>
+                <option value="Sheet Within Document">Sheet Within Document</option>
+              </select>
             </div>
+
+            {/* Operation Dropdown */}
             <div style={{ marginBottom: '1rem' }}>
               <label
                 style={{
@@ -1065,16 +1341,680 @@ export default function NodeSidebarN8N({
                   color: 'white',
                 }}
               >
-                Values (JSON Array)
+                Operation
               </label>
-              <VariableAutocomplete
-                value={localData.values || ''}
-                onChange={e => handleUpdate('values', e.target.value)}
-                availableVariables={availableVariables}
-                placeholder='[["{{name}}", "{{email}}"], ["John", "john@example.com"]]'
-                multiline
-              />
+              <select
+                value={localData.operation || ''}
+                onChange={e => handleUpdate('operation', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  background: '#2a2a2a',
+                  color: 'white',
+                }}
+              >
+                {localData.resource === 'Document' ? (
+                  <>
+                    <option value="">Select operation...</option>
+                    <option value="Create">Create</option>
+                    <option value="Delete">Delete</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="">Select operation...</option>
+                    <option value="Append or Update Row">Append or Update Row</option>
+                    <option value="Append Row">Append Row</option>
+                    <option value="Update Row">Update Row</option>
+                    <option value="Get Row(s)">Get Row(s)</option>
+                    <option value="Delete Rows">Delete Rows</option>
+                  </>
+                )}
+              </select>
             </div>
+
+            {/* Document: Create */}
+            {localData.resource === 'Document' &&
+              localData.operation === 'Create' && (
+                <>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'white',
+                      }}
+                    >
+                      Title
+                    </label>
+                    <VariableAutocomplete
+                      value={localData.title || ''}
+                      onChange={e => handleUpdate('title', e.target.value)}
+                      availableVariables={availableVariables}
+                      placeholder="My Report"
+                    />
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'white',
+                      }}
+                    >
+                      Initial Sheets
+                    </label>
+                    <div
+                      style={{
+                        background: '#2a2a2a',
+                        border: '1px solid #333',
+                        borderRadius: '8px',
+                        padding: '0.75rem',
+                      }}
+                    >
+                      {(localData.sheets || []).map((sheet, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            gap: '0.5rem',
+                            marginBottom: '0.5rem',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <input
+                            type="text"
+                            value={sheet.title || ''}
+                            onChange={e => {
+                              const newSheets = [...(localData.sheets || [])];
+                              newSheets[index] = {
+                                ...newSheets[index],
+                                title: e.target.value,
+                              };
+                              handleUpdate('sheets', newSheets);
+                            }}
+                            placeholder="Sheet Title"
+                            style={{
+                              flex: 1,
+                              padding: '0.5rem',
+                              border: '1px solid #333',
+                              borderRadius: '6px',
+                              fontSize: '0.875rem',
+                              background: '#1a1a1a',
+                              color: 'white',
+                            }}
+                          />
+                          <label
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.75rem',
+                              color: '#94a3b8',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={sheet.hidden || false}
+                              onChange={e => {
+                                const newSheets = [...(localData.sheets || [])];
+                                newSheets[index] = {
+                                  ...newSheets[index],
+                                  hidden: e.target.checked,
+                                };
+                                handleUpdate('sheets', newSheets);
+                              }}
+                            />
+                            Hidden
+                          </label>
+                          <button
+                            onClick={() => {
+                              const newSheets = (localData.sheets || []).filter(
+                                (_, i) => i !== index
+                              );
+                              handleUpdate('sheets', newSheets);
+                            }}
+                            style={{
+                              background: '#ef4444',
+                              border: 'none',
+                              color: 'white',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          const newSheets = [
+                            ...(localData.sheets || []),
+                            { title: '', hidden: false },
+                          ];
+                          handleUpdate('sheets', newSheets);
+                        }}
+                        style={{
+                          background: '#3b82f6',
+                          border: 'none',
+                          color: 'white',
+                          padding: '0.5rem',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          width: '100%',
+                        }}
+                      >
+                        + Add Sheet
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+            {/* Sheet Within Document: All Operations */}
+            {localData.resource === 'Sheet Within Document' &&
+              localData.operation && (
+                <>
+                  {/* Document Selection */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'white',
+                      }}
+                    >
+                      Document
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <select
+                        value={localData.spreadsheetId || ''}
+                        onChange={e => {
+                          handleUpdate('spreadsheetId', e.target.value);
+                          if (e.target.value) {
+                            fetchSheets(e.target.value);
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '0.75rem',
+                          border: '1px solid #333',
+                          borderRadius: '8px',
+                          fontSize: '0.875rem',
+                          background: '#2a2a2a',
+                          color: 'white',
+                        }}
+                      >
+                        <option value="">Select document...</option>
+                        {spreadsheets.map(spreadsheet => (
+                          <option key={spreadsheet.id} value={spreadsheet.id}>
+                            {spreadsheet.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={async () => {
+                          await fetchSpreadsheets();
+                          setShowSpreadsheetModal(true);
+                        }}
+                        style={{
+                          background: '#3b82f6',
+                          border: 'none',
+                          color: 'white',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        Choose...
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sheet Selection */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'white',
+                      }}
+                    >
+                      Sheet
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <select
+                        value={localData.sheetName || ''}
+                        onChange={e => handleUpdate('sheetName', e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '0.75rem',
+                          border: '1px solid #333',
+                          borderRadius: '8px',
+                          fontSize: '0.875rem',
+                          background: '#2a2a2a',
+                          color: 'white',
+                        }}
+                      >
+                        <option value="">Select sheet...</option>
+                        {sheets && sheets.length > 0 ? (
+                          sheets.map(sheet => (
+                            <option key={sheet.sheetId || sheet.id} value={sheet.title || sheet.name}>
+                              {sheet.title || sheet.name}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="">No sheets available</option>
+                        )}
+                      </select>
+                      <button
+                        onClick={async () => {
+                          if (localData.spreadsheetId) {
+                            await fetchSheets(localData.spreadsheetId);
+                            setShowSheetModal(true);
+                          }
+                        }}
+                        disabled={!localData.spreadsheetId}
+                        style={{
+                          background: localData.spreadsheetId
+                            ? '#3b82f6'
+                            : '#4a5568',
+                          border: 'none',
+                          color: 'white',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '8px',
+                          cursor: localData.spreadsheetId
+                            ? 'pointer'
+                            : 'not-allowed',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        Choose...
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Append or Update Row */}
+                  {localData.operation === 'Append or Update Row' && (
+                    <>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          Unique Column
+                        </label>
+                        <VariableAutocomplete
+                          value={localData.uniqueColumn || ''}
+                          onChange={e =>
+                            handleUpdate('uniqueColumn', e.target.value)
+                          }
+                          availableVariables={availableVariables}
+                          placeholder="Email or ID or col_3"
+                        />
+                      </div>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          Unique Value
+                        </label>
+                        <VariableAutocomplete
+                          value={localData.uniqueValue || ''}
+                          onChange={e =>
+                            handleUpdate('uniqueValue', e.target.value)
+                          }
+                          availableVariables={availableVariables}
+                          placeholder="john@example.com or {{email}}"
+                        />
+                      </div>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          Values to Set (JSON Object)
+                        </label>
+                        <VariableAutocomplete
+                          value={
+                            typeof localData.valuesToSet === 'string'
+                              ? localData.valuesToSet
+                              : JSON.stringify(localData.valuesToSet || {}, null, 2)
+                          }
+                          onChange={e => {
+                            try {
+                              const parsed = JSON.parse(e.target.value);
+                              handleUpdate('valuesToSet', parsed);
+                            } catch {
+                              handleUpdate('valuesToSet', e.target.value);
+                            }
+                          }}
+                          availableVariables={availableVariables}
+                          placeholder='{"Status": "Contacted", "Name": "{{name}}"}'
+                          multiline
+                        />
+                      </div>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.875rem',
+                            color: 'white',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={localData.appendIfNotFound !== false}
+                            onChange={e =>
+                              handleUpdate('appendIfNotFound', e.target.checked)
+                            }
+                          />
+                          Append if not found
+                        </label>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Append Row */}
+                  {localData.operation === 'Append Row' && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label
+                        style={{
+                          display: 'block',
+                          marginBottom: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'white',
+                        }}
+                      >
+                        Values (JSON Array)
+                      </label>
+                      <VariableAutocomplete
+                        value={
+                          typeof localData.valuesToSet === 'string'
+                            ? localData.valuesToSet
+                            : JSON.stringify(localData.valuesToSet || [], null, 2)
+                        }
+                        onChange={e => {
+                          try {
+                            const parsed = JSON.parse(e.target.value);
+                            handleUpdate('valuesToSet', parsed);
+                          } catch {
+                            handleUpdate('valuesToSet', e.target.value);
+                          }
+                        }}
+                        availableVariables={availableVariables}
+                        placeholder='["Value1", "Value2", "Value3"]'
+                        multiline
+                      />
+                    </div>
+                  )}
+
+                  {/* Update Row */}
+                  {localData.operation === 'Update Row' && (
+                    <>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          Row Index (1-based)
+                        </label>
+                        <VariableAutocomplete
+                          value={localData.rowIndex || ''}
+                          onChange={e => handleUpdate('rowIndex', e.target.value)}
+                          availableVariables={availableVariables}
+                          placeholder="2 or {{rowIndex}}"
+                        />
+                      </div>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          Values (JSON Array)
+                        </label>
+                        <VariableAutocomplete
+                          value={
+                            typeof localData.valuesToSet === 'string'
+                              ? localData.valuesToSet
+                              : JSON.stringify(localData.valuesToSet || [], null, 2)
+                          }
+                          onChange={e => {
+                            try {
+                              const parsed = JSON.parse(e.target.value);
+                              handleUpdate('valuesToSet', parsed);
+                            } catch {
+                              handleUpdate('valuesToSet', e.target.value);
+                            }
+                          }}
+                          availableVariables={availableVariables}
+                          placeholder='["Value1", "Value2", "Value3"]'
+                          multiline
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Get Row(s) */}
+                  {localData.operation === 'Get Row(s)' && (
+                    <>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          Filters
+                        </label>
+                        <div
+                          style={{
+                            background: '#2a2a2a',
+                            border: '1px solid #333',
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                          }}
+                        >
+                          {(localData.filters || []).map((filter, index) => (
+                            <div
+                              key={index}
+                              style={{
+                                display: 'flex',
+                                gap: '0.5rem',
+                                marginBottom: '0.5rem',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <VariableAutocomplete
+                                value={filter.column || ''}
+                                onChange={e => {
+                                  const newFilters = [...(localData.filters || [])];
+                                  newFilters[index] = {
+                                    ...newFilters[index],
+                                    column: e.target.value,
+                                  };
+                                  handleUpdate('filters', newFilters);
+                                }}
+                                availableVariables={availableVariables}
+                                placeholder="Column name"
+                                style={{ flex: 1 }}
+                              />
+                              <VariableAutocomplete
+                                value={filter.value || ''}
+                                onChange={e => {
+                                  const newFilters = [...(localData.filters || [])];
+                                  newFilters[index] = {
+                                    ...newFilters[index],
+                                    value: e.target.value,
+                                  };
+                                  handleUpdate('filters', newFilters);
+                                }}
+                                availableVariables={availableVariables}
+                                placeholder="Value"
+                                style={{ flex: 1 }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const newFilters = (localData.filters || []).filter(
+                                    (_, i) => i !== index
+                                  );
+                                  handleUpdate('filters', newFilters);
+                                }}
+                                style={{
+                                  background: '#ef4444',
+                                  border: 'none',
+                                  color: 'white',
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.75rem',
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const newFilters = [
+                                ...(localData.filters || []),
+                                { column: '', value: '' },
+                              ];
+                              handleUpdate('filters', newFilters);
+                            }}
+                            style={{
+                              background: '#3b82f6',
+                              border: 'none',
+                              color: 'white',
+                              padding: '0.5rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                              width: '100%',
+                            }}
+                          >
+                            + Add Filter
+                          </button>
+                        </div>
+                      </div>
+                      {localData.filters && localData.filters.length > 0 && (
+                        <div style={{ marginBottom: '1rem' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              marginBottom: '0.5rem',
+                              fontSize: '0.875rem',
+                              fontWeight: 600,
+                              color: 'white',
+                            }}
+                          >
+                            Combine Filters
+                          </label>
+                          <select
+                            value={localData.combineFilters || 'AND'}
+                            onChange={e =>
+                              handleUpdate('combineFilters', e.target.value)
+                            }
+                            style={{
+                              width: '100%',
+                              padding: '0.75rem',
+                              border: '1px solid #333',
+                              borderRadius: '8px',
+                              fontSize: '0.875rem',
+                              background: '#2a2a2a',
+                              color: 'white',
+                            }}
+                          >
+                            <option value="AND">AND</option>
+                            <option value="OR">OR</option>
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Delete Rows */}
+                  {localData.operation === 'Delete Rows' && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label
+                        style={{
+                          display: 'block',
+                          marginBottom: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'white',
+                        }}
+                      >
+                        Row Indices (JSON Array, 1-based)
+                      </label>
+                      <VariableAutocomplete
+                        value={
+                          typeof localData.rowIndices === 'string'
+                            ? localData.rowIndices
+                            : JSON.stringify(localData.rowIndices || [], null, 2)
+                        }
+                        onChange={e => {
+                          try {
+                            const parsed = JSON.parse(e.target.value);
+                            handleUpdate('rowIndices', parsed);
+                          } catch {
+                            handleUpdate('rowIndices', e.target.value);
+                          }
+                        }}
+                        availableVariables={availableVariables}
+                        placeholder='[2, 3, 5]'
+                        multiline
+                      />
+                    </div>
+                  )}
+                </>
+              )}
           </>
         );
 
@@ -1136,6 +2076,211 @@ export default function NodeSidebarN8N({
           </>
         );
 
+      case 'google-sheets-trigger':
+        return (
+          <>
+            {/* Poll Time */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'white',
+                }}
+              >
+                Poll Time
+              </label>
+              <select
+                value={localData.pollTime || '1 minute'}
+                onChange={e => handleUpdate('pollTime', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  background: '#2a2a2a',
+                  color: 'white',
+                }}
+              >
+                <option value="1 minute">Every minute</option>
+                <option value="15 minutes">Every 15 minutes</option>
+                <option value="30 minutes">Every 30 minutes</option>
+                <option value="1 hour">Every hour</option>
+                <option value="3 hours">Every 3 hours</option>
+                <option value="12 hours">Every 12 hours</option>
+                <option value="24 hours">Every 24 hours</option>
+              </select>
+            </div>
+
+            {/* Document Selection */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'white',
+                }}
+              >
+                Document
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <select
+                  value={localData.spreadsheetId || ''}
+                  onChange={async e => {
+                    const newSpreadsheetId = e.target.value;
+                    handleUpdate('spreadsheetId', newSpreadsheetId);
+                    if (newSpreadsheetId) {
+                      console.log('Spreadsheet selected, fetching sheets:', newSpreadsheetId);
+                      await fetchSheets(newSpreadsheetId);
+                    } else {
+                      setSheets([]);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    background: '#2a2a2a',
+                    color: 'white',
+                  }}
+                >
+                  <option value="">Select document...</option>
+                  {spreadsheets && spreadsheets.length > 0 ? (
+                    spreadsheets.map(spreadsheet => (
+                      <option key={spreadsheet.id} value={spreadsheet.id}>
+                        {spreadsheet.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No spreadsheets available</option>
+                  )}
+                </select>
+                <button
+                  onClick={async () => {
+                    await fetchSpreadsheets();
+                    setShowSpreadsheetModal(true);
+                  }}
+                  style={{
+                    background: '#3b82f6',
+                    border: 'none',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  Choose...
+                </button>
+              </div>
+            </div>
+
+            {/* Sheet Selection */}
+            {localData.spreadsheetId && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'white',
+                  }}
+                >
+                  Sheet
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select
+                    value={localData.sheetName || ''}
+                    onChange={e => handleUpdate('sheetName', e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '0.75rem',
+                      border: '1px solid #333',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      background: '#2a2a2a',
+                      color: 'white',
+                    }}
+                  >
+                    <option value="">Select sheet...</option>
+                    {sheets && sheets.length > 0 ? (
+                      sheets.map(sheet => (
+                        <option key={sheet.sheetId || sheet.id} value={sheet.title || sheet.name}>
+                          {sheet.title || sheet.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">No sheets available</option>
+                    )}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      if (localData.spreadsheetId) {
+                        await fetchSheets(localData.spreadsheetId);
+                        setShowSheetModal(true);
+                      }
+                    }}
+                    disabled={!localData.spreadsheetId}
+                    style={{
+                      background: localData.spreadsheetId
+                        ? '#3b82f6'
+                        : '#4a5568',
+                      border: 'none',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      cursor: localData.spreadsheetId
+                        ? 'pointer'
+                        : 'not-allowed',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    Choose...
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Trigger On */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: 'white',
+                }}
+              >
+                Trigger On
+              </label>
+              <select
+                value={localData.triggerOn || 'Row added or updated'}
+                onChange={e => handleUpdate('triggerOn', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  background: '#2a2a2a',
+                  color: 'white',
+                }}
+              >
+                <option value="Row added or updated">Row added or updated</option>
+              </select>
+            </div>
+          </>
+        );
+
       default:
         return (
           <div
@@ -1179,13 +2324,31 @@ export default function NodeSidebarN8N({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>✏️</span>
-          <span style={{ fontWeight: 600 }}>
-            {selectedNode?.type || 'Node'}
-          </span>
+          {selectedNode?.type === 'google-sheets' ? (
+            <>
+              <span style={{ fontSize: '1.25rem' }}>📊</span>
+              <span style={{ fontWeight: 600 }}>Google Sheets</span>
+            </>
+          ) : selectedNode?.type === 'google-sheets-trigger' ? (
+            <>
+              <span style={{ fontSize: '1.25rem' }}>📊</span>
+              <span style={{ fontWeight: 600 }}>Google Sheets Trigger</span>
+            </>
+          ) : selectedNode?.type === 'start' ? (
+            <>
+              <span style={{ fontSize: '1.25rem' }}>🚀</span>
+              <span style={{ fontWeight: 600 }}>Manual Trigger</span>
+            </>
+          ) : (
+            <>
+              <span>✏️</span>
+              <span style={{ fontWeight: 600 }}>
+                {selectedNode?.type || 'Node'}
+              </span>
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {/* Execute Single Node Button */}
           <button
             onClick={async () => {
               if (!selectedNode) return;
@@ -1199,8 +2362,12 @@ export default function NodeSidebarN8N({
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
-                      node: selectedNode,
-                      nodes,
+                      node: { ...selectedNode, data: { ...selectedNode.data, ...localData } },
+                      nodes: nodes.map(n => 
+                        n.id === selectedNode.id 
+                          ? { ...n, data: { ...n.data, ...localData } }
+                          : n
+                      ),
                       edges,
                       input: inputData || {},
                     }),
@@ -1208,10 +2375,28 @@ export default function NodeSidebarN8N({
                 );
                 const result = await response.json();
                 if (result.success && result.data?.output) {
-                  // Update node with output
-                  handleUpdate('output', result.data.output);
+                  // Update node with output - use both localData and onNodeUpdate
+                  const newOutput = result.data.output;
+                  
+                  // Update localData first for immediate UI update
+                  // Use functional update to ensure we get the latest state
+                  setLocalData(prev => {
+                    const updated = { ...prev, output: newOutput, status: 'success' };
+                    return updated;
+                  });
+                  
+                  // Then update via onNodeUpdate to propagate to parent
+                  // This will update the nodes array and selectedNode
+                  handleUpdate('output', newOutput);
                   handleUpdate('status', 'success');
+                  
+                  // Force a re-render by updating selectedNode reference
+                  // This ensures getInputData() sees the updated output
+                  if (onNodeUpdate) {
+                    onNodeUpdate(selectedNode.id, { output: newOutput, status: 'success' });
+                  }
                 } else {
+                  setLocalData(prev => ({ ...prev, status: 'failed' }));
                   handleUpdate('status', 'failed');
                   alert(result.error || 'Failed to execute node');
                 }
@@ -1322,87 +2507,202 @@ export default function NodeSidebarN8N({
           <div style={{ padding: '0.75rem', overflow: 'auto', flex: 1 }}>
             {inputData ? (
               <>
-                <div
-                  style={{
-                    marginBottom: '0.5rem',
-                    fontSize: '0.75rem',
-                    color: '#94a3b8',
-                  }}
-                >
-                  From:{' '}
-                  {edges.find(e => e.target === selectedNode.id)?.source ||
-                    'Previous Node'}
-                </div>
-                <div
-                  style={{
-                    marginBottom: '0.5rem',
-                    display: 'flex',
-                    gap: '0.25rem',
-                  }}
-                >
-                  <button
-                    onClick={() => setInputView('table')}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      background:
-                        inputView === 'table' ? '#3b82f6' : 'transparent',
-                      border: 'none',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '0.75rem',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    Table
-                  </button>
-                  <button
-                    onClick={() => setInputView('json')}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      background:
-                        inputView === 'json' ? '#3b82f6' : 'transparent',
-                      border: 'none',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '0.75rem',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    JSON
-                  </button>
-                </div>
-                {inputView === 'table' ? (
+                {/* Check if inputData is an array (multiple nodes) or object (single node) */}
+                {Array.isArray(inputData) ? (
+                  // Multiple nodes - display each one separately
                   <>
-                    {renderTable(inputData)}
                     <div
                       style={{
-                        marginTop: '1rem',
-                        paddingTop: '1rem',
-                        borderTop: '1px solid #333',
+                        marginBottom: '0.5rem',
+                        display: 'flex',
+                        gap: '0.25rem',
                       }}
                     >
-                      <div
+                      <button
+                        onClick={() => setInputView('table')}
                         style={{
+                          padding: '0.25rem 0.5rem',
+                          background:
+                            inputView === 'table' ? '#3b82f6' : 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
                           fontSize: '0.75rem',
-                          color: '#94a3b8',
-                          marginBottom: '0.5rem',
+                          borderRadius: '4px',
                         }}
                       >
-                        Drag fields to use (or click to copy):
-                      </div>
-                      {renderNestedFields(inputData)}
+                        Table
+                      </button>
+                      <button
+                        onClick={() => setInputView('json')}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background:
+                            inputView === 'json' ? '#3b82f6' : 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        JSON
+                      </button>
                     </div>
+                    {inputData.map((nodeData, index) => (
+                      <div
+                        key={nodeData.nodeId || index}
+                        style={{
+                          marginBottom: index < inputData.length - 1 ? '1.5rem' : 0,
+                          paddingBottom: index < inputData.length - 1 ? '1.5rem' : 0,
+                          borderBottom:
+                            index < inputData.length - 1
+                              ? '1px solid #333'
+                              : 'none',
+                        }}
+                      >
+                        <div
+                          style={{
+                            marginBottom: '0.5rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            color: 'white',
+                          }}
+                        >
+                          {nodeData.nodeName}
+                        </div>
+                        <div
+                          style={{
+                            marginBottom: '0.5rem',
+                            fontSize: '0.75rem',
+                            color: '#94a3b8',
+                          }}
+                        >
+                          Preview: The fields below come from the last successful
+                          execution. Execute node to refresh them.
+                        </div>
+                        {inputView === 'table' ? (
+                          <>
+                            {renderTable(nodeData.output)}
+                            <div
+                              style={{
+                                marginTop: '1rem',
+                                paddingTop: '1rem',
+                                borderTop: '1px solid #333',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: '#94a3b8',
+                                  marginBottom: '0.5rem',
+                                }}
+                              >
+                                Drag fields to use (or click to copy):
+                              </div>
+                              {renderNestedFields(nodeData.output)}
+                            </div>
+                          </>
+                        ) : (
+                          <pre
+                            style={{
+                              fontSize: '0.75rem',
+                              overflow: 'auto',
+                              color: 'white',
+                            }}
+                          >
+                            {JSON.stringify(nodeData.output, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    ))}
                   </>
                 ) : (
-                  <pre
-                    style={{
-                      fontSize: '0.75rem',
-                      overflow: 'auto',
-                      color: 'white',
-                    }}
-                  >
-                    {JSON.stringify(inputData, null, 2)}
-                  </pre>
+                  // Single node - display as before
+                  <>
+                    <div
+                      style={{
+                        marginBottom: '0.5rem',
+                        fontSize: '0.75rem',
+                        color: '#94a3b8',
+                      }}
+                    >
+                      From:{' '}
+                      {edges.find(e => e.target === selectedNode.id)?.source ||
+                        'Previous Node'}
+                    </div>
+                    <div
+                      style={{
+                        marginBottom: '0.5rem',
+                        display: 'flex',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      <button
+                        onClick={() => setInputView('table')}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background:
+                            inputView === 'table' ? '#3b82f6' : 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        Table
+                      </button>
+                      <button
+                        onClick={() => setInputView('json')}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          background:
+                            inputView === 'json' ? '#3b82f6' : 'transparent',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        JSON
+                      </button>
+                    </div>
+                    {inputView === 'table' ? (
+                      <>
+                        {renderTable(inputData)}
+                        <div
+                          style={{
+                            marginTop: '1rem',
+                            paddingTop: '1rem',
+                            borderTop: '1px solid #333',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: '0.75rem',
+                              color: '#94a3b8',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            Drag fields to use (or click to copy):
+                          </div>
+                          {renderNestedFields(inputData)}
+                        </div>
+                      </>
+                    ) : (
+                      <pre
+                        style={{
+                          fontSize: '0.75rem',
+                          overflow: 'auto',
+                          color: 'white',
+                        }}
+                      >
+                        {JSON.stringify(inputData, null, 2)}
+                      </pre>
+                    )}
+                  </>
                 )}
               </>
             ) : (
@@ -1461,7 +2761,109 @@ export default function NodeSidebarN8N({
             )}
             {activeTab === 'settings' && (
               <div>
-                {selectedNode?.type === 'call-agent' ? (
+                {selectedNode?.type === 'google-sheets' || selectedNode?.type === 'google-sheets-trigger' ? (
+                  <>
+                    {/* Google Sheets OAuth Configuration */}
+                    <div style={{ marginBottom: '2rem' }}>
+                      <div
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'white',
+                          marginBottom: '1rem',
+                        }}
+                      >
+                        Google Sheets Connection
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#94a3b8',
+                          marginBottom: '1rem',
+                        }}
+                      >
+                        Connect your Google account to access Google Sheets
+                      </div>
+                      {googleSheetsStatus?.connected ? (
+                        <div
+                          style={{
+                            padding: '1rem',
+                            background: '#2a2a2a',
+                            borderRadius: '8px',
+                            border: '1px solid #10b981',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            <span style={{ color: '#10b981', fontSize: '1.25rem' }}>
+                              ✓
+                            </span>
+                            <span
+                              style={{
+                                color: '#10b981',
+                                fontWeight: 600,
+                                fontSize: '0.875rem',
+                              }}
+                            >
+                              Connected
+                            </span>
+                          </div>
+                          {googleSheetsStatus.email && (
+                            <div
+                              style={{
+                                fontSize: '0.75rem',
+                                color: '#94a3b8',
+                                marginBottom: '0.5rem',
+                              }}
+                            >
+                              Account: {googleSheetsStatus.email}
+                            </div>
+                          )}
+                          <button
+                            onClick={handleGoogleSheetsDisconnect}
+                            style={{
+                              background: '#ef4444',
+                              border: 'none',
+                              color: 'white',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleGoogleSheetsAuth}
+                          style={{
+                            background: '#4285f4',
+                            border: 'none',
+                            color: 'white',
+                            padding: '0.75rem 1.5rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          <span>🔗</span>
+                          <span>Connect Google Account</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : selectedNode?.type === 'call-agent' ? (
                   <>
                     {/* Knowledge Base Configuration */}
                     <div style={{ marginBottom: '2rem' }}>
@@ -1749,7 +3151,84 @@ export default function NodeSidebarN8N({
               </div>
             )}
             {activeTab === 'docs' && (
-              <div style={{ color: '#94a3b8' }}>Documentation</div>
+              <div style={{ color: '#94a3b8', padding: '1rem' }}>
+                {selectedNode?.type === 'google-sheets' ? (
+                  <div>
+                    <h3 style={{ color: 'white', marginBottom: '1rem' }}>
+                      Google Sheets Node Documentation
+                    </h3>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>
+                        Resources
+                      </h4>
+                      <ul style={{ paddingLeft: '1.5rem', color: '#94a3b8' }}>
+                        <li>
+                          <strong>Document:</strong> Create or delete entire
+                          spreadsheets
+                        </li>
+                        <li>
+                          <strong>Sheet Within Document:</strong> Work with
+                          individual sheets within a spreadsheet
+                        </li>
+                      </ul>
+                    </div>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>
+                        Operations
+                      </h4>
+                      <ul style={{ paddingLeft: '1.5rem', color: '#94a3b8' }}>
+                        <li>
+                          <strong>Create:</strong> Create a new spreadsheet with
+                          optional initial sheets
+                        </li>
+                        <li>
+                          <strong>Append or Update Row:</strong> Smart operation
+                          that searches for a unique identifier and updates if
+                          found, appends if not found
+                        </li>
+                        <li>
+                          <strong>Append Row:</strong> Add a new row to the end
+                          of a sheet
+                        </li>
+                        <li>
+                          <strong>Update Row:</strong> Update an existing row by
+                          row index
+                        </li>
+                        <li>
+                          <strong>Get Row(s):</strong> Retrieve rows with
+                          optional filters (AND/OR)
+                        </li>
+                        <li>
+                          <strong>Delete Rows:</strong> Delete rows by their
+                          indices
+                        </li>
+                      </ul>
+                    </div>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>
+                        Variables
+                      </h4>
+                      <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                        You can use variables from previous nodes in any field
+                        using {'{{variableName}}'} syntax. For example:{' '}
+                        {'{{httpResponse.data.email}}'} or {'{{userId}}'}.
+                      </p>
+                    </div>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>
+                        Authentication
+                      </h4>
+                      <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                        Connect your Google account in the Settings tab to
+                        access Google Sheets. Once connected, you can select
+                        spreadsheets and sheets from your account.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>Documentation</div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1829,6 +3308,217 @@ export default function NodeSidebarN8N({
           </div>
         </div>
       </div>
+
+      {/* Spreadsheet Selection Modal */}
+      {showSpreadsheetModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowSpreadsheetModal(false)}
+        >
+          <div
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid #333',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+              }}
+            >
+              <h3 style={{ color: 'white', margin: 0 }}>Select Spreadsheet</h3>
+              <button
+                onClick={() => setShowSpreadsheetModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '1.5rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              {spreadsheets.map(spreadsheet => (
+                <button
+                  key={spreadsheet.id}
+                  onClick={() => {
+                    handleUpdate('spreadsheetId', spreadsheet.id);
+                    fetchSheets(spreadsheet.id);
+                    setShowSpreadsheetModal(false);
+                  }}
+                  style={{
+                    background: '#2a2a2a',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    color: 'white',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => {
+                    e.target.style.background = '#333';
+                  }}
+                  onMouseLeave={e => {
+                    e.target.style.background = '#2a2a2a';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                    {spreadsheet.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: '#94a3b8',
+                    }}
+                  >
+                    ID: {spreadsheet.id}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sheet Selection Modal */}
+      {showSheetModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowSheetModal(false)}
+        >
+          <div
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid #333',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+              }}
+            >
+              <h3 style={{ color: 'white', margin: 0 }}>Select Sheet</h3>
+              <button
+                onClick={() => setShowSheetModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '1.5rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              {sheets && sheets.length > 0 ? (
+                sheets.map(sheet => (
+                  <button
+                    key={sheet.sheetId || sheet.id}
+                    onClick={() => {
+                      handleUpdate('sheetName', sheet.title || sheet.name);
+                      setShowSheetModal(false);
+                    }}
+                  style={{
+                    background: '#2a2a2a',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    color: 'white',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => {
+                    e.target.style.background = '#333';
+                  }}
+                  onMouseLeave={e => {
+                    e.target.style.background = '#2a2a2a';
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                    {sheet.title || sheet.name}
+                  </div>
+                  {sheet.hidden && (
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        color: '#94a3b8',
+                      }}
+                    >
+                      Hidden
+                    </div>
+                  )}
+                </button>
+                ))
+              ) : (
+                <div style={{ padding: '1rem', color: '#999', textAlign: 'center' }}>
+                  No sheets available
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

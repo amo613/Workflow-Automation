@@ -28,10 +28,18 @@ export async function executeWebhook(data, context) {
     };
 
     if (resolvedBody && method.toUpperCase() !== 'GET') {
-      try {
-        fetchOptions.body = JSON.parse(resolvedBody);
-      } catch {
-        fetchOptions.body = resolvedBody;
+      // fetch expects body as string, not object
+      if (typeof resolvedBody === 'object') {
+        fetchOptions.body = JSON.stringify(resolvedBody);
+      } else {
+        try {
+          // Try to parse as JSON first, then stringify
+          const parsed = JSON.parse(resolvedBody);
+          fetchOptions.body = JSON.stringify(parsed);
+        } catch {
+          // If not JSON, use as-is
+          fetchOptions.body = resolvedBody;
+        }
       }
     }
 

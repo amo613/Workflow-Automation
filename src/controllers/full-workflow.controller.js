@@ -9,6 +9,12 @@ import {
 import { triggerWorkflow } from '#services/full-workflow/trigger.service.js';
 import { executeNode } from '#services/full-workflow/node-handlers/index.js';
 import VariableContext from '#services/full-workflow/variable-context.service.js';
+import { 
+  getAllActiveTriggers, 
+  getActiveTriggers,
+  scheduleTriggerPolling,
+  removeTriggerPolling,
+} from '#services/full-workflow/trigger-polling.service.js';
 
 /**
  * Create a new full workflow
@@ -122,14 +128,55 @@ export async function updateFullWorkflowHandler(req, reply) {
     const userId = req.user.id;
     const { id } = req.params;
     const { name, description, type, workflow_json, is_active } = req.body;
+    const workflowId = parseInt(id, 10);
 
-    const workflow = await updateFullWorkflow(parseInt(id, 10), userId, {
+    const workflow = await updateFullWorkflow(workflowId, userId, {
       name,
       description,
       type,
       workflow_json,
       is_active,
     });
+
+    // Handle trigger scheduling if workflow_json is updated
+    if (workflow_json && workflow_json.nodes) {
+      const nodes = workflow_json.nodes || [];
+      
+      // Find all trigger nodes
+      const triggerNodes = nodes.filter(
+        node => node.type === 'google-sheets-trigger'
+      );
+
+      // Remove old triggers for this workflow
+      const existingTriggers = await getActiveTriggers(workflowId);
+      for (const trigger of existingTriggers) {
+        await removeTriggerPolling(workflowId, trigger.triggerNodeId);
+      }
+
+      // Schedule new triggers if workflow is active
+      if (is_active !== false && workflow.is_active) {
+        for (const triggerNode of triggerNodes) {
+          const triggerConfig = {
+            type: 'google-sheets-trigger',
+            pollTime: triggerNode.data?.pollTime || '1 minute',
+            spreadsheetId: triggerNode.data?.spreadsheetId,
+            sheetName: triggerNode.data?.sheetName,
+            triggerOn: triggerNode.data?.triggerOn || 'Row added or updated',
+            userId,
+          };
+
+          // Only schedule if all required fields are present
+          if (triggerConfig.spreadsheetId && triggerConfig.sheetName) {
+            await scheduleTriggerPolling(
+              workflowId,
+              triggerNode,
+              triggerConfig,
+              userId
+            );
+          }
+        }
+      }
+    }
 
     return reply.code(200).send({
       success: true,
@@ -225,6 +272,7 @@ export async function triggerWorkflowHandler(req, reply) {
           workflowId: Number(id),
           executionResult,
           nodeOutputs: executionResult.nodeOutputs,
+          executedEdges: executionResult.executedEdges || [],
         },
       });
     }
@@ -271,6 +319,14 @@ export async function executeSingleNodeHandler(req, reply) {
 
     // Build template context from previous nodes if available
     const templateContext = context.getContext(node.id, edges);
+    
+    // Ensure userId is in templateContext for node handlers
+    if (!templateContext.userId) {
+      templateContext.userId = userId;
+    }
+    if (!templateContext.workflowInput?.userId) {
+      templateContext.workflowInput = { ...templateContext.workflowInput, userId };
+    }
 
     // Execute the node
     const output = await executeNode(node, templateContext, context);
@@ -292,6 +348,44 @@ export async function executeSingleNodeHandler(req, reply) {
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to execute node',
+    });
+  }
+}
+
+/**
+ * Get active triggers for a workflow
+ */
+export async function getActiveTriggersHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const workflowId = parseInt(id, 10);
+
+    // Verify workflow belongs to user
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    // Get active triggers for this workflow
+    const triggers = await getActiveTriggers(workflowId);
+
+    return reply.code(200).send({
+      success: true,
+      data: triggers,
+    });
+  } catch (error) {
+    logger.error('Error getting active triggers', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get active triggers',
     });
   }
 }

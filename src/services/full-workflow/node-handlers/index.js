@@ -10,6 +10,7 @@ import { executeVariableSet } from './variable-set.handler.js';
 import { executeWait } from './wait.handler.js';
 import { executeDatabaseQuery } from './database-query.handler.js';
 import { executeGoogleSheets } from './google-sheets.handler.js';
+import { executeGoogleSheetsTrigger } from './google-sheets-trigger.handler.js';
 import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
 import logger from '#config/logger.js';
 
@@ -64,6 +65,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'google-sheets':
       return executeGoogleSheets(data, templateContext);
+
+    case 'google-sheets-trigger':
+      return executeGoogleSheetsTrigger(data, templateContext);
 
     case 'knowledge-base-query':
       return executeKnowledgeBaseQuery(data, templateContext);

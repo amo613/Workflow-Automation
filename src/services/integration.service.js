@@ -12,10 +12,10 @@ import logger from '#config/logger.js';
 export async function getIntegration(userId, integrationType) {
   try {
     // Normalize integration type
-    const normalizedType =
-      integrationType.toUpperCase() === 'GOOGLE'
-        ? 'GOOGLE_CALENDAR'
-        : integrationType.toUpperCase();
+    let normalizedType = integrationType.toUpperCase();
+    if (normalizedType === 'GOOGLE') {
+      normalizedType = 'GOOGLE_CALENDAR'; // Default to calendar for backward compatibility
+    }
 
     const [integration] = await db
       .select()

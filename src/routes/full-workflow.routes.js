@@ -8,12 +8,13 @@ import {
   deleteFullWorkflowHandler,
   triggerWorkflowHandler,
   executeSingleNodeHandler,
+  getActiveTriggersHandler,
 } from '#controllers/full-workflow.controller.js';
 
 async function fullWorkflowRoutes(fastify) {
-  // Apply timing hooks
+  // Apply timing hooks (skip onRequest to avoid body reading issues)
   const timingHooks = requestTimingHooks('Full Workflow');
-  fastify.addHook('onRequest', timingHooks.onRequest);
+  // Skip onRequest hook to avoid body reading conflicts with POST requests
   fastify.addHook('onResponse', timingHooks.onResponse);
 
   // All routes require authentication
@@ -140,6 +141,20 @@ async function fullWorkflowRoutes(fastify) {
       },
     },
     handler: executeSingleNodeHandler,
+  });
+
+  // Get active triggers for a workflow
+  fastify.get('/api/full-workflows/:id/triggers', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: getActiveTriggersHandler,
   });
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ReactFlow, {
   Background,
   Controls,
@@ -19,6 +19,7 @@ import IfNode from '../components/full-workflow/nodes/IfNode';
 import WaitNode from '../components/full-workflow/nodes/WaitNode';
 import DatabaseQueryNode from '../components/full-workflow/nodes/DatabaseQueryNode';
 import GoogleSheetsNode from '../components/full-workflow/nodes/GoogleSheetsNode';
+import GoogleSheetsTriggerNode from '../components/full-workflow/nodes/GoogleSheetsTriggerNode';
 import KnowledgeBaseQueryNode from '../components/full-workflow/nodes/KnowledgeBaseQueryNode';
 import NodeSidebarN8N from '../components/full-workflow/NodeSidebarN8N';
 import KnowledgeBaseManager from '../components/full-workflow/KnowledgeBaseManager';
@@ -34,12 +35,14 @@ const nodeTypes = {
   wait: WaitNode,
   'database-query': DatabaseQueryNode,
   'google-sheets': GoogleSheetsNode,
+  'google-sheets-trigger': GoogleSheetsTriggerNode,
   'knowledge-base-query': KnowledgeBaseQueryNode,
 };
 
 function FullWorkflowEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isNew = !id;
 
   const [name, setName] = useState('');
@@ -53,27 +56,34 @@ function FullWorkflowEditor() {
   const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [executionStatus, setExecutionStatus] = useState(null);
+  const [executedEdges, setExecutedEdges] = useState([]);
+  const [activeTriggers, setActiveTriggers] = useState([]);
+  const [showActiveTriggers, setShowActiveTriggers] = useState(false);
 
   const onNodeUpdate = (nodeId, newData) => {
-    setNodes(nds =>
-      nds.map(node => {
+    setNodes(nds => {
+      const updatedNodes = nds.map(node => {
         if (node.id === nodeId) {
           const updatedData = { ...node.data, ...newData };
           const updatedNode = { ...node, data: updatedData };
           // Update selected node if it's the one being updated
+          // Use a new object reference to force React re-render
           if (selectedNode && selectedNode.id === nodeId) {
-            setSelectedNode(updatedNode);
+            setSelectedNode({ ...updatedNode });
           }
           return updatedNode;
         }
         return node;
-      })
-    );
+      });
+      // Force React to re-render by returning a new array reference
+      return updatedNodes;
+    });
   };
 
   useEffect(() => {
     if (!isNew) {
       fetchWorkflow();
+      fetchActiveTriggers();
     } else {
       // Initialize with default start node
       setNodes([
@@ -86,7 +96,54 @@ function FullWorkflowEditor() {
       ]);
       setEdges([]);
     }
-  }, [id]);
+
+    // Check if redirected from OAuth
+    const googleSheetsParam = searchParams.get('googleSheets');
+    if (googleSheetsParam === 'connected') {
+      // Remove the query parameter
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('googleSheets');
+      setSearchParams(newParams);
+      // Show success message
+      alert('Google Sheets connected successfully!');
+      // Force a page refresh to ensure all data is loaded
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } else if (googleSheetsParam === 'error') {
+      // Handle error case
+      const error = searchParams.get('error');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('googleSheets');
+      newParams.delete('error');
+      setSearchParams(newParams);
+      alert(`Google Sheets connection failed: ${error || 'Unknown error'}`);
+    }
+  }, [id, searchParams, setSearchParams]);
+
+  // Poll active triggers every 5 seconds
+  useEffect(() => {
+    if (!isNew && id) {
+      const interval = setInterval(() => {
+        fetchActiveTriggers();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [id, isNew]);
+
+  const fetchActiveTriggers = async () => {
+    if (!id) return;
+    try {
+      const response = await fetch(`/api/full-workflows/${id}/triggers`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch triggers');
+      const data = await response.json();
+      setActiveTriggers(data.data || []);
+    } catch (error) {
+      console.error('Error fetching active triggers:', error);
+    }
+  };
 
   const fetchWorkflow = async () => {
     try {
@@ -166,13 +223,14 @@ function FullWorkflowEditor() {
         message: 'Starting workflow...',
       });
 
-      // Update node statuses to 'running'
+      // Update node statuses to 'running' and reset executed edges
       setNodes(nds =>
         nds.map(node => ({
           ...node,
           data: { ...node.data, status: 'running' },
         }))
       );
+      setExecutedEdges([]);
 
       const response = await fetch(`/api/full-workflows/${id}/trigger`, {
         method: 'POST',
@@ -220,6 +278,11 @@ function FullWorkflowEditor() {
             );
           }, 1000);
         }
+
+        // Update executed edges (mark them as green)
+        if (result.data?.executedEdges) {
+          setExecutedEdges(result.data.executedEdges);
+        }
       } else {
         setExecutionStatus({
           status: 'error',
@@ -233,6 +296,7 @@ function FullWorkflowEditor() {
             data: { ...node.data, status: 'failed' },
           }))
         );
+        setExecutedEdges([]);
       }
     } catch (error) {
       setExecutionStatus({
@@ -247,6 +311,7 @@ function FullWorkflowEditor() {
           data: { ...node.data, status: 'failed' },
         }))
       );
+      setExecutedEdges([]);
     } finally {
       setExecuting(false);
     }
@@ -493,17 +558,146 @@ function FullWorkflowEditor() {
             overflowY: 'auto',
           }}
         >
+          {/* Active Triggers Section */}
+          {!isNew && activeTriggers.length > 0 && (
+            <div
+              style={{
+                marginBottom: '1.5rem',
+                padding: '0.75rem',
+                background: '#f0f9ff',
+                border: '1px solid #3b82f6',
+                borderRadius: '8px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#1e40af',
+                    margin: 0,
+                  }}
+                >
+                  Active Triggers
+                </h3>
+                <button
+                  onClick={() => setShowActiveTriggers(!showActiveTriggers)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#3b82f6',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {showActiveTriggers ? '▼' : '▶'}
+                </button>
+              </div>
+              {showActiveTriggers && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {activeTriggers.map((trigger, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: '0.5rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                        {trigger.triggerConfig?.type === 'google-sheets-trigger'
+                          ? '📊 Google Sheets'
+                          : '🚀 Manual'}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                        Poll: {trigger.triggerConfig?.pollTime || 'N/A'}
+                      </div>
+                      {trigger.nextRun && (
+                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                          Next: {new Date(trigger.nextRun).toLocaleTimeString()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Trigger Nodes */}
           <h3
             style={{
               fontSize: '0.875rem',
               fontWeight: 600,
               color: '#64748b',
-              marginBottom: '1rem',
+              marginBottom: '0.5rem',
+              marginTop: '0',
               textTransform: 'uppercase',
               letterSpacing: '1px',
             }}
           >
-            Nodes
+            Trigger Nodes
+          </h3>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}
+          >
+            <button
+              onClick={() => addNode('start')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>🚀</span>
+              <span>Manual Trigger</span>
+            </button>
+            <button
+              onClick={() => addNode('google-sheets-trigger')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>📊</span>
+              <span>Google Sheets Trigger</span>
+            </button>
+          </div>
+
+          {/* Action Nodes */}
+          <h3
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#64748b',
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+            }}
+          >
+            Action Nodes
           </h3>
           <div
             style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
@@ -694,7 +888,15 @@ function FullWorkflowEditor() {
         >
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={edges.map(edge => ({
+              ...edge,
+              style: {
+                ...edge.style,
+                stroke: executedEdges.includes(edge.id) ? '#10b981' : edge.style?.stroke || '#b1b1b7',
+                strokeWidth: executedEdges.includes(edge.id) ? 3 : edge.style?.strokeWidth || 2,
+              },
+              animated: executedEdges.includes(edge.id),
+            }))}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -752,6 +954,7 @@ function FullWorkflowEditor() {
                   );
                   setSelectedNode(null);
                 }}
+                workflowId={id ? parseInt(id, 10) : null}
               />
             </div>
           )}
