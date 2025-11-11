@@ -45,7 +45,7 @@ export default [
     },
   },
   {
-    files: ['src/public/js/**/*.js'],
+    files: ['src/public/js/**/*.js', 'ui/src/**/*.js', 'ui/src/**/*.jsx'],
     languageOptions: {
       globals: {
         // Browser globals
@@ -76,6 +76,7 @@ export default [
       'build/**',
       'ui/node_modules/**',
       'ui/dist/**',
+      'ui/**/*.jsx', // Ignore JSX files as they need special parser
     ],
   },
   prettier,

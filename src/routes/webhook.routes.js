@@ -33,12 +33,12 @@ async function webhookRoutes(fastify) {
         // Access request.body directly - it's already parsed by Fastify
         // If body is not parsed yet, parse it manually
         let payload = request.body || {};
-        
+
         // If body is a string (not parsed), try to parse it
         if (typeof payload === 'string') {
           try {
             payload = JSON.parse(payload);
-          } catch (e) {
+          } catch {
             payload = {};
           }
         }

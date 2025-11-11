@@ -96,7 +96,24 @@ export async function executeCallAgent(data, context) {
       throw error;
     }
   } else if (prompt) {
+    // Log context for debugging
+    logger.info('Resolving prompt template', {
+      promptLength: prompt.length,
+      hasPreviousNodeOutput: !!context.previousNodeOutput,
+      hasNodeOutputs: !!context.nodeOutputs,
+      nodeOutputsKeys: context.nodeOutputs
+        ? Object.keys(context.nodeOutputs)
+        : [],
+      hasWorkflowInput: !!context.workflowInput,
+      hasVariables: !!context.variables,
+      variablesKeys: context.variables ? Object.keys(context.variables) : [],
+    });
     callPrompt = resolveTemplate(prompt, context);
+    logger.info('Prompt resolved', {
+      originalLength: prompt.length,
+      resolvedLength: callPrompt.length,
+      changed: prompt !== callPrompt,
+    });
   } else {
     throw new Error('Either workflow_id or prompt is required');
   }

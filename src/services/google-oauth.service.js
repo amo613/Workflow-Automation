@@ -10,7 +10,8 @@ export class GoogleOAuthService {
     this.clientId = process.env.GOOGLE_CLIENT_ID;
     this.clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     // Base URL for redirects - we'll append the specific callback path
-    this.baseRedirectUri = process.env.GOOGLE_REDIRECT_URI_BASE || process.env.GOOGLE_REDIRECT_URI;
+    this.baseRedirectUri =
+      process.env.GOOGLE_REDIRECT_URI_BASE || process.env.GOOGLE_REDIRECT_URI;
 
     if (!this.clientId || !this.clientSecret || !this.baseRedirectUri) {
       logger.warn(
@@ -31,9 +32,10 @@ export class GoogleOAuthService {
     }
 
     // Otherwise, append the appropriate callback path
-    const callbackPath = integrationType === 'GOOGLE_SHEETS'
-      ? '/api/integrations/google-sheets/callback'
-      : '/api/integrations/google-calendar/callback';
+    const callbackPath =
+      integrationType === 'GOOGLE_SHEETS'
+        ? '/api/integrations/google-sheets/callback'
+        : '/api/integrations/google-calendar/callback';
 
     return `${this.baseRedirectUri}${callbackPath}`;
   }

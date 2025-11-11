@@ -22,11 +22,11 @@ export const initiateAuth = async (req, res) => {
   try {
     // Support both Fastify (request.user) and Express (req.user)
     const user = req.user || (req.request && req.request.user) || null;
-    
+
     if (!user || !user.id) {
       logger.error('Authentication failed - user not found in request');
       const errorResponse = { error: 'Authentication required' };
-      
+
       if (isFastifyRequest) {
         reply.status(401).send(errorResponse);
         throw new Error('Authentication required');
@@ -36,11 +36,11 @@ export const initiateAuth = async (req, res) => {
     }
 
     const userId = user.id;
-    
+
     // Get return URL from query params or use current workflow ID
     const returnUrl = req.query?.returnUrl || req.query?.redirectUrl || null;
     const workflowId = req.query?.workflowId || null;
-    
+
     // Build return URL for redirect after OAuth
     let finalReturnUrl = null;
     if (workflowId) {
@@ -54,17 +54,17 @@ export const initiateAuth = async (req, res) => {
         try {
           const url = new URL(referer);
           finalReturnUrl = url.pathname;
-        } catch (e) {
+        } catch {
           // Ignore invalid URL
         }
       }
     }
-    
-    const state = { 
-      userId, 
+
+    const state = {
+      userId,
       timestamp: Date.now(),
       returnUrl: finalReturnUrl,
-      integrationType: 'GOOGLE_SHEETS'
+      integrationType: 'GOOGLE_SHEETS',
     };
 
     const authUrl = googleOAuthService.getAuthUrl(
@@ -87,9 +87,9 @@ export const initiateAuth = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error initiating OAuth:', error);
-    const errorResponse = { 
+    const errorResponse = {
       error: 'Failed to initiate OAuth',
-      message: error.message || 'Unknown error'
+      message: error.message || 'Unknown error',
     };
 
     if (isFastifyRequest) {
@@ -113,7 +113,7 @@ export const handleCallback = async (req, res) => {
     // Fastify uses request.query directly, Express uses req.query
     const query = req.query || (req.request && req.request.query) || {};
     const { code, state } = query;
-    
+
     logger.info('OAuth callback received', {
       hasCode: !!code,
       hasState: !!state,
@@ -154,7 +154,10 @@ export const handleCallback = async (req, res) => {
     }
 
     // Exchange code for tokens
-    const tokens = await googleOAuthService.exchangeCodeForTokens(code, 'GOOGLE_SHEETS');
+    const tokens = await googleOAuthService.exchangeCodeForTokens(
+      code,
+      'GOOGLE_SHEETS'
+    );
 
     // Get user email from Google Sheets API (use Drive API)
     let email = 'unknown';
@@ -200,7 +203,7 @@ export const handleCallback = async (req, res) => {
         });
       }
     }
-    
+
     // Log final email value
     logger.info(`Final email value for user ${userId}: ${email}`);
 
@@ -263,27 +266,30 @@ export const handleCallback = async (req, res) => {
     // Get origin from request headers or use env var
     const headers = req.headers || {};
     let origin = headers.origin;
-    
+
     // If no origin, try to extract from referer
     if (!origin && headers.referer) {
       try {
         const refererUrl = new URL(headers.referer);
         origin = refererUrl.origin;
-      } catch (e) {
+      } catch {
         // Ignore
       }
     }
-    
+
     // Fallback to env var or default
     if (!origin) {
       origin = process.env.FRONTEND_URL || 'http://localhost:5173';
     }
-    
-    const returnUrl = stateData.returnUrl || stateData.redirectUrl || '/fullWorkflows';
-    
+
+    const returnUrl =
+      stateData.returnUrl || stateData.redirectUrl || '/fullWorkflows';
+
     // Build full URL for redirect - go directly to the workflow editor
     // Ensure returnUrl starts with /
-    const finalReturnUrl = returnUrl.startsWith('/') ? returnUrl : `/${returnUrl}`;
+    const finalReturnUrl = returnUrl.startsWith('/')
+      ? returnUrl
+      : `/${returnUrl}`;
     const redirectUrl = `${origin}${finalReturnUrl}?googleSheets=connected`;
 
     logger.info('Redirecting OAuth callback', {
@@ -303,42 +309,55 @@ export const handleCallback = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error handling OAuth callback:', error);
-            // Get origin from request headers (for popup) or use env var
-            const headers = req.headers || {};
-            let origin = headers.origin;
-            
-            // If no origin, try to extract from referer
-            if (!origin && headers.referer) {
-              try {
-                const refererUrl = new URL(headers.referer);
-                origin = refererUrl.origin;
-              } catch (e) {
-                // Ignore
-              }
-            }
-            
-            // Fallback to env var or default
-            if (!origin) {
-              origin = process.env.FRONTEND_URL || 'http://localhost:5173';
-            }
-            
-            // Redirect to workflow editor with error
-            const returnUrl = stateData?.returnUrl || stateData?.redirectUrl || '/fullWorkflows';
-            const finalReturnUrl = returnUrl.startsWith('/') ? returnUrl : `/${returnUrl}`;
-            const errorRedirectUrl = `${origin}${finalReturnUrl}?googleSheets=error&error=${encodeURIComponent(error.message || 'OAuth failed')}`;
+    // Get origin from request headers (for popup) or use env var
+    const headers = req.headers || {};
+    let origin = headers.origin;
 
-            logger.error('Redirecting to error URL', {
-              errorRedirectUrl,
-              origin,
-              returnUrl: finalReturnUrl,
-              error: error.message,
-            });
+    // If no origin, try to extract from referer
+    if (!origin && headers.referer) {
+      try {
+        const refererUrl = new URL(headers.referer);
+        origin = refererUrl.origin;
+      } catch {
+        // Ignore
+      }
+    }
 
-            if (isFastifyRequest) {
-              return reply.redirect(errorRedirectUrl);
-            } else {
-              return res.redirect(errorRedirectUrl);
-            }
+    // Fallback to env var or default
+    if (!origin) {
+      origin = process.env.FRONTEND_URL || 'http://localhost:5173';
+    }
+
+    // Try to get returnUrl from state if available, otherwise use default
+    let returnUrl = '/fullWorkflows';
+    try {
+      const query = req.query || (req.request && req.request.query) || {};
+      if (query.state) {
+        const stateData = JSON.parse(query.state);
+        returnUrl =
+          stateData?.returnUrl || stateData?.redirectUrl || '/fullWorkflows';
+      }
+    } catch {
+      // If state parsing fails, use default
+    }
+
+    const finalReturnUrl = returnUrl.startsWith('/')
+      ? returnUrl
+      : `/${returnUrl}`;
+    const errorRedirectUrl = `${origin}${finalReturnUrl}?googleSheets=error&error=${encodeURIComponent(error.message || 'OAuth failed')}`;
+
+    logger.error('Redirecting to error URL', {
+      errorRedirectUrl,
+      origin,
+      returnUrl: finalReturnUrl,
+      error: error.message,
+    });
+
+    if (isFastifyRequest) {
+      return reply.redirect(errorRedirectUrl);
+    } else {
+      return res.redirect(errorRedirectUrl);
+    }
   }
 };
 
@@ -353,11 +372,11 @@ export const getStatus = async (req, res) => {
   try {
     // Support both Fastify (request.user) and Express (req.user)
     const user = req.user || (req.request && req.request.user) || null;
-    
+
     if (!user || !user.id) {
       logger.error('Authentication failed - user not found in request');
       const errorResponse = { error: 'Authentication required' };
-      
+
       if (isFastifyRequest) {
         return reply.status(401).send(errorResponse);
       } else {
@@ -412,9 +431,9 @@ export const getStatus = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error getting integration status:', error);
-    const errorResponse = { 
+    const errorResponse = {
       error: 'Failed to get status',
-      message: error.message || 'Unknown error'
+      message: error.message || 'Unknown error',
     };
 
     if (isFastifyRequest) {
@@ -436,11 +455,11 @@ export const disconnect = async (req, res) => {
   try {
     // Support both Fastify (request.user) and Express (req.user)
     const user = req.user || (req.request && req.request.user) || null;
-    
+
     if (!user || !user.id) {
       logger.error('Authentication failed - user not found in request');
       const errorResponse = { error: 'Authentication required' };
-      
+
       if (isFastifyRequest) {
         reply.status(401).send(errorResponse);
         throw new Error('Authentication required');
@@ -474,9 +493,9 @@ export const disconnect = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error disconnecting integration:', error);
-    const errorResponse = { 
+    const errorResponse = {
       error: 'Failed to disconnect integration',
-      message: error.message || 'Unknown error'
+      message: error.message || 'Unknown error',
     };
 
     if (isFastifyRequest) {
@@ -498,11 +517,11 @@ export const listSpreadsheets = async (req, res) => {
   try {
     // Support both Fastify (request.user) and Express (req.user)
     const user = req.user || (req.request && req.request.user) || null;
-    
+
     if (!user || !user.id) {
       logger.error('Authentication failed - user not found in request');
       const errorResponse = { error: 'Authentication required' };
-      
+
       if (isFastifyRequest) {
         return reply.status(401).send(errorResponse);
       } else {
@@ -564,9 +583,9 @@ export const listSpreadsheets = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error listing spreadsheets:', error);
-    const errorResponse = { 
+    const errorResponse = {
       error: 'Failed to list spreadsheets',
-      message: error.message || 'Unknown error'
+      message: error.message || 'Unknown error',
     };
 
     if (isFastifyRequest) {
@@ -588,11 +607,11 @@ export const getSheets = async (req, res) => {
   try {
     // Support both Fastify (request.user) and Express (req.user)
     const user = req.user || (req.request && req.request.user) || null;
-    
+
     if (!user || !user.id) {
       logger.error('Authentication failed - user not found in request');
       const errorResponse = { error: 'Authentication required' };
-      
+
       if (isFastifyRequest) {
         return reply.status(401).send(errorResponse);
       } else {
@@ -664,9 +683,9 @@ export const getSheets = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error getting sheets:', error);
-    const errorResponse = { 
+    const errorResponse = {
       error: 'Failed to get sheets',
-      message: error.message || 'Unknown error'
+      message: error.message || 'Unknown error',
     };
 
     if (isFastifyRequest) {
@@ -677,3 +696,105 @@ export const getSheets = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/integrations/google-sheets/spreadsheets/:spreadsheetId/sheets/:sheetName/columns
+ * Get columns (headers) from a sheet
+ */
+export const getColumns = async (req, res) => {
+  const reply = res;
+  const isFastifyRequest = isFastify(reply);
+
+  try {
+    // Support both Fastify (request.user) and Express (req.user)
+    const user = req.user || (req.request && req.request.user) || null;
+
+    if (!user || !user.id) {
+      logger.error('Authentication failed - user not found in request');
+      const errorResponse = { error: 'Authentication required' };
+
+      if (isFastifyRequest) {
+        return reply.status(401).send(errorResponse);
+      } else {
+        return res.status(401).json(errorResponse);
+      }
+    }
+
+    const userId = user.id;
+    const { spreadsheetId, sheetName } = req.params;
+
+    const integration = await db
+      .select()
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.user_id, userId),
+          eq(integrations.integration_type, 'GOOGLE_SHEETS'),
+          eq(integrations.is_active, true)
+        )
+      )
+      .limit(1);
+
+    if (!integration[0]) {
+      const errorResponse = { error: 'Google Sheets not connected' };
+      if (isFastifyRequest) {
+        reply.status(400).send(errorResponse);
+        throw new Error('Google Sheets not connected');
+      } else {
+        return res.status(400).json(errorResponse);
+      }
+    }
+
+    try {
+      logger.info('Getting columns for sheet', {
+        userId,
+        spreadsheetId,
+        sheetName,
+        integrationId: integration[0].id,
+      });
+
+      const result = await googleSheetsService.getColumns(
+        integration[0].access_token,
+        integration[0].refresh_token,
+        spreadsheetId,
+        sheetName
+      );
+
+      logger.info('Get columns result', {
+        userId,
+        spreadsheetId,
+        sheetName,
+        success: result.success,
+        count: result.data?.length || 0,
+      });
+
+      if (isFastifyRequest) {
+        return reply.send(result);
+      } else {
+        return res.json(result);
+      }
+    } catch (error) {
+      logger.error('Error in getColumns controller:', error);
+      const errorResponse = {
+        success: false,
+        error: error.message || 'Failed to get columns',
+      };
+      if (isFastifyRequest) {
+        return reply.status(500).send(errorResponse);
+      } else {
+        return res.status(500).json(errorResponse);
+      }
+    }
+  } catch (error) {
+    logger.error('Error getting columns:', error);
+    const errorResponse = {
+      error: 'Failed to get columns',
+      message: error.message || 'Unknown error',
+    };
+
+    if (isFastifyRequest) {
+      return reply.status(500).send(errorResponse);
+    } else {
+      return res.status(500).json(errorResponse);
+    }
+  }
+};

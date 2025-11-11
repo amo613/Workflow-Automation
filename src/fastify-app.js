@@ -375,9 +375,9 @@ fastify.setErrorHandler((error, request, reply) => {
     logger.warn('Response already sent, ignoring error:', error.message);
     return;
   }
-  
+
   logger.error('Fastify error:', error);
-  
+
   // Only send response if not already sent
   if (!reply.sent) {
     reply.status(error.statusCode || 500).send({
@@ -389,14 +389,17 @@ fastify.setErrorHandler((error, request, reply) => {
 // Ready hook - called when Fastify is ready
 fastify.addHook('onReady', async () => {
   logger.info('✅ Fastify app is ready');
-  
+
   // Log all registered routes for debugging
   const routes = [];
-  fastify.printRoutes().split('\n').forEach(line => {
-    if (line.includes('google-sheets')) {
-      routes.push(line.trim());
-    }
-  });
+  fastify
+    .printRoutes()
+    .split('\n')
+    .forEach(line => {
+      if (line.includes('google-sheets')) {
+        routes.push(line.trim());
+      }
+    });
   if (routes.length > 0) {
     logger.info(`✅ Google Sheets routes registered: ${routes.length} routes`);
     routes.forEach(route => logger.info(`   - ${route}`));

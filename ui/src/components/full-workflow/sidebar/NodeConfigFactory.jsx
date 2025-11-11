@@ -1,0 +1,46 @@
+/**
+ * NodeConfigFactory
+ * Factory component that renders the appropriate config component for each node type
+ * This keeps the main NodeSidebarN8N component clean by delegating to specialized configs
+ */
+
+// Import all node config components (we'll create these)
+import WebhookConfig from './configs/WebhookConfig.jsx';
+import HttpRequestConfig from './configs/HttpRequestConfig.jsx';
+import CallAgentConfig from './configs/CallAgentConfig.jsx';
+import VariableSetConfig from './configs/VariableSetConfig.jsx';
+import IfConfig from './configs/IfConfig.jsx';
+import WaitConfig from './configs/WaitConfig.jsx';
+import DatabaseQueryConfig from './configs/DatabaseQueryConfig.jsx';
+import GoogleSheetsConfig from './configs/GoogleSheetsConfig.jsx';
+import GoogleSheetsTriggerConfig from './configs/GoogleSheetsTriggerConfig.jsx';
+import KnowledgeBaseQueryConfig from './configs/KnowledgeBaseQueryConfig.jsx';
+import StartConfig from './configs/StartConfig.jsx';
+
+const configMap = {
+  webhook: WebhookConfig,
+  'http-request': HttpRequestConfig,
+  'call-agent': CallAgentConfig,
+  'variable-set': VariableSetConfig,
+  if: IfConfig,
+  wait: WaitConfig,
+  'database-query': DatabaseQueryConfig,
+  'google-sheets': GoogleSheetsConfig,
+  'google-sheets-trigger': GoogleSheetsTriggerConfig,
+  'knowledge-base-query': KnowledgeBaseQueryConfig,
+  start: StartConfig,
+};
+
+export default function NodeConfigFactory({ nodeType, ...props }) {
+  const ConfigComponent = configMap[nodeType];
+
+  if (!ConfigComponent) {
+    return (
+      <div style={{ padding: '1rem', color: '#94a3b8' }}>
+        No configuration available for node type: {nodeType}
+      </div>
+    );
+  }
+
+  return <ConfigComponent {...props} />;
+}

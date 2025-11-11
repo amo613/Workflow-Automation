@@ -9,12 +9,12 @@ import {
 import { triggerWorkflow } from '#services/full-workflow/trigger.service.js';
 import { executeNode } from '#services/full-workflow/node-handlers/index.js';
 import VariableContext from '#services/full-workflow/variable-context.service.js';
-import { 
-  getAllActiveTriggers, 
+import {
   getActiveTriggers,
   scheduleTriggerPolling,
   removeTriggerPolling,
 } from '#services/full-workflow/trigger-polling.service.js';
+import { memoryCache } from '#config/cache.js';
 
 /**
  * Create a new full workflow
@@ -141,7 +141,7 @@ export async function updateFullWorkflowHandler(req, reply) {
     // Handle trigger scheduling if workflow_json is updated
     if (workflow_json && workflow_json.nodes) {
       const nodes = workflow_json.nodes || [];
-      
+
       // Find all trigger nodes
       const triggerNodes = nodes.filter(
         node => node.type === 'google-sheets-trigger'
@@ -246,44 +246,65 @@ export async function triggerWorkflowHandler(req, reply) {
     const userId = req.user.id;
     const { id } = req.params;
     const { input = {} } = req.body;
+    const workflowId = Number(id);
 
-    // Verify workflow exists and belongs to user
-    const workflow = await getFullWorkflow(Number(id), userId);
+    // Deduplication: Prevent duplicate triggers within 3 seconds
+    const dedupeKey = `workflow-trigger:${workflowId}:${userId}`;
+    const existingTrigger = memoryCache.get(dedupeKey);
 
-    if (!workflow.is_active) {
-      return reply.code(400).send({
-        success: false,
-        error: 'Workflow is not active',
+    if (existingTrigger) {
+      logger.warn('Duplicate workflow trigger prevented', {
+        workflowId,
+        userId,
       });
-    }
-
-    // For development: execute synchronously to get immediate results
-    // In production, use Inngest for async execution
-    if (process.env.NODE_ENV === 'development') {
-      const { executeWorkflow } = await import(
-        '#services/full-workflow/executor.service.js'
-      );
-      const executionResult = await executeWorkflow(workflow, input, userId);
-
-      return reply.code(200).send({
-        success: true,
+      return reply.code(429).send({
+        success: false,
+        error: 'Workflow trigger already in progress. Please wait a moment.',
         data: {
-          eventId: `dev-${Date.now()}`,
-          workflowId: Number(id),
-          executionResult,
-          nodeOutputs: executionResult.nodeOutputs,
-          executedEdges: executionResult.executedEdges || [],
+          eventId: existingTrigger.eventId,
+          triggeredAt: existingTrigger.triggeredAt,
         },
       });
     }
 
-    // Trigger workflow via Inngest (production)
-    const result = await triggerWorkflow(Number(id), userId, input);
+    // Set lock to prevent race conditions
+    const lockPlaceholder = {
+      eventId: 'pending',
+      triggeredAt: new Date().toISOString(),
+    };
+    memoryCache.set(dedupeKey, lockPlaceholder, 3);
 
-    return reply.code(200).send({
-      success: true,
-      data: result,
-    });
+    try {
+      const workflow = await getFullWorkflow(workflowId, userId);
+
+      if (!workflow.is_active) {
+        memoryCache.del(dedupeKey);
+        return reply.code(400).send({
+          success: false,
+          error: 'Workflow is not active',
+        });
+      }
+
+      const result = await triggerWorkflow(workflowId, userId, input);
+
+      // Update lock with actual eventId
+      memoryCache.set(
+        dedupeKey,
+        {
+          eventId: result.eventId,
+          triggeredAt: new Date().toISOString(),
+        },
+        3
+      );
+
+      return reply.code(200).send({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      memoryCache.del(dedupeKey);
+      throw error;
+    }
   } catch (error) {
     logger.error('Error triggering workflow', {
       error: error.message,
@@ -319,13 +340,16 @@ export async function executeSingleNodeHandler(req, reply) {
 
     // Build template context from previous nodes if available
     const templateContext = context.getContext(node.id, edges);
-    
+
     // Ensure userId is in templateContext for node handlers
     if (!templateContext.userId) {
       templateContext.userId = userId;
     }
     if (!templateContext.workflowInput?.userId) {
-      templateContext.workflowInput = { ...templateContext.workflowInput, userId };
+      templateContext.workflowInput = {
+        ...templateContext.workflowInput,
+        userId,
+      };
     }
 
     // Execute the node
@@ -386,6 +410,47 @@ export async function getActiveTriggersHandler(req, reply) {
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to get active triggers',
+    });
+  }
+}
+
+/**
+ * Get workflow execution results by event ID
+ */
+export async function getWorkflowExecutionResultsHandler(req, reply) {
+  try {
+    const { eventId } = req.query;
+
+    if (!eventId) {
+      return reply.code(400).send({
+        success: false,
+        error: 'eventId is required',
+      });
+    }
+
+    const cacheKey = `workflow-execution:${eventId}`;
+    const cachedResult = memoryCache.get(cacheKey);
+
+    if (!cachedResult) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Execution results not found or expired',
+        status: 'pending', // Still running or expired
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      data: cachedResult,
+    });
+  } catch (error) {
+    logger.error('Error getting workflow execution results', {
+      error: error.message,
+      eventId: req.query?.eventId,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get execution results',
     });
   }
 }

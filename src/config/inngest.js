@@ -47,6 +47,7 @@ logger.info('Inngest client initialized', {
   mode: NODE_ENV,
   hasSigningKey: !!inngestConfig.signingKey,
   hasEventKey: !!inngestConfig.eventKey,
+  baseUrl: inngestConfig.baseUrl || null,
 });
 
 export default inngest;

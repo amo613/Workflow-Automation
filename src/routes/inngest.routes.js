@@ -28,6 +28,11 @@ async function inngestRoutes(fastify) {
       },
     };
 
+    logger.info('Registering Inngest Fastify plugin', {
+      appId: inngest.id,
+      servePath: pluginOptions.options.servePath,
+    });
+
     fastify.register(fastifyPlugin, pluginOptions, err => {
       if (err) {
         logger.error('Failed to register Inngest routes', {

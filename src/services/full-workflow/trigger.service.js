@@ -35,6 +35,16 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
       eventId: event.ids?.[0],
     });
 
+    if (!event?.ids?.length) {
+      logger.warn(
+        'Inngest send returned no event IDs; run may not appear in dashboard',
+        {
+          workflowId,
+          userId,
+        }
+      );
+    }
+
     return {
       success: true,
       eventId: event.ids?.[0],
@@ -75,6 +85,14 @@ export async function triggerByWebhook(webhookId, payload = {}) {
       webhookId,
       eventId: event.ids?.[0],
     });
+    if (!event?.ids?.length) {
+      logger.warn(
+        'Inngest send (webhook) returned no event IDs; run may not appear in dashboard',
+        {
+          webhookId,
+        }
+      );
+    }
 
     return {
       success: true,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ReactFlow, {
   Background,
@@ -58,6 +58,8 @@ function FullWorkflowEditor() {
   const [executionStatus, setExecutionStatus] = useState(null);
   const [executedEdges, setExecutedEdges] = useState([]);
   const [activeTriggers, setActiveTriggers] = useState([]);
+  const pollingIntervalRef = useRef(null);
+  const pollingTimeoutRef = useRef(null);
   const [showActiveTriggers, setShowActiveTriggers] = useState(false);
 
   const onNodeUpdate = (nodeId, newData) => {
@@ -130,6 +132,20 @@ function FullWorkflowEditor() {
       return () => clearInterval(interval);
     }
   }, [id, isNew]);
+
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchActiveTriggers = async () => {
     if (!id) return;
@@ -217,6 +233,16 @@ function FullWorkflowEditor() {
 
     // Execute directly without modal
     try {
+      // Stop any existing polling
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
+      }
+
       setExecuting(true);
       setExecutionStatus({
         status: 'running',
@@ -241,48 +267,274 @@ function FullWorkflowEditor() {
 
       const result = await response.json();
 
-      if (result.success) {
+      // Handle duplicate trigger (429 status)
+      if (response.status === 429 && result.data?.eventId) {
+        // Use the existing eventId from the duplicate trigger response
+        const eventId = result.data.eventId;
         setExecutionStatus({
-          status: 'success',
-          message: 'Workflow triggered successfully',
-          eventId: result.data?.eventId,
+          status: 'running',
+          message: 'Workflow already executing via Inngest...',
+          eventId: eventId,
+          workflowId: Number(id),
+        });
+
+        // Start polling with the existing eventId
+        pollingIntervalRef.current = setInterval(async () => {
+          try {
+            const resultsResponse = await fetch(
+              `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`,
+              {
+                credentials: 'include',
+              }
+            );
+
+            if (resultsResponse.ok) {
+              const resultsData = await resultsResponse.json();
+
+              if (resultsData.success && resultsData.data) {
+                if (pollingIntervalRef.current) {
+                  clearInterval(pollingIntervalRef.current);
+                  pollingIntervalRef.current = null;
+                }
+                if (pollingTimeoutRef.current) {
+                  clearTimeout(pollingTimeoutRef.current);
+                  pollingTimeoutRef.current = null;
+                }
+
+                // Workflow completed successfully
+                setExecutionStatus({
+                  status: 'success',
+                  message: 'Workflow executed successfully',
+                  eventId: eventId,
+                  workflowId: resultsData.data.workflowId,
+                });
+
+                // Update nodes with outputs from execution
+                if (resultsData.data.nodeOutputs) {
+                  setNodes(nds =>
+                    nds.map(node => {
+                      const nodeOutput = resultsData.data.nodeOutputs[node.id];
+                      return {
+                        ...node,
+                        data: {
+                          ...node.data,
+                          status:
+                            nodeOutput !== undefined
+                              ? 'success'
+                              : node.data.status || 'idle',
+                          output: nodeOutput || node.data.output,
+                        },
+                      };
+                    })
+                  );
+                } else {
+                  // Fallback: mark all nodes as success
+                  setNodes(nds =>
+                    nds.map(node => ({
+                      ...node,
+                      data: { ...node.data, status: 'success' },
+                    }))
+                  );
+                }
+
+                // Update executed edges (mark them as green)
+                if (resultsData.data.executedEdges) {
+                  setExecutedEdges(resultsData.data.executedEdges);
+                }
+
+                setExecuting(false);
+              }
+            } else if (resultsResponse.status === 404) {
+              // Still running, continue polling
+              setExecutionStatus({
+                status: 'running',
+                message: 'Workflow executing via Inngest...',
+                eventId: eventId,
+                workflowId: Number(id),
+              });
+            } else {
+              // Error occurred
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              if (pollingTimeoutRef.current) {
+                clearTimeout(pollingTimeoutRef.current);
+                pollingTimeoutRef.current = null;
+              }
+              setExecutionStatus({
+                status: 'error',
+                message: 'Failed to get execution results',
+                eventId: eventId,
+              });
+              setNodes(nds =>
+                nds.map(node => ({
+                  ...node,
+                  data: { ...node.data, status: 'failed' },
+                }))
+              );
+              setExecutedEdges([]);
+              setExecuting(false);
+            }
+          } catch (pollError) {
+            console.error('Error polling execution results:', pollError);
+            // Continue polling on error
+          }
+        }, 500); // Poll every 500ms
+
+        // Stop polling after 5 minutes (timeout)
+        pollingTimeoutRef.current = setTimeout(() => {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setExecutionStatus(prev => {
+            if (prev?.status === 'running') {
+              return {
+                status: 'error',
+                message: 'Workflow execution timed out',
+                eventId: eventId,
+              };
+            }
+            return prev;
+          });
+          setExecuting(false);
+        }, 300000); // 5 minutes timeout
+
+        return; // Exit early, polling is set up
+      }
+
+      if (result.success && result.data?.eventId) {
+        const eventId = result.data.eventId;
+        setExecutionStatus({
+          status: 'running',
+          message: 'Workflow executing via Inngest...',
+          eventId: eventId,
           workflowId: result.data?.workflowId,
         });
 
-        // Update nodes with outputs from execution
-        if (result.data?.nodeOutputs) {
-          setNodes(nds =>
-            nds.map(node => {
-              const nodeOutput = result.data.nodeOutputs[node.id];
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  status:
-                    nodeOutput !== undefined
-                      ? 'success'
-                      : node.data.status || 'idle',
-                  output: nodeOutput || node.data.output,
-                },
-              };
-            })
-          );
-        } else {
-          // Fallback: update node statuses to 'success' after a delay
-          setTimeout(() => {
-            setNodes(nds =>
-              nds.map(node => ({
-                ...node,
-                data: { ...node.data, status: 'success' },
-              }))
+        // Poll for execution results
+        pollingIntervalRef.current = setInterval(async () => {
+          try {
+            const resultsResponse = await fetch(
+              `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`,
+              {
+                credentials: 'include',
+              }
             );
-          }, 1000);
-        }
 
-        // Update executed edges (mark them as green)
-        if (result.data?.executedEdges) {
-          setExecutedEdges(result.data.executedEdges);
-        }
+            if (resultsResponse.ok) {
+              const resultsData = await resultsResponse.json();
+
+              if (resultsData.success && resultsData.data) {
+                if (pollingIntervalRef.current) {
+                  clearInterval(pollingIntervalRef.current);
+                  pollingIntervalRef.current = null;
+                }
+                if (pollingTimeoutRef.current) {
+                  clearTimeout(pollingTimeoutRef.current);
+                  pollingTimeoutRef.current = null;
+                }
+
+                // Workflow completed successfully
+                setExecutionStatus({
+                  status: 'success',
+                  message: 'Workflow executed successfully',
+                  eventId: eventId,
+                  workflowId: resultsData.data.workflowId,
+                });
+
+                // Update nodes with outputs from execution
+                if (resultsData.data.nodeOutputs) {
+                  setNodes(nds =>
+                    nds.map(node => {
+                      const nodeOutput = resultsData.data.nodeOutputs[node.id];
+                      return {
+                        ...node,
+                        data: {
+                          ...node.data,
+                          status:
+                            nodeOutput !== undefined
+                              ? 'success'
+                              : node.data.status || 'idle',
+                          output: nodeOutput || node.data.output,
+                        },
+                      };
+                    })
+                  );
+                } else {
+                  // Fallback: mark all nodes as success
+                  setNodes(nds =>
+                    nds.map(node => ({
+                      ...node,
+                      data: { ...node.data, status: 'success' },
+                    }))
+                  );
+                }
+
+                // Update executed edges (mark them as green)
+                if (resultsData.data.executedEdges) {
+                  setExecutedEdges(resultsData.data.executedEdges);
+                }
+
+                setExecuting(false);
+              }
+            } else if (resultsResponse.status === 404) {
+              // Still running, continue polling
+              setExecutionStatus({
+                status: 'running',
+                message: 'Workflow executing via Inngest...',
+                eventId: eventId,
+                workflowId: result.data?.workflowId,
+              });
+            } else {
+              // Error occurred
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              if (pollingTimeoutRef.current) {
+                clearTimeout(pollingTimeoutRef.current);
+                pollingTimeoutRef.current = null;
+              }
+              setExecutionStatus({
+                status: 'error',
+                message: 'Failed to get execution results',
+                eventId: eventId,
+              });
+              setNodes(nds =>
+                nds.map(node => ({
+                  ...node,
+                  data: { ...node.data, status: 'failed' },
+                }))
+              );
+              setExecutedEdges([]);
+              setExecuting(false);
+            }
+          } catch (pollError) {
+            console.error('Error polling execution results:', pollError);
+            // Continue polling on error
+          }
+        }, 500); // Poll every 500ms
+
+        // Stop polling after 5 minutes (timeout)
+        pollingTimeoutRef.current = setTimeout(() => {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setExecutionStatus(prev => {
+            if (prev?.status === 'running') {
+              return {
+                status: 'error',
+                message: 'Workflow execution timed out',
+                eventId: eventId,
+              };
+            }
+            return prev;
+          });
+          setExecuting(false);
+        }, 300000); // 5 minutes timeout
       } else {
         setExecutionStatus({
           status: 'error',
@@ -297,6 +549,7 @@ function FullWorkflowEditor() {
           }))
         );
         setExecutedEdges([]);
+        setExecuting(false);
       }
     } catch (error) {
       setExecutionStatus({
@@ -601,7 +854,13 @@ function FullWorkflowEditor() {
                 </button>
               </div>
               {showActiveTriggers && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                  }}
+                >
                   {activeTriggers.map((trigger, index) => (
                     <div
                       key={index}
@@ -648,7 +907,12 @@ function FullWorkflowEditor() {
             Trigger Nodes
           </h3>
           <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              marginBottom: '1.5rem',
+            }}
           >
             <button
               onClick={() => addNode('start')}
@@ -892,8 +1156,12 @@ function FullWorkflowEditor() {
               ...edge,
               style: {
                 ...edge.style,
-                stroke: executedEdges.includes(edge.id) ? '#10b981' : edge.style?.stroke || '#b1b1b7',
-                strokeWidth: executedEdges.includes(edge.id) ? 3 : edge.style?.strokeWidth || 2,
+                stroke: executedEdges.includes(edge.id)
+                  ? '#10b981'
+                  : edge.style?.stroke || '#b1b1b7',
+                strokeWidth: executedEdges.includes(edge.id)
+                  ? 3
+                  : edge.style?.strokeWidth || 2,
               },
               animated: executedEdges.includes(edge.id),
             }))}

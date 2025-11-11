@@ -1,4 +1,3 @@
-
 /**
  * Resolve template variables
  * @param {string} template - Template string with variables
@@ -30,15 +29,36 @@ export function resolveTemplate(template, context = {}) {
         // Workflow input: {{workflow.input.field}}
         const field = parts.slice(2).join('.');
         value = getNestedValue(context.workflowInput || {}, field);
-      } else {
+      } else if (parts[1] === 'output' && context.nodeOutputs) {
         // Node output: {{nodeId.output.field}}
         const nodeId = parts[0];
-        if (parts[1] === 'output' && context.nodeOutputs) {
-          const outputPath = parts.slice(2).join('.');
-          const nodeOutput = context.nodeOutputs[nodeId];
-          if (nodeOutput) {
-            value = outputPath ? getNestedValue(nodeOutput, outputPath) : nodeOutput;
+        const outputPath = parts.slice(2).join('.');
+        const nodeOutput = context.nodeOutputs[nodeId];
+        if (nodeOutput) {
+          value = outputPath
+            ? getNestedValue(nodeOutput, outputPath)
+            : nodeOutput;
+        }
+      } else {
+        // Try as nested path in previous node output first (e.g., {{data.userId}})
+        if (context.previousNodeOutput) {
+          value = getNestedValue(context.previousNodeOutput, trimmedPath);
+        }
+        // If not found, try in any node output
+        if ((value === null || value === undefined) && context.nodeOutputs) {
+          for (const [, nodeOutput] of Object.entries(context.nodeOutputs)) {
+            if (nodeOutput && typeof nodeOutput === 'object') {
+              const foundValue = getNestedValue(nodeOutput, trimmedPath);
+              if (foundValue !== undefined && foundValue !== null) {
+                value = foundValue;
+                break;
+              }
+            }
           }
+        }
+        // If still not found, try in workflow input
+        if ((value === null || value === undefined) && context.workflowInput) {
+          value = getNestedValue(context.workflowInput, trimmedPath);
         }
       }
     }
@@ -50,6 +70,36 @@ export function resolveTemplate(template, context = {}) {
         value = outputPath
           ? getNestedValue(context.previousNodeOutput, outputPath)
           : context.previousNodeOutput;
+      }
+    }
+    // 4. Try to resolve as previous.output.field if not found as direct variable
+    // This handles cases like {{data.userId}} which should resolve to previous.output.data.userId
+    if (value === null || value === undefined) {
+      // First try previous node output (most common case)
+      if (context.previousNodeOutput) {
+        // Try to find the value in previous node output using the path directly
+        // e.g., {{data.userId}} -> previousNodeOutput.data.userId
+        value = getNestedValue(context.previousNodeOutput, trimmedPath);
+      }
+
+      // 5. If still not found, try to find in any node output
+      // This handles cases where the variable might be in any previous node
+      if ((value === null || value === undefined) && context.nodeOutputs) {
+        // Try each node output to find the value
+        for (const [, nodeOutput] of Object.entries(context.nodeOutputs)) {
+          if (nodeOutput && typeof nodeOutput === 'object') {
+            const foundValue = getNestedValue(nodeOutput, trimmedPath);
+            if (foundValue !== undefined && foundValue !== null) {
+              value = foundValue;
+              break;
+            }
+          }
+        }
+      }
+
+      // 6. Also try in workflow input as fallback
+      if ((value === null || value === undefined) && context.workflowInput) {
+        value = getNestedValue(context.workflowInput, trimmedPath);
       }
     }
 
@@ -84,7 +134,12 @@ function getNestedValue(obj, path) {
     if (current === null || current === undefined) {
       return undefined;
     }
-    current = current[part];
+    // Handle both object property access and array index access
+    if (Array.isArray(current) && !isNaN(part)) {
+      current = current[parseInt(part, 10)];
+    } else {
+      current = current[part];
+    }
   }
 
   return current;
@@ -153,4 +208,3 @@ export function validateTemplate(template, context = {}) {
     missing,
   };
 }
-

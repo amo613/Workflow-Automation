@@ -10,12 +10,12 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
           data.status === 'running'
             ? '#3b82f6'
             : data.status === 'success'
-            ? '#10b981'
-            : data.status === 'failed'
-            ? '#ef4444'
-            : selected
-            ? '#34d399'
-            : '#e2e8f0'
+              ? '#10b981'
+              : data.status === 'failed'
+                ? '#ef4444'
+                : selected
+                  ? '#34d399'
+                  : '#e2e8f0'
         }`,
         borderRadius: '12px',
         padding: '1rem',
@@ -41,8 +41,8 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
               data.status === 'running'
                 ? '#3b82f6'
                 : data.status === 'success'
-                ? '#10b981'
-                : '#ef4444',
+                  ? '#10b981'
+                  : '#ef4444',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -54,8 +54,8 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
           {data.status === 'running'
             ? '⏳'
             : data.status === 'success'
-            ? '✅'
-            : '❌'}
+              ? '✅'
+              : '❌'}
         </div>
       )}
 
@@ -139,4 +139,3 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
     </div>
   );
 }
-

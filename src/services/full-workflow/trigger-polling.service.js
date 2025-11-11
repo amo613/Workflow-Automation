@@ -92,7 +92,7 @@ async function handleGoogleSheetsTrigger(
   triggerConfig,
   nodes,
   edges,
-  job
+  _job
 ) {
   const { spreadsheetId, sheetName, triggerOn, userId } = triggerConfig;
 
@@ -104,24 +104,22 @@ async function handleGoogleSheetsTrigger(
       return { success: false, reason: 'integration_not_found' };
     }
 
-  // Get last modified time from Redis cache
-  const redisClient = getRedisClient();
-  const lastModifiedKey = `trigger:${workflowId}:${triggerNode.id}:lastModified`;
-  const rowCountKey = `trigger:${workflowId}:${triggerNode.id}:rowCount`;
-  
-  let lastModified = null;
-  let previousRowCount = 0;
-  
-  if (redisClient && redisClient.isReady) {
-    try {
-      const lastModifiedStr = await redisClient.get(lastModifiedKey);
-      const rowCountStr = await redisClient.get(rowCountKey);
-      lastModified = lastModifiedStr ? parseInt(lastModifiedStr, 10) : null;
-      previousRowCount = rowCountStr ? parseInt(rowCountStr, 10) : 0;
-    } catch (error) {
-      logger.warn('Error reading from Redis cache', { error: error.message });
+    // Get last modified time from Redis cache
+    const redisClient = getRedisClient();
+    const lastModifiedKey = `trigger:${workflowId}:${triggerNode.id}:lastModified`;
+    const rowCountKey = `trigger:${workflowId}:${triggerNode.id}:rowCount`;
+
+    let lastModified = null;
+
+    if (redisClient && redisClient.isReady) {
+      try {
+        const lastModifiedStr = await redisClient.get(lastModifiedKey);
+        await redisClient.get(rowCountKey);
+        lastModified = lastModifiedStr ? parseInt(lastModifiedStr, 10) : null;
+      } catch (error) {
+        logger.warn('Error reading from Redis cache', { error: error.message });
+      }
     }
-  }
 
     // Get current rows
     const result = await googleSheetsService.getRows(
@@ -176,7 +174,9 @@ async function handleGoogleSheetsTrigger(
             await redisClient.set(lastModifiedKey, currentModified.toString());
             await redisClient.set(rowCountKey, currentRowCount.toString());
           } catch (error) {
-            logger.warn('Error writing to Redis cache', { error: error.message });
+            logger.warn('Error writing to Redis cache', {
+              error: error.message,
+            });
           }
         }
 
@@ -217,7 +217,9 @@ async function handleGoogleSheetsTrigger(
             await redisClient.set(lastModifiedKey, currentModified.toString());
             await redisClient.set(rowCountKey, currentRowCount.toString());
           } catch (error) {
-            logger.warn('Error writing to Redis cache', { error: error.message });
+            logger.warn('Error writing to Redis cache', {
+              error: error.message,
+            });
           }
         }
 
@@ -253,24 +255,30 @@ async function handleGoogleSheetsTrigger(
 /**
  * Schedule a trigger polling job
  */
-export async function scheduleTriggerPolling(workflowId, triggerNode, triggerConfig, userId) {
+export async function scheduleTriggerPolling(
+  workflowId,
+  triggerNode,
+  triggerConfig,
+  userId
+) {
   const { pollTime } = triggerConfig;
-  
+
   // Add userId to triggerConfig if not present
   if (!triggerConfig.userId && userId) {
     triggerConfig.userId = userId;
   }
 
   // Convert poll time to milliseconds
-  const pollIntervalMs = {
-    '1 minute': 60 * 1000,
-    '15 minutes': 15 * 60 * 1000,
-    '30 minutes': 30 * 60 * 1000,
-    '1 hour': 60 * 60 * 1000,
-    '3 hours': 3 * 60 * 60 * 1000,
-    '12 hours': 12 * 60 * 60 * 1000,
-    '24 hours': 24 * 60 * 60 * 1000,
-  }[pollTime] || 60 * 1000; // Default: 1 minute
+  const pollIntervalMs =
+    {
+      '1 minute': 60 * 1000,
+      '15 minutes': 15 * 60 * 1000,
+      '30 minutes': 30 * 60 * 1000,
+      '1 hour': 60 * 60 * 1000,
+      '3 hours': 3 * 60 * 60 * 1000,
+      '12 hours': 12 * 60 * 60 * 1000,
+      '24 hours': 24 * 60 * 60 * 1000,
+    }[pollTime] || 60 * 1000; // Default: 1 minute
 
   // Create repeating job
   const job = await triggerPollingQueue.add(
@@ -304,7 +312,7 @@ export async function scheduleTriggerPolling(workflowId, triggerNode, triggerCon
  */
 export async function removeTriggerPolling(workflowId, triggerNodeId) {
   const jobId = `trigger:${workflowId}:${triggerNodeId}`;
-  
+
   // Remove repeating job
   const job = await triggerPollingQueue.getJob(jobId);
   if (job) {
@@ -317,9 +325,16 @@ export async function removeTriggerPolling(workflowId, triggerNodeId) {
   }
 
   // Remove all jobs with this pattern
-  const jobs = await triggerPollingQueue.getJobs(['repeat', 'waiting', 'active']);
+  const jobs = await triggerPollingQueue.getJobs([
+    'repeat',
+    'waiting',
+    'active',
+  ]);
   for (const j of jobs) {
-    if (j.id === jobId || j.id?.startsWith(`trigger:${workflowId}:${triggerNodeId}`)) {
+    if (
+      j.id === jobId ||
+      j.id?.startsWith(`trigger:${workflowId}:${triggerNodeId}`)
+    ) {
       await j.remove();
     }
   }
@@ -330,7 +345,11 @@ export async function removeTriggerPolling(workflowId, triggerNodeId) {
  */
 export async function getActiveTriggers(workflowId) {
   try {
-    const jobs = await triggerPollingQueue.getJobs(['repeat', 'waiting', 'active']);
+    const jobs = await triggerPollingQueue.getJobs([
+      'repeat',
+      'waiting',
+      'active',
+    ]);
     const workflowTriggers = jobs.filter(j => {
       const data = j.data;
       return data?.workflowId === workflowId;
@@ -359,7 +378,11 @@ export async function getActiveTriggers(workflowId) {
  * Get all active triggers
  */
 export async function getAllActiveTriggers() {
-  const jobs = await triggerPollingQueue.getJobs(['repeat', 'waiting', 'active']);
+  const jobs = await triggerPollingQueue.getJobs([
+    'repeat',
+    'waiting',
+    'active',
+  ]);
   return await Promise.all(
     jobs.map(async j => ({
       id: j.id,
@@ -371,4 +394,3 @@ export async function getAllActiveTriggers() {
     }))
   );
 }
-

@@ -33,14 +33,21 @@ export async function executeGoogleSheets(data, context) {
 
   try {
     // Get user ID from context (try multiple locations)
-    const userId = context.userId || context.workflowInput?.userId || context.variables?.userId;
+    const userId =
+      context.userId ||
+      context.workflowInput?.userId ||
+      context.variables?.userId;
     if (!userId) {
       logger.error('User ID not found in context', {
         contextKeys: Object.keys(context),
         hasWorkflowInput: !!context.workflowInput,
-        workflowInputKeys: context.workflowInput ? Object.keys(context.workflowInput) : [],
+        workflowInputKeys: context.workflowInput
+          ? Object.keys(context.workflowInput)
+          : [],
       });
-      throw new Error('User ID not found in context. Please ensure you are authenticated.');
+      throw new Error(
+        'User ID not found in context. Please ensure you are authenticated.'
+      );
     }
 
     // Get Google Sheets integration for user
@@ -62,7 +69,10 @@ export async function executeGoogleSheets(data, context) {
     // Handle different operations based on resource and operation
     if (resource === 'Document') {
       if (operation === 'Create') {
-        const resolvedTitle = resolveTemplate(title || 'New Spreadsheet', context);
+        const resolvedTitle = resolveTemplate(
+          title || 'New Spreadsheet',
+          context
+        );
         const resolvedSheets = sheets || [];
 
         const result = await googleSheetsService.createSpreadsheet(
@@ -281,14 +291,22 @@ export async function executeGoogleSheets(data, context) {
         };
       } else if (operation === 'Append or Update Row') {
         // Smart operation: search and update or append
-        if (!resolvedSpreadsheetId || !resolvedSheetName || !uniqueColumn || !uniqueValue) {
+        if (
+          !resolvedSpreadsheetId ||
+          !resolvedSheetName ||
+          !uniqueColumn ||
+          !uniqueValue
+        ) {
           throw new Error(
             'Spreadsheet ID, Sheet Name, Unique Column, and Unique Value are required for append/update operation'
           );
         }
 
         const resolvedUniqueColumn = resolveTemplate(uniqueColumn, context);
-        const resolvedUniqueValue = resolveTemplate(String(uniqueValue), context);
+        const resolvedUniqueValue = resolveTemplate(
+          String(uniqueValue),
+          context
+        );
 
         // Parse valuesToSet
         let resolvedValuesToSet = {};
@@ -337,7 +355,9 @@ export async function executeGoogleSheets(data, context) {
       }
     }
 
-    throw new Error(`Unknown operation: ${operation} for resource: ${resource}`);
+    throw new Error(
+      `Unknown operation: ${operation} for resource: ${resource}`
+    );
   } catch (error) {
     logger.error('Google Sheets operation failed', {
       operation,

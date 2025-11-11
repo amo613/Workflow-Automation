@@ -9,6 +9,7 @@ import {
   triggerWorkflowHandler,
   executeSingleNodeHandler,
   getActiveTriggersHandler,
+  getWorkflowExecutionResultsHandler,
 } from '#controllers/full-workflow.controller.js';
 
 async function fullWorkflowRoutes(fastify) {
@@ -155,6 +156,20 @@ async function fullWorkflowRoutes(fastify) {
       },
     },
     handler: getActiveTriggersHandler,
+  });
+
+  // Get workflow execution results by event ID
+  fastify.get('/api/full-workflows/execution-results', {
+    schema: {
+      querystring: {
+        type: 'object',
+        required: ['eventId'],
+        properties: {
+          eventId: { type: 'string' },
+        },
+      },
+    },
+    handler: getWorkflowExecutionResultsHandler,
   });
 }
 

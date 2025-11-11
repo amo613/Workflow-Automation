@@ -23,7 +23,7 @@ export async function executeWorkflow(
     // Handle both workflow ID and workflow object
     let workflow;
     let workflowJson;
-    
+
     if (typeof workflowIdOrWorkflow === 'number') {
       // If it's an ID, we need to fetch the workflow
       // For now, assume nodes and edges are provided
@@ -99,7 +99,10 @@ export async function executeWorkflow(
     );
 
     logger.info('Workflow execution completed', {
-      workflowId: workflow?.id || workflowIdOrWorkflow,
+      workflowId:
+        typeof workflowIdOrWorkflow === 'object'
+          ? workflowIdOrWorkflow.id
+          : workflowIdOrWorkflow,
       nodesExecuted: executionLog.length,
       edgesExecuted: executedEdges.size,
       result: executionResult,
@@ -115,7 +118,10 @@ export async function executeWorkflow(
     };
   } catch (error) {
     logger.error('Error executing workflow', {
-      workflowId: workflow?.id || workflowIdOrWorkflow,
+      workflowId:
+        typeof workflowIdOrWorkflow === 'object'
+          ? workflowIdOrWorkflow.id
+          : workflowIdOrWorkflow,
       error: error.message,
       stack: error.stack,
     });
@@ -269,7 +275,7 @@ async function executeNodeRecursive(
     // For now, execute first next node (sequential execution)
     // TODO: Handle parallel execution for multiple outgoing edges
     const nextNode = nextNodes[0];
-    
+
     // Find and mark the executed edge
     const matchingEdge = edges.find(
       edge => edge.source === nodeId && edge.target === nextNode.target
@@ -277,7 +283,7 @@ async function executeNodeRecursive(
     if (matchingEdge) {
       executedEdges.add(matchingEdge.id);
     }
-    
+
     return executeNodeRecursive(
       nextNode.target,
       nodeMap,

@@ -10,9 +10,10 @@ export class GoogleSheetsService {
     this.clientId = process.env.GOOGLE_CLIENT_ID;
     this.clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     // Use base redirect URI and construct full URI when needed
-    this.baseRedirectUri = process.env.GOOGLE_REDIRECT_URI_BASE || process.env.GOOGLE_REDIRECT_URI;
+    this.baseRedirectUri =
+      process.env.GOOGLE_REDIRECT_URI_BASE || process.env.GOOGLE_REDIRECT_URI;
     this.redirectUri = this.baseRedirectUri;
-    
+
     if (!this.clientId || !this.clientSecret || !this.redirectUri) {
       logger.warn(
         'Google OAuth credentials not fully configured. Google Sheets operations may fail.'
@@ -96,7 +97,8 @@ export class GoogleSheetsService {
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Sheets permissions.',
+          error:
+            'Permission denied. Please check your Google Sheets permissions.',
         };
       }
       if (error.code === 429) {
@@ -153,13 +155,15 @@ export class GoogleSheetsService {
       if (error.code === 404) {
         return {
           success: false,
-          error: 'Spreadsheet or sheet not found. Please check the ID and sheet name.',
+          error:
+            'Spreadsheet or sheet not found. Please check the ID and sheet name.',
         };
       }
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Sheets permissions.',
+          error:
+            'Permission denied. Please check your Google Sheets permissions.',
         };
       }
       if (error.code === 429) {
@@ -207,7 +211,9 @@ export class GoogleSheetsService {
         },
       });
 
-      logger.info(`Updated row ${rowIndex} in ${sheetName} of ${spreadsheetId}`);
+      logger.info(
+        `Updated row ${rowIndex} in ${sheetName} of ${spreadsheetId}`
+      );
 
       return {
         success: true,
@@ -224,13 +230,15 @@ export class GoogleSheetsService {
       if (error.code === 404) {
         return {
           success: false,
-          error: 'Spreadsheet or sheet not found. Please check the ID and sheet name.',
+          error:
+            'Spreadsheet or sheet not found. Please check the ID and sheet name.',
         };
       }
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Sheets permissions.',
+          error:
+            'Permission denied. Please check your Google Sheets permissions.',
         };
       }
       if (error.code === 429) {
@@ -345,13 +353,15 @@ export class GoogleSheetsService {
       if (error.code === 404) {
         return {
           success: false,
-          error: 'Spreadsheet or sheet not found. Please check the ID and sheet name.',
+          error:
+            'Spreadsheet or sheet not found. Please check the ID and sheet name.',
         };
       }
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Sheets permissions.',
+          error:
+            'Permission denied. Please check your Google Sheets permissions.',
         };
       }
       if (error.code === 429) {
@@ -420,7 +430,7 @@ export class GoogleSheetsService {
         },
       }));
 
-      const response = await sheetsClient.spreadsheets.batchUpdate({
+      await sheetsClient.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
           requests,
@@ -443,13 +453,15 @@ export class GoogleSheetsService {
       if (error.code === 404) {
         return {
           success: false,
-          error: 'Spreadsheet or sheet not found. Please check the ID and sheet name.',
+          error:
+            'Spreadsheet or sheet not found. Please check the ID and sheet name.',
         };
       }
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Sheets permissions.',
+          error:
+            'Permission denied. Please check your Google Sheets permissions.',
         };
       }
       if (error.code === 429) {
@@ -508,7 +520,7 @@ export class GoogleSheetsService {
       if (existingRows.length > 0) {
         // Update existing row
         const existingRow = existingRows[0];
-        
+
         // Get headers to determine row index
         const allRowsResult = await this.getRows(
           accessToken,
@@ -552,7 +564,6 @@ export class GoogleSheetsService {
 
         // Build update values array based on headers
         const sheetsClient = this.getSheetsClient(accessToken, refreshToken);
-        const range = `${sheetName}!A:Z`;
         const headersResponse = await sheetsClient.spreadsheets.values.get({
           spreadsheetId,
           range: `${sheetName}!1:1`, // Get header row
@@ -598,7 +609,6 @@ export class GoogleSheetsService {
         }
 
         const sheetsClient = this.getSheetsClient(accessToken, refreshToken);
-        const range = `${sheetName}!A:Z`;
         const headersResponse = await sheetsClient.spreadsheets.values.get({
           spreadsheetId,
           range: `${sheetName}!1:1`, // Get header row
@@ -672,7 +682,10 @@ export class GoogleSheetsService {
         }
       } catch (refreshError) {
         // If refresh fails, continue with existing token
-        logger.warn('Token refresh failed, using existing token:', refreshError.message);
+        logger.warn(
+          'Token refresh failed, using existing token:',
+          refreshError.message
+        );
       }
 
       const drive = google.drive({ version: 'v3', auth: oauth2Client });
@@ -703,7 +716,8 @@ export class GoogleSheetsService {
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Drive permissions.',
+          error:
+            'Permission denied. Please check your Google Drive permissions.',
         };
       }
       if (error.code === 429) {
@@ -745,9 +759,12 @@ export class GoogleSheetsService {
         hidden: sheet.properties?.hidden || false,
       }));
 
-      logger.info(`Retrieved ${sheets.length} sheets for spreadsheet ${spreadsheetId}`, {
-        sheetNames: sheets.map(s => s.title),
-      });
+      logger.info(
+        `Retrieved ${sheets.length} sheets for spreadsheet ${spreadsheetId}`,
+        {
+          sheetNames: sheets.map(s => s.title),
+        }
+      );
 
       return {
         success: true,
@@ -770,7 +787,8 @@ export class GoogleSheetsService {
       if (error.code === 403) {
         return {
           success: false,
-          error: 'Permission denied. Please check your Google Sheets permissions.',
+          error:
+            'Permission denied. Please check your Google Sheets permissions.',
         };
       }
       if (error.code === 429) {
@@ -786,7 +804,59 @@ export class GoogleSheetsService {
       };
     }
   }
+
+  /**
+   * Get columns (headers) from a sheet
+   * @param {string} accessToken - OAuth access token
+   * @param {string} refreshToken - OAuth refresh token
+   * @param {string} spreadsheetId - Spreadsheet ID
+   * @param {string} sheetName - Sheet name
+   * @returns {Promise<{success: boolean, data?: Array<string>, error?: string}>}
+   */
+  async getColumns(accessToken, refreshToken, spreadsheetId, sheetName) {
+    const sheetsClient = this.getSheetsClient(accessToken, refreshToken);
+
+    try {
+      logger.info(
+        `Getting columns for sheet: ${sheetName} in spreadsheet: ${spreadsheetId}`
+      );
+
+      // Get first row (headers)
+      const range = `${sheetName}!1:1`;
+      const response = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+      });
+
+      const headers = response.data.values?.[0] || [];
+      // Map empty headers to col_1, col_2, etc.
+      const columns = headers.map((h, i) => h || `col_${i + 1}`);
+
+      logger.info(
+        `Retrieved ${columns.length} columns for sheet ${sheetName}`,
+        {
+          columns,
+        }
+      );
+
+      return {
+        success: true,
+        data: columns,
+      };
+    } catch (error) {
+      logger.error('Error getting columns:', {
+        error: error.message,
+        code: error.code,
+        spreadsheetId,
+        sheetName,
+      });
+
+      return {
+        success: false,
+        error: `Failed to get columns: ${error.message}`,
+      };
+    }
+  }
 }
 
 export const googleSheetsService = new GoogleSheetsService();
-

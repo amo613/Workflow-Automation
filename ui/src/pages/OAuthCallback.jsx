@@ -10,7 +10,7 @@ export default function OAuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { integrationType } = useParams(); // e.g., 'google-sheets'
-  
+
   const success = searchParams.get('success') === 'true';
   const error = searchParams.get('error');
   const returnUrl = searchParams.get('returnUrl') || '/fullWorkflows';
@@ -18,8 +18,11 @@ export default function OAuthCallback() {
   useEffect(() => {
     // Send message to parent window immediately
     if (window.opener && !window.opener.closed) {
-      console.log('OAuth callback: Sending message to parent', { success, integrationType });
-      
+      console.log('OAuth callback: Sending message to parent', {
+        success,
+        integrationType,
+      });
+
       if (success) {
         // Send success message to parent
         window.opener.postMessage(
@@ -41,7 +44,7 @@ export default function OAuthCallback() {
           window.location.origin
         );
       }
-      
+
       // Close popup immediately after sending message
       setTimeout(() => {
         console.log('OAuth callback: Closing popup');
@@ -59,7 +62,9 @@ export default function OAuthCallback() {
       if (success) {
         navigate(returnUrl);
       } else {
-        navigate('/fullWorkflows?error=' + encodeURIComponent(error || 'OAuth failed'));
+        navigate(
+          '/fullWorkflows?error=' + encodeURIComponent(error || 'OAuth failed')
+        );
       }
     }
   }, [success, error, returnUrl, integrationType, navigate]);
@@ -78,18 +83,25 @@ export default function OAuthCallback() {
       {success ? (
         <>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-          <h2 style={{ margin: 0, marginBottom: '0.5rem' }}>Connected Successfully!</h2>
+          <h2 style={{ margin: 0, marginBottom: '0.5rem' }}>
+            Connected Successfully!
+          </h2>
           <p style={{ color: '#666', margin: 0 }}>Closing window...</p>
         </>
       ) : (
         <>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
-          <h2 style={{ margin: 0, marginBottom: '0.5rem' }}>Connection Failed</h2>
+          <h2 style={{ margin: 0, marginBottom: '0.5rem' }}>
+            Connection Failed
+          </h2>
           <p style={{ color: '#666', margin: 0 }}>{error || 'Unknown error'}</p>
-          <p style={{ color: '#666', marginTop: '0.5rem', fontSize: '0.875rem' }}>Closing window...</p>
+          <p
+            style={{ color: '#666', marginTop: '0.5rem', fontSize: '0.875rem' }}
+          >
+            Closing window...
+          </p>
         </>
       )}
     </div>
   );
 }
-
