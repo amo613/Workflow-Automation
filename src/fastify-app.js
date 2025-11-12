@@ -28,6 +28,7 @@ import knowledgeBaseRoutes from '#routes/knowledge-base.routes.js';
 import fullWorkflowRoutes from '#routes/full-workflow.routes.js';
 import webhookRoutes from '#routes/webhook.routes.js';
 import inngestRoutes from '#routes/inngest.routes.js';
+import aiAgentRoutes from '#routes/ai-agent.routes.js';
 import { initRedis } from '#config/cache.js';
 import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
 import './services/full-workflow/trigger-polling.service.js'; // (auto-starts trigger polling worker when imported)
@@ -198,6 +199,19 @@ fastify.get('/login', async (request, reply) => {
   }
 });
 
+fastify.get('/register', async (request, reply) => {
+  try {
+    const htmlPath = join(process.cwd(), 'ui/register.html');
+    const html = readFileSync(htmlPath, 'utf-8');
+    reply.type('text/html');
+    return reply.send(html);
+  } catch (error) {
+    logger.error('Error serving register page', { error: error.message });
+    reply.status(500).send('Error loading register page');
+    throw error;
+  }
+});
+
 // Health check route (migrated from Express)
 fastify.get('/health', async (request, reply) => {
   const cacheHealth = await cacheHealthCheck();
@@ -340,6 +354,19 @@ fastify.register(
   { prefix: '' }
 );
 
+// Register AI Agent routes with CSRF protection
+fastify.register(
+  async fastify => {
+    // Apply CSRF middleware hooks to all routes in this scope
+    fastify.addHook('onRequest', generateCSRFTokenFastify);
+    fastify.addHook('preHandler', originCheckFastify);
+    fastify.addHook('preHandler', csrfProtectionFastify);
+
+    fastify.register(aiAgentRoutes, { prefix: '' });
+  },
+  { prefix: '' }
+);
+
 // Register webhook routes (NO CSRF protection - webhooks are public)
 // Webhooks don't require authentication, but we validate the webhook ID
 fastify.register(webhookRoutes);
@@ -399,20 +426,34 @@ fastify.addHook('onReady', async () => {
   logger.info('✅ Fastify app is ready');
 
   // Log all registered routes for debugging
-  const routes = [];
+  const googleSheetsRoutes = [];
+  const aiAgentRoutes = [];
   fastify
     .printRoutes()
     .split('\n')
     .forEach(line => {
       if (line.includes('google-sheets')) {
-        routes.push(line.trim());
+        googleSheetsRoutes.push(line.trim());
+      }
+      if (line.includes('ai-agent')) {
+        aiAgentRoutes.push(line.trim());
       }
     });
-  if (routes.length > 0) {
-    logger.info(`✅ Google Sheets routes registered: ${routes.length} routes`);
-    routes.forEach(route => logger.info(`   - ${route}`));
+  if (googleSheetsRoutes.length > 0) {
+    logger.info(
+      `✅ Google Sheets routes registered: ${googleSheetsRoutes.length} routes`
+    );
+    googleSheetsRoutes.forEach(route => logger.info(`   - ${route}`));
   } else {
     logger.warn('⚠️ No Google Sheets routes found in registered routes');
+  }
+  if (aiAgentRoutes.length > 0) {
+    logger.info(
+      `✅ AI Agent routes registered: ${aiAgentRoutes.length} routes`
+    );
+    aiAgentRoutes.forEach(route => logger.info(`   - ${route}`));
+  } else {
+    logger.warn('⚠️ No AI Agent routes found in registered routes');
   }
 });
 

@@ -67,6 +67,7 @@ export function getAvailableVariables(localData, nodes, edges, selectedNode) {
 
 /**
  * Get input data for a node (data from previous nodes)
+ * Combines outputs from ALL connected previous nodes
  */
 export function getInputData(localData, nodes, edges, selectedNode) {
   if (!selectedNode || !nodes || !edges) return {};
@@ -74,14 +75,17 @@ export function getInputData(localData, nodes, edges, selectedNode) {
   const inputData = {};
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
-  // Find the immediate previous node
-  const previousEdge = edges.find(e => e.target === selectedNode.id);
-  if (previousEdge) {
-    const previousNode = nodeMap.get(previousEdge.source);
+  // Find ALL previous nodes (all nodes that connect to the selected node)
+  const previousEdges = edges.filter(e => e.target === selectedNode.id);
+
+  // Combine outputs from all previous nodes
+  previousEdges.forEach(edge => {
+    const previousNode = nodeMap.get(edge.source);
     if (previousNode?.data?.output) {
+      // Merge outputs, with later nodes taking precedence for duplicate keys
       Object.assign(inputData, previousNode.data.output);
     }
-  }
+  });
 
   return inputData;
 }

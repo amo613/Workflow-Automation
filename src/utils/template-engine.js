@@ -72,6 +72,10 @@ export function resolveTemplate(template, context = {}) {
           : context.previousNodeOutput;
       }
     }
+    // 3.5. Handle {{output}} as shorthand for {{previous.output}}
+    else if (trimmedPath === 'output' && context.previousNodeOutput) {
+      value = context.previousNodeOutput;
+    }
     // 4. Try to resolve as previous.output.field if not found as direct variable
     // This handles cases like {{data.userId}} which should resolve to previous.output.data.userId
     if (value === null || value === undefined) {

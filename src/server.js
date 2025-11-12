@@ -44,9 +44,11 @@ const requestHandler = (req, res) => {
     pathname.startsWith('/api/integrations/google-sheets') ||
     pathname.startsWith('/api/inngest') ||
     pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/ai-agent') ||
     pathname === '/' ||
     pathname === '/api' ||
     pathname === '/login' ||
+    pathname === '/register' ||
     pathname.startsWith('/js/') ||
     pathname.startsWith('/workflows');
 
@@ -181,6 +183,7 @@ server.on('upgrade', (request, socket, head) => {
       logger.info(
         `   - /api/integrations/google-sheets/* → Fastify (migrated)`
       );
+      logger.info(`   - /api/ai-agent/* → Fastify (migrated)`);
       logger.info(`   - /, /api, /login → Fastify (migrated)`);
       logger.info(`   - /js/*, /workflows/* → Fastify (migrated)`);
       logger.info(`   - All other routes → Express`);

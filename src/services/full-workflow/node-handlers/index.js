@@ -12,6 +12,7 @@ import { executeDatabaseQuery } from './database-query.handler.js';
 import { executeGoogleSheets } from './google-sheets.handler.js';
 import { executeGoogleSheetsTrigger } from './google-sheets-trigger.handler.js';
 import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
+import { executeAiAgent } from './ai-agent.handler.js';
 import logger from '#config/logger.js';
 
 /**
@@ -71,6 +72,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'knowledge-base-query':
       return executeKnowledgeBaseQuery(data, templateContext);
+
+    case 'ai-agent':
+      return executeAiAgent(node, templateContext, variableContext);
 
     default:
       throw new Error(`Unknown node type: ${type}`);

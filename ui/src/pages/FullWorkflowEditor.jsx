@@ -21,6 +21,7 @@ import DatabaseQueryNode from '../components/full-workflow/nodes/DatabaseQueryNo
 import GoogleSheetsNode from '../components/full-workflow/nodes/GoogleSheetsNode';
 import GoogleSheetsTriggerNode from '../components/full-workflow/nodes/GoogleSheetsTriggerNode';
 import KnowledgeBaseQueryNode from '../components/full-workflow/nodes/KnowledgeBaseQueryNode';
+import AiAgentNode from '../components/full-workflow/nodes/AiAgentNode';
 import NodeSidebarN8N from '../components/full-workflow/NodeSidebarN8N';
 import KnowledgeBaseManager from '../components/full-workflow/KnowledgeBaseManager';
 
@@ -37,6 +38,7 @@ const nodeTypes = {
   'google-sheets': GoogleSheetsNode,
   'google-sheets-trigger': GoogleSheetsTriggerNode,
   'knowledge-base-query': KnowledgeBaseQueryNode,
+  'ai-agent': AiAgentNode,
 };
 
 function FullWorkflowEditor() {
@@ -2015,6 +2017,23 @@ function FullWorkflowEditor() {
               <span>Knowledge Base</span>
             </button>
             <button
+              onClick={() => addNode('ai-agent')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>🤖</span>
+              <span>AI Agent</span>
+            </button>
+            <button
               onClick={() => addNode('end')}
               style={{
                 padding: '0.75rem',
@@ -2077,6 +2096,7 @@ function FullWorkflowEditor() {
                   webhook: '#8b5cf6',
                   'http-request': '#3b82f6',
                   'call-agent': '#10b981',
+                  'ai-agent': '#3b82f6',
                   'variable-set': '#f59e0b',
                   if: '#f59e0b',
                   wait: '#6366f1',

@@ -60,6 +60,11 @@ export default function InputPanel({
     });
   };
 
+  // Get all source nodes
+  const sourceNodes = edges
+    .filter(e => e.target === selectedNode.id)
+    .map(e => e.source);
+
   return (
     <div style={{ padding: '0.75rem', overflow: 'auto', flex: 1 }}>
       <div
@@ -70,8 +75,11 @@ export default function InputPanel({
         }}
       >
         From:{' '}
-        {edges.find(e => e.target === selectedNode.id)?.source ||
-          'Previous Node'}
+        {sourceNodes.length > 0
+          ? sourceNodes.length === 1
+            ? sourceNodes[0]
+            : `${sourceNodes.length} nodes (${sourceNodes.join(', ')})`
+          : 'Previous Node'}
       </div>
       <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.25rem' }}>
         <button

@@ -49,6 +49,21 @@ export const signUp = async (req, res, next) => {
 
     logger.info(`User registered successfully: ${email}`);
 
+    const redirectTo = req.query?.redirectTo;
+    const accept = req.headers['accept'] || '';
+
+    // Handle redirect for HTML requests (similar to signIn)
+    if (
+      redirectTo ||
+      (typeof accept === 'string' && accept.includes('text/html'))
+    ) {
+      const redirectUrl = redirectTo || '/api/test-openai';
+      if (isFastifyRequest) {
+        return reply.redirect(302, redirectUrl);
+      }
+      return res.redirect(302, redirectUrl);
+    }
+
     const response = {
       message: 'User registered',
       user: {
@@ -66,7 +81,25 @@ export const signUp = async (req, res, next) => {
   } catch (e) {
     logger.error('Signup error', e);
 
+    const accept = req.headers['accept'] || '';
+    const isHtmlRequest =
+      typeof accept === 'string' && accept.includes('text/html');
+    const redirectTo = req.query?.redirectTo;
+
     if (e.message === 'User with this email already exists') {
+      if (isHtmlRequest && redirectTo) {
+        // For HTML requests with redirect, redirect back to register page with error
+        if (isFastifyRequest) {
+          return reply.redirect(
+            302,
+            `/register?error=${encodeURIComponent('Email already exists')}`
+          );
+        }
+        return res.redirect(
+          302,
+          `/register?error=${encodeURIComponent('Email already exists')}`
+        );
+      }
       if (isFastifyRequest) {
         return reply.status(409).send({ error: 'Email already exist' });
       }

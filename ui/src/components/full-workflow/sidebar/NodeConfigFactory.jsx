@@ -15,6 +15,7 @@ import DatabaseQueryConfig from './configs/DatabaseQueryConfig.jsx';
 import GoogleSheetsConfig from './configs/GoogleSheetsConfig.jsx';
 import GoogleSheetsTriggerConfig from './configs/GoogleSheetsTriggerConfig.jsx';
 import KnowledgeBaseQueryConfig from './configs/KnowledgeBaseQueryConfig.jsx';
+import AiAgentConfig from './configs/AiAgentConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
 
 const configMap = {
@@ -28,6 +29,7 @@ const configMap = {
   'google-sheets': GoogleSheetsConfig,
   'google-sheets-trigger': GoogleSheetsTriggerConfig,
   'knowledge-base-query': KnowledgeBaseQueryConfig,
+  'ai-agent': AiAgentConfig,
   start: StartConfig,
 };
 

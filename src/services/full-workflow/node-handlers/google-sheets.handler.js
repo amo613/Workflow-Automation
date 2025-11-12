@@ -109,7 +109,7 @@ export async function executeGoogleSheets(data, context) {
           );
         }
 
-        // Parse valuesToSet
+        // Parse valuesToSet and resolve templates
         let resolvedValues = [];
         if (valuesToSet) {
           try {
@@ -119,12 +119,27 @@ export async function executeGoogleSheets(data, context) {
                 : JSON.stringify(valuesToSet);
             const parsed = JSON.parse(valuesStr);
             if (Array.isArray(parsed)) {
-              resolvedValues = parsed;
+              // Resolve each value if it's a template
+              resolvedValues = parsed.map(value => {
+                if (typeof value === 'string' && value.includes('{{')) {
+                  return resolveTemplate(value, context);
+                }
+                return value;
+              });
             } else if (typeof parsed === 'object') {
-              // Convert object to array of values
-              resolvedValues = Object.values(parsed);
+              // Convert object to array of values, resolving templates
+              resolvedValues = Object.values(parsed).map(value => {
+                if (typeof value === 'string' && value.includes('{{')) {
+                  return resolveTemplate(value, context);
+                }
+                return value;
+              });
             } else {
-              resolvedValues = [parsed];
+              // Single value, resolve if template
+              const valueStr = String(parsed);
+              resolvedValues = valueStr.includes('{{')
+                ? [resolveTemplate(valueStr, context)]
+                : [parsed];
             }
           } catch (error) {
             logger.warn('Failed to parse valuesToSet as JSON', {
@@ -159,7 +174,7 @@ export async function executeGoogleSheets(data, context) {
           );
         }
 
-        // Parse valuesToSet
+        // Parse valuesToSet and resolve templates
         let resolvedValues = [];
         if (valuesToSet) {
           try {
@@ -169,11 +184,27 @@ export async function executeGoogleSheets(data, context) {
                 : JSON.stringify(valuesToSet);
             const parsed = JSON.parse(valuesStr);
             if (Array.isArray(parsed)) {
-              resolvedValues = parsed;
+              // Resolve each value if it's a template
+              resolvedValues = parsed.map(value => {
+                if (typeof value === 'string' && value.includes('{{')) {
+                  return resolveTemplate(value, context);
+                }
+                return value;
+              });
             } else if (typeof parsed === 'object') {
-              resolvedValues = Object.values(parsed);
+              // Convert object to array of values, resolving templates
+              resolvedValues = Object.values(parsed).map(value => {
+                if (typeof value === 'string' && value.includes('{{')) {
+                  return resolveTemplate(value, context);
+                }
+                return value;
+              });
             } else {
-              resolvedValues = [parsed];
+              // Single value, resolve if template
+              const valueStr = String(parsed);
+              resolvedValues = valueStr.includes('{{')
+                ? [resolveTemplate(valueStr, context)]
+                : [parsed];
             }
           } catch (error) {
             logger.warn('Failed to parse valuesToSet as JSON', {
@@ -308,7 +339,7 @@ export async function executeGoogleSheets(data, context) {
           context
         );
 
-        // Parse valuesToSet
+        // Parse valuesToSet and resolve templates in each value
         let resolvedValuesToSet = {};
         if (valuesToSet) {
           try {
@@ -316,7 +347,26 @@ export async function executeGoogleSheets(data, context) {
               typeof valuesToSet === 'string'
                 ? valuesToSet
                 : JSON.stringify(valuesToSet);
-            resolvedValuesToSet = JSON.parse(valuesStr);
+            const parsed = JSON.parse(valuesStr);
+
+            // If it's an object, resolve each value individually
+            if (
+              typeof parsed === 'object' &&
+              parsed !== null &&
+              !Array.isArray(parsed)
+            ) {
+              resolvedValuesToSet = {};
+              for (const [key, value] of Object.entries(parsed)) {
+                if (typeof value === 'string' && value.includes('{{')) {
+                  // Resolve template in value
+                  resolvedValuesToSet[key] = resolveTemplate(value, context);
+                } else {
+                  resolvedValuesToSet[key] = value;
+                }
+              }
+            } else {
+              resolvedValuesToSet = parsed;
+            }
           } catch (error) {
             logger.warn('Failed to parse valuesToSet as JSON', {
               error: error.message,
@@ -324,7 +374,24 @@ export async function executeGoogleSheets(data, context) {
             // Try to resolve as template
             const resolved = resolveTemplate(String(valuesToSet), context);
             try {
-              resolvedValuesToSet = JSON.parse(resolved);
+              const parsed = JSON.parse(resolved);
+              // If parsed successfully, resolve templates in values
+              if (
+                typeof parsed === 'object' &&
+                parsed !== null &&
+                !Array.isArray(parsed)
+              ) {
+                resolvedValuesToSet = {};
+                for (const [key, value] of Object.entries(parsed)) {
+                  if (typeof value === 'string' && value.includes('{{')) {
+                    resolvedValuesToSet[key] = resolveTemplate(value, context);
+                  } else {
+                    resolvedValuesToSet[key] = value;
+                  }
+                }
+              } else {
+                resolvedValuesToSet = parsed;
+              }
             } catch {
               throw new Error('Values to Set must be a valid JSON object');
             }
