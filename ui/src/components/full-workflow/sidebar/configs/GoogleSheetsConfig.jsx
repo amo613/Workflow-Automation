@@ -541,12 +541,19 @@ export default function GoogleSheetsConfig({
                                 : String(currentValue || '')
                             }
                             onChange={e => {
+                              // Handle both regular events and synthetic events
+                              const newValue =
+                                e?.target?.value ?? e?.value ?? '';
                               // Update as object with column names as keys
                               const newValues = {
-                                ...(localData.valuesToSet || {}),
+                                ...(typeof localData.valuesToSet === 'object' &&
+                                localData.valuesToSet !== null &&
+                                !Array.isArray(localData.valuesToSet)
+                                  ? localData.valuesToSet
+                                  : {}),
                               };
-                              if (e.target.value) {
-                                newValues[column] = e.target.value;
+                              if (newValue) {
+                                newValues[column] = newValue;
                               } else {
                                 delete newValues[column];
                               }
@@ -642,11 +649,19 @@ export default function GoogleSheetsConfig({
                               : String(currentValue || '')
                           }
                           onChange={e => {
+                            // Handle both regular events and synthetic events
+                            const newValue = e?.target?.value ?? e?.value ?? '';
                             // Update as array to maintain column order
-                            const newValues = [
-                              ...(localData.valuesToSet || []),
-                            ];
-                            newValues[index] = e.target.value;
+                            const newValues = Array.isArray(
+                              localData.valuesToSet
+                            )
+                              ? [...localData.valuesToSet]
+                              : [];
+                            // Ensure array is long enough
+                            while (newValues.length <= index) {
+                              newValues.push('');
+                            }
+                            newValues[index] = newValue;
                             handleUpdate('valuesToSet', newValues);
                           }}
                           availableVariables={availableVariables}
@@ -738,11 +753,20 @@ export default function GoogleSheetsConfig({
                                 : String(currentValue || '')
                             }
                             onChange={e => {
+                              // Handle both regular events and synthetic events
+                              const newValue =
+                                e?.target?.value ?? e?.value ?? '';
                               // Update as array to maintain column order
-                              const newValues = [
-                                ...(localData.valuesToSet || []),
-                              ];
-                              newValues[index] = e.target.value;
+                              const newValues = Array.isArray(
+                                localData.valuesToSet
+                              )
+                                ? [...localData.valuesToSet]
+                                : [];
+                              // Ensure array is long enough
+                              while (newValues.length <= index) {
+                                newValues.push('');
+                              }
+                              newValues[index] = newValue;
                               handleUpdate('valuesToSet', newValues);
                             }}
                             availableVariables={availableVariables}

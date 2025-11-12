@@ -30,6 +30,7 @@ import webhookRoutes from '#routes/webhook.routes.js';
 import inngestRoutes from '#routes/inngest.routes.js';
 import { initRedis } from '#config/cache.js';
 import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
+import './services/full-workflow/trigger-polling.service.js'; // (auto-starts trigger polling worker when imported)
 
 // Create Fastify instance
 // Note: We disable Fastify's built-in logger and use our own logger instead
@@ -345,14 +346,21 @@ fastify.register(webhookRoutes);
 
 // Register Inngest routes (NO CSRF protection - Inngest handles its own auth)
 // Note: Re-enabled after Node 20 upgrade
-try {
-  fastify.register(inngestRoutes);
-} catch (error) {
-  logger.error('Failed to register Inngest routes', { error: error.message });
-  logger.warn(
-    'Continuing without Inngest - workflows will not execute via Inngest'
-  );
-}
+// Register asynchronously to prevent blocking server startup
+fastify.register(async fastifyInstance => {
+  try {
+    await inngestRoutes(fastifyInstance);
+  } catch (error) {
+    logger.error('Failed to register Inngest routes', {
+      error: error.message,
+      stack: error.stack,
+    });
+    logger.warn(
+      'Continuing without Inngest - workflows will not execute via Inngest'
+    );
+    // Don't throw - allow app to continue
+  }
+});
 
 // 404 handler - must come after all routes
 // Skip WebSocket upgrade requests (they are handled by server.js upgrade handler)

@@ -103,10 +103,11 @@ export default function IfNode({ data, selected }) {
         id="true"
         style={{
           background: '#10b981',
-          width: '12px',
-          height: '12px',
-          border: '2px solid white',
+          width: '16px',
+          height: '16px',
+          border: '3px solid white',
           left: '30%',
+          boxShadow: '0 0 0 2px #10b981, 0 2px 8px rgba(16, 185, 129, 0.4)',
         }}
       />
       <Handle
@@ -115,10 +116,11 @@ export default function IfNode({ data, selected }) {
         id="false"
         style={{
           background: '#ef4444',
-          width: '12px',
-          height: '12px',
-          border: '2px solid white',
+          width: '16px',
+          height: '16px',
+          border: '3px solid white',
           left: '70%',
+          boxShadow: '0 0 0 2px #ef4444, 0 2px 8px rgba(239, 68, 68, 0.4)',
         }}
       />
     </div>

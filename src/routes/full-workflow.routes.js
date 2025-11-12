@@ -10,6 +10,8 @@ import {
   executeSingleNodeHandler,
   getActiveTriggersHandler,
   getWorkflowExecutionResultsHandler,
+  getWorkflowStatisticsHandler,
+  getWorkflowExecutionHistoryHandler,
 } from '#controllers/full-workflow.controller.js';
 
 async function fullWorkflowRoutes(fastify) {
@@ -170,6 +172,40 @@ async function fullWorkflowRoutes(fastify) {
       },
     },
     handler: getWorkflowExecutionResultsHandler,
+  });
+
+  // Get workflow statistics
+  fastify.get('/api/full-workflows/:id/statistics', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: getWorkflowStatisticsHandler,
+  });
+
+  // Get workflow execution history
+  fastify.get('/api/full-workflows/:id/execution-history', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: getWorkflowExecutionHistoryHandler,
   });
 }
 

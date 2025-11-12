@@ -7,6 +7,11 @@ import { db } from '#config/database.js';
 import { fullWorkflows } from '#models/full-workflow.model.js';
 import { eq } from 'drizzle-orm';
 import { getRedisClient } from '#config/cache.js';
+import crypto from 'crypto';
+import {
+  trackWorkflowExecution,
+  trackTriggerExecution,
+} from './statistics.service.js';
 
 const REDIS_CONFIG = {
   host: process.env.REDIS_HOST || (process.env.CI ? 'localhost' : 'redis'),
@@ -17,6 +22,12 @@ const REDIS_CONFIG = {
 // Trigger polling queue
 export const triggerPollingQueue = new Queue('trigger-polling', {
   connection: REDIS_CONFIG,
+});
+
+logger.info('✅ Trigger polling queue initialized', {
+  queueName: 'trigger-polling',
+  redisHost: REDIS_CONFIG.host,
+  redisPort: REDIS_CONFIG.port,
 });
 
 // Worker to process trigger polling jobs
@@ -83,6 +94,36 @@ export const triggerPollingWorker = new Worker(
   }
 );
 
+// Log worker initialization
+logger.info('✅ Trigger polling worker initialized', {
+  queueName: 'trigger-polling',
+  concurrency: 5,
+});
+
+// Event listeners for worker
+triggerPollingWorker.on('completed', job => {
+  logger.info('Trigger polling job completed', {
+    jobId: job.id,
+    workflowId: job.data?.workflowId,
+    triggerNodeId: job.data?.triggerNodeId,
+  });
+});
+
+triggerPollingWorker.on('failed', (job, err) => {
+  logger.error('Trigger polling job failed', {
+    jobId: job?.id,
+    workflowId: job?.data?.workflowId,
+    triggerNodeId: job?.data?.triggerNodeId,
+    error: err.message,
+  });
+});
+
+triggerPollingWorker.on('error', err => {
+  logger.error('Trigger polling worker error', {
+    error: err.message,
+  });
+});
+
 /**
  * Handle Google Sheets trigger polling
  */
@@ -104,18 +145,18 @@ async function handleGoogleSheetsTrigger(
       return { success: false, reason: 'integration_not_found' };
     }
 
-    // Get last modified time from Redis cache
+    // Get row hashes from Redis cache to track actual changes
     const redisClient = getRedisClient();
-    const lastModifiedKey = `trigger:${workflowId}:${triggerNode.id}:lastModified`;
-    const rowCountKey = `trigger:${workflowId}:${triggerNode.id}:rowCount`;
+    const rowHashesKey = `trigger:${workflowId}:${triggerNode.id}:rowHashes`;
+    const lastProcessedKey = `trigger:${workflowId}:${triggerNode.id}:lastProcessed`;
 
-    let lastModified = null;
+    let previousRowHashes = [];
 
     if (redisClient && redisClient.isReady) {
       try {
-        const lastModifiedStr = await redisClient.get(lastModifiedKey);
-        await redisClient.get(rowCountKey);
-        lastModified = lastModifiedStr ? parseInt(lastModifiedStr, 10) : null;
+        const rowHashesStr = await redisClient.get(rowHashesKey);
+        await redisClient.get(lastProcessedKey); // Read but don't use (for cache warming)
+        previousRowHashes = rowHashesStr ? JSON.parse(rowHashesStr) : [];
       } catch (error) {
         logger.warn('Error reading from Redis cache', { error: error.message });
       }
@@ -137,42 +178,163 @@ async function handleGoogleSheetsTrigger(
     }
 
     const currentRows = result.data || [];
-    const currentModified = Date.now();
+
+    // Helper function to create hash from row data
+    const createRowHash = row => {
+      const rowString = JSON.stringify(row);
+      return crypto.createHash('sha256').update(rowString).digest('hex');
+    };
+
+    // Create hashes for all current rows
+    const currentRowHashes = currentRows.map((row, index) => ({
+      index,
+      hash: createRowHash(row),
+    }));
 
     // Check if rows were added or updated
     if (triggerOn === 'Row added or updated') {
-      const previousRowCount = lastModified?.rowCount || 0;
-      const currentRowCount = currentRows.length;
+      // If this is the first run (no previous hashes), just set baseline without triggering
+      if (previousRowHashes.length === 0 && currentRows.length > 0) {
+        logger.info('First trigger run - setting baseline without triggering', {
+          workflowId,
+          triggerNodeId: triggerNode.id,
+          rowCount: currentRows.length,
+        });
 
-      // Check for new rows
-      if (currentRowCount > previousRowCount) {
-        const newRows = currentRows.slice(previousRowCount);
-        logger.info('New rows detected', {
+        // Set baseline hashes in Redis cache
+        if (redisClient && redisClient.isReady) {
+          try {
+            await redisClient.set(
+              rowHashesKey,
+              JSON.stringify(currentRowHashes)
+            );
+            await redisClient.set(lastProcessedKey, Date.now().toString());
+          } catch (error) {
+            logger.warn('Error writing baseline to Redis cache', {
+              error: error.message,
+            });
+          }
+        }
+
+        return { success: true, event: 'baseline_set', rowCount: 0 };
+      }
+
+      const newRows = [];
+      const updatedRows = [];
+
+      // Compare current hashes with previous hashes
+      for (let i = 0; i < currentRowHashes.length; i++) {
+        const currentHash = currentRowHashes[i].hash;
+        const previousHash = previousRowHashes[i]?.hash;
+
+        if (!previousHash) {
+          // New row
+          newRows.push({
+            row: currentRows[i],
+            index: i,
+          });
+        } else if (currentHash !== previousHash) {
+          // Updated row
+          updatedRows.push({
+            row: currentRows[i],
+            index: i,
+          });
+        }
+      }
+
+      // Only trigger if there are actual changes
+      if (newRows.length > 0 || updatedRows.length > 0) {
+        logger.info('Changes detected', {
           workflowId,
           triggerNodeId: triggerNode.id,
           newRowCount: newRows.length,
+          updatedRowCount: updatedRows.length,
         });
 
         // Execute workflow for each new row
-        for (const row of newRows) {
-          await executeWorkflowInternal(
-            workflowId,
-            {
-              triggerNodeId: triggerNode.id,
-              event: 'added',
-              row,
-            },
-            userId,
-            nodes,
-            edges
-          );
+        for (const { row } of newRows) {
+          try {
+            await executeWorkflowInternal(
+              workflowId,
+              {
+                triggerNodeId: triggerNode.id,
+                event: 'added',
+                row,
+              },
+              userId,
+              nodes,
+              edges
+            );
+            // Track successful execution
+            trackWorkflowExecution(workflowId, true).catch(() => {});
+            trackTriggerExecution(
+              workflowId,
+              triggerNode.id,
+              true,
+              'added'
+            ).catch(() => {});
+          } catch (error) {
+            logger.error('Failed to execute workflow for new row', {
+              workflowId,
+              error: error.message,
+            });
+            // Track failed execution
+            trackWorkflowExecution(workflowId, false, error).catch(() => {});
+            trackTriggerExecution(
+              workflowId,
+              triggerNode.id,
+              false,
+              'added'
+            ).catch(() => {});
+          }
         }
 
-        // Update last modified in Redis cache
+        // Execute workflow for each updated row
+        for (const { row } of updatedRows) {
+          try {
+            await executeWorkflowInternal(
+              workflowId,
+              {
+                triggerNodeId: triggerNode.id,
+                event: 'updated',
+                row,
+              },
+              userId,
+              nodes,
+              edges
+            );
+            // Track successful execution
+            trackWorkflowExecution(workflowId, true).catch(() => {});
+            trackTriggerExecution(
+              workflowId,
+              triggerNode.id,
+              true,
+              'updated'
+            ).catch(() => {});
+          } catch (error) {
+            logger.error('Failed to execute workflow for updated row', {
+              workflowId,
+              error: error.message,
+            });
+            // Track failed execution
+            trackWorkflowExecution(workflowId, false, error).catch(() => {});
+            trackTriggerExecution(
+              workflowId,
+              triggerNode.id,
+              false,
+              'updated'
+            ).catch(() => {});
+          }
+        }
+
+        // Update row hashes in Redis cache AFTER processing
         if (redisClient && redisClient.isReady) {
           try {
-            await redisClient.set(lastModifiedKey, currentModified.toString());
-            await redisClient.set(rowCountKey, currentRowCount.toString());
+            await redisClient.set(
+              rowHashesKey,
+              JSON.stringify(currentRowHashes)
+            );
+            await redisClient.set(lastProcessedKey, Date.now().toString());
           } catch (error) {
             logger.warn('Error writing to Redis cache', {
               error: error.message,
@@ -182,60 +344,16 @@ async function handleGoogleSheetsTrigger(
 
         return {
           success: true,
-          event: 'added',
-          rowCount: newRows.length,
-        };
-      }
-
-      // Check for updated rows (simplified: compare row count and last modified)
-      // In a real implementation, we'd track individual row hashes or timestamps
-      if (currentRowCount === previousRowCount && currentRowCount > 0) {
-        // For now, we'll just check if the sheet was modified
-        // In production, you'd want to track individual row hashes
-        logger.info('Rows may have been updated', {
-          workflowId,
-          triggerNodeId: triggerNode.id,
-        });
-
-        // Execute workflow with all rows (or just the last one)
-        const lastRow = currentRows[currentRows.length - 1];
-        await executeWorkflowInternal(
-          workflowId,
-          {
-            triggerNodeId: triggerNode.id,
-            event: 'updated',
-            row: lastRow,
-          },
-          userId,
-          nodes,
-          edges
-        );
-
-        // Update last modified in Redis cache
-        if (redisClient && redisClient.isReady) {
-          try {
-            await redisClient.set(lastModifiedKey, currentModified.toString());
-            await redisClient.set(rowCountKey, currentRowCount.toString());
-          } catch (error) {
-            logger.warn('Error writing to Redis cache', {
-              error: error.message,
-            });
-          }
-        }
-
-        return {
-          success: true,
-          event: 'updated',
-          rowCount: 1,
+          event: newRows.length > 0 ? 'added' : 'updated',
+          rowCount: newRows.length + updatedRows.length,
         };
       }
     }
 
-    // Update last modified even if no changes detected
+    // Update row hashes even if no changes detected (to track current state)
     if (redisClient && redisClient.isReady) {
       try {
-        await redisClient.set(lastModifiedKey, currentModified.toString());
-        await redisClient.set(rowCountKey, currentRows.length.toString());
+        await redisClient.set(rowHashesKey, JSON.stringify(currentRowHashes));
       } catch (error) {
         logger.warn('Error writing to Redis cache', { error: error.message });
       }
@@ -261,6 +379,15 @@ export async function scheduleTriggerPolling(
   triggerConfig,
   userId
 ) {
+  // Validate inputs
+  if (!triggerNode || !triggerNode.id) {
+    throw new Error('Trigger node must have an id');
+  }
+
+  if (!workflowId) {
+    throw new Error('Workflow ID is required');
+  }
+
   const { pollTime } = triggerConfig;
 
   // Add userId to triggerConfig if not present
@@ -280,28 +407,33 @@ export async function scheduleTriggerPolling(
       '24 hours': 24 * 60 * 60 * 1000,
     }[pollTime] || 60 * 1000; // Default: 1 minute
 
-  // Create repeating job
+  const triggerNodeId = triggerNode.id;
+  const jobName = `trigger:${workflowId}:${triggerNodeId}`;
+  const jobId = `trigger:${workflowId}:${triggerNodeId}`;
+
+  // Create repeating job - starts immediately
+  // First run will only set baseline (no workflow execution)
   const job = await triggerPollingQueue.add(
-    `trigger:${workflowId}:${triggerNode.id}`,
+    jobName,
     {
       workflowId,
-      triggerNodeId: triggerNode.id,
+      triggerNodeId,
       triggerConfig,
     },
     {
       repeat: {
         every: pollIntervalMs,
       },
-      jobId: `trigger:${workflowId}:${triggerNode.id}`,
+      jobId,
     }
   );
 
   logger.info('Scheduled trigger polling job', {
     workflowId,
-    triggerNodeId: triggerNode.id,
+    triggerNodeId,
     pollTime,
     pollIntervalMs,
-    jobId: job.id,
+    jobId: job.id || jobId,
   });
 
   return job;
@@ -311,32 +443,63 @@ export async function scheduleTriggerPolling(
  * Remove a trigger polling job
  */
 export async function removeTriggerPolling(workflowId, triggerNodeId) {
+  if (!workflowId || !triggerNodeId) {
+    logger.warn(
+      'Cannot remove trigger polling job: missing workflowId or triggerNodeId',
+      {
+        workflowId,
+        triggerNodeId,
+      }
+    );
+    return;
+  }
+
   const jobId = `trigger:${workflowId}:${triggerNodeId}`;
 
-  // Remove repeating job
-  const job = await triggerPollingQueue.getJob(jobId);
-  if (job) {
-    await job.remove();
-    logger.info('Removed trigger polling job', {
+  try {
+    // Remove repeating job
+    const job = await triggerPollingQueue.getJob(jobId);
+    if (job) {
+      await job.remove();
+      logger.info('Removed trigger polling job', {
+        workflowId,
+        triggerNodeId,
+        jobId,
+      });
+    }
+
+    // Remove all jobs with this pattern
+    const jobs = await triggerPollingQueue.getJobs([
+      'repeat',
+      'waiting',
+      'active',
+    ]);
+    for (const j of jobs) {
+      if (!j || !j.id) {
+        continue;
+      }
+      if (
+        j.id === jobId ||
+        j.id.startsWith(`trigger:${workflowId}:${triggerNodeId}`)
+      ) {
+        try {
+          await j.remove();
+        } catch (error) {
+          logger.warn('Error removing job', {
+            jobId: j.id,
+            error: error.message,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Error removing trigger polling job', {
       workflowId,
       triggerNodeId,
       jobId,
+      error: error.message,
     });
-  }
-
-  // Remove all jobs with this pattern
-  const jobs = await triggerPollingQueue.getJobs([
-    'repeat',
-    'waiting',
-    'active',
-  ]);
-  for (const j of jobs) {
-    if (
-      j.id === jobId ||
-      j.id?.startsWith(`trigger:${workflowId}:${triggerNodeId}`)
-    ) {
-      await j.remove();
-    }
+    // Don't throw - just log the error
   }
 }
 
@@ -345,30 +508,318 @@ export async function removeTriggerPolling(workflowId, triggerNodeId) {
  */
 export async function getActiveTriggers(workflowId) {
   try {
-    const jobs = await triggerPollingQueue.getJobs([
+    // Get workflow to access trigger node data if needed
+    const [workflow] = await db
+      .select()
+      .from(fullWorkflows)
+      .where(eq(fullWorkflows.id, workflowId))
+      .limit(1);
+
+    const workflowNodes = workflow?.workflow_json?.nodes || [];
+
+    // Get repeatable jobs (these are the scheduled repeating jobs)
+    const repeatableJobs = await triggerPollingQueue.getRepeatableJobs();
+
+    // Also try to get jobs directly from the queue by pattern
+    // This is a fallback in case getRepeatableJobs doesn't work as expected
+    const allJobs = await triggerPollingQueue.getJobs([
       'repeat',
       'waiting',
       'active',
+      'delayed',
     ]);
-    const workflowTriggers = jobs.filter(j => {
-      const data = j.data;
-      return data?.workflowId === workflowId;
+    const workflowJobs = allJobs.filter(j => {
+      if (!j || !j.data) return false;
+      return j.data.workflowId === workflowId;
     });
 
-    return await Promise.all(
-      workflowTriggers.map(async j => ({
-        id: j.id,
-        workflowId: j.data?.workflowId,
-        triggerNodeId: j.data?.triggerNodeId,
-        triggerConfig: j.data?.triggerConfig,
-        nextRun: j.nextRun ? new Date(j.nextRun).toISOString() : null,
-        state: await j.getState(),
-      }))
-    );
+    logger.info('Getting active triggers', {
+      workflowId,
+      repeatableJobsCount: repeatableJobs.length,
+      allJobsCount: allJobs.length,
+      workflowJobsCount: workflowJobs.length,
+    });
+
+    // Filter repeatable jobs that match this workflow
+    const workflowRepeatableJobs = repeatableJobs.filter(repeatableJob => {
+      try {
+        // Log the repeatable job structure for debugging
+        logger.info('Checking repeatable job', {
+          key: repeatableJob.key,
+          id: repeatableJob.id,
+          name: repeatableJob.name,
+          every: repeatableJob.every,
+          cron: repeatableJob.cron,
+          next: repeatableJob.next,
+          workflowId,
+        });
+
+        // Extract workflowId and triggerNodeId from the job key
+        // Format: trigger:${workflowId}:${triggerNodeId}
+        const key = repeatableJob.key || '';
+        const match = key.match(/trigger:(\d+):(.+)/);
+
+        if (match) {
+          const jobWorkflowId = parseInt(match[1], 10);
+          logger.info('Matched repeatable job', {
+            key,
+            jobWorkflowId,
+            workflowId,
+            matches: jobWorkflowId === workflowId,
+          });
+          return jobWorkflowId === workflowId;
+        }
+
+        // Also check the job name/id
+        const name = repeatableJob.name || '';
+        const nameMatch = name.match(/trigger:(\d+):(.+)/);
+        if (nameMatch) {
+          const jobWorkflowId = parseInt(nameMatch[1], 10);
+          logger.info('Matched repeatable job by name', {
+            name,
+            jobWorkflowId,
+            workflowId,
+            matches: jobWorkflowId === workflowId,
+          });
+          return jobWorkflowId === workflowId;
+        }
+
+        // Also check the job id
+        const id = repeatableJob.id || '';
+        const idMatch = id.match(/trigger:(\d+):(.+)/);
+        if (idMatch) {
+          const jobWorkflowId = parseInt(idMatch[1], 10);
+          logger.info('Matched repeatable job by id', {
+            id,
+            jobWorkflowId,
+            workflowId,
+            matches: jobWorkflowId === workflowId,
+          });
+          return jobWorkflowId === workflowId;
+        }
+
+        logger.warn('Could not match repeatable job', {
+          key,
+          name,
+          id: repeatableJob.id,
+          workflowId,
+        });
+
+        return false;
+      } catch (error) {
+        logger.warn('Error filtering repeatable job', {
+          key: repeatableJob.key,
+          error: error.message,
+        });
+        return false;
+      }
+    });
+
+    logger.info('Filtered workflow triggers from repeatable jobs', {
+      workflowId,
+      triggerCount: workflowRepeatableJobs.length,
+    });
+
+    // If we have workflow jobs from direct queue access, use those
+    // Otherwise, use repeatable jobs
+    let triggersToProcess = [];
+
+    if (workflowJobs.length > 0) {
+      // Use jobs from direct queue access
+      logger.info('Using jobs from direct queue access', {
+        workflowId,
+        jobCount: workflowJobs.length,
+      });
+
+      triggersToProcess = await Promise.all(
+        workflowJobs.map(async job => {
+          try {
+            if (!job || !job.data) {
+              return null;
+            }
+
+            const state = await job.getState().catch(() => 'unknown');
+            const nextRun = job.nextRun
+              ? new Date(job.nextRun).toISOString()
+              : null;
+
+            // Ensure all required fields are present
+            if (!job.data.triggerNodeId) {
+              logger.warn('Skipping job without triggerNodeId', {
+                jobId: job.id,
+                workflowId: job.data.workflowId,
+              });
+              return null;
+            }
+
+            return {
+              id: job.id,
+              workflowId: job.data.workflowId,
+              triggerNodeId: job.data.triggerNodeId,
+              triggerConfig: job.data.triggerConfig || {
+                type: 'google-sheets-trigger',
+                pollTime: '1 minute',
+              },
+              nextRun,
+              state,
+            };
+          } catch (error) {
+            logger.error('Error processing job from queue', {
+              jobId: job?.id,
+              error: error.message,
+            });
+            return null;
+          }
+        })
+      );
+    } else {
+      // Use repeatable jobs
+      logger.info('Using repeatable jobs', {
+        workflowId,
+        repeatableJobCount: workflowRepeatableJobs.length,
+      });
+
+      triggersToProcess = await Promise.all(
+        workflowRepeatableJobs.map(async repeatableJob => {
+          try {
+            // Extract workflowId and triggerNodeId from the key
+            const key = repeatableJob.key || '';
+            const match = key.match(/trigger:(\d+):(.+)/);
+
+            if (!match) {
+              logger.warn('Could not parse job key', { key });
+              return null;
+            }
+
+            const jobWorkflowId = parseInt(match[1], 10);
+            const triggerNodeId = match[2];
+            const jobId = `trigger:${jobWorkflowId}:${triggerNodeId}`;
+
+            // Try to get the actual job to access its data
+            // For repeatable jobs, we need to get the job by its ID
+            let job = null;
+            let jobData = null;
+
+            try {
+              // Try to get the job by ID
+              job = await triggerPollingQueue.getJob(jobId);
+              if (job && job.data) {
+                jobData = job.data;
+              }
+            } catch (error) {
+              // Job might not exist yet if it hasn't run
+              logger.debug('Could not get job by ID (might not have run yet)', {
+                jobId,
+                error: error.message,
+              });
+            }
+
+            // Calculate poll time from repeatable job
+            let pollTime = '1 minute';
+            if (repeatableJob.cron) {
+              pollTime = `cron: ${repeatableJob.cron}`;
+            } else if (repeatableJob.every) {
+              const minutes = repeatableJob.every / 1000 / 60;
+              if (minutes === 1) pollTime = '1 minute';
+              else if (minutes === 15) pollTime = '15 minutes';
+              else if (minutes === 30) pollTime = '30 minutes';
+              else if (minutes === 60) pollTime = '1 hour';
+              else if (minutes === 180) pollTime = '3 hours';
+              else if (minutes === 720) pollTime = '12 hours';
+              else if (minutes === 1440) pollTime = '24 hours';
+              else pollTime = `${minutes} minutes`;
+            }
+
+            // Get next run time
+            const nextRun = repeatableJob.next
+              ? new Date(repeatableJob.next).toISOString()
+              : null;
+
+            // Try to get trigger config from job data, or from workflow node
+            let triggerConfig = jobData?.triggerConfig;
+
+            if (!triggerConfig) {
+              // Fallback: get config from workflow node
+              const triggerNode = workflowNodes.find(
+                n => n.id === triggerNodeId
+              );
+              if (triggerNode && triggerNode.data) {
+                triggerConfig = {
+                  type: 'google-sheets-trigger',
+                  pollTime: triggerNode.data.pollTime || pollTime,
+                  spreadsheetId: triggerNode.data.spreadsheetId,
+                  sheetName: triggerNode.data.sheetName,
+                  triggerOn:
+                    triggerNode.data.triggerOn || 'Row added or updated',
+                };
+              } else {
+                // Last fallback: use defaults
+                triggerConfig = {
+                  type: 'google-sheets-trigger',
+                  pollTime,
+                  spreadsheetId: null,
+                  sheetName: null,
+                  triggerOn: 'Row added or updated',
+                };
+              }
+            }
+
+            // Get job state if available
+            let state = 'repeat';
+            if (job) {
+              try {
+                state = await job.getState();
+              } catch (error) {
+                logger.debug('Could not get job state', {
+                  jobId,
+                  error: error.message,
+                });
+              }
+            }
+
+            // Ensure all required fields are present
+            if (!triggerNodeId) {
+              logger.warn('Skipping trigger without triggerNodeId', {
+                jobId,
+                workflowId: jobWorkflowId,
+              });
+              return null;
+            }
+
+            return {
+              id: jobId,
+              workflowId: jobWorkflowId,
+              triggerNodeId,
+              triggerConfig: triggerConfig || {},
+              nextRun,
+              state,
+            };
+          } catch (error) {
+            logger.error('Error processing repeatable job', {
+              key: repeatableJob.key,
+              error: error.message,
+            });
+            return null;
+          }
+        })
+      );
+    }
+
+    // Filter out null values
+    const validTriggers = triggersToProcess.filter(t => t !== null);
+
+    logger.info('Returning active triggers', {
+      workflowId,
+      triggerCount: validTriggers.length,
+      source: workflowJobs.length > 0 ? 'direct_queue' : 'repeatable_jobs',
+    });
+
+    return validTriggers;
   } catch (error) {
     logger.error('Error getting active triggers', {
       workflowId,
       error: error.message,
+      stack: error.stack,
     });
     return [];
   }

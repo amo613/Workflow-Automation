@@ -5,7 +5,15 @@ import { executeFullWorkflowFunction } from '#services/full-workflow/inngest-fun
 
 // Inngest Routes für Fastify
 // Registriert Inngest Functions und behandelt Webhook-Requests
+let isRegistered = false;
+
 async function inngestRoutes(fastify) {
+  // Prevent multiple registrations
+  if (isRegistered) {
+    logger.debug('Inngest routes already registered, skipping');
+    return;
+  }
+
   try {
     if (!inngest || !inngest.id) {
       throw new Error('Inngest client not properly initialized');
@@ -33,7 +41,19 @@ async function inngestRoutes(fastify) {
       servePath: pluginOptions.options.servePath,
     });
 
+    // Register with timeout handling - don't block if Inngest dev server is not available
+    // Use a timeout to prevent hanging on registration
+    const registrationTimeout = setTimeout(() => {
+      if (!isRegistered) {
+        logger.warn(
+          'Inngest registration timeout - continuing without Inngest (dev server may not be running)'
+        );
+      }
+    }, 5000); // 5 second timeout
+
     fastify.register(fastifyPlugin, pluginOptions, err => {
+      clearTimeout(registrationTimeout);
+
       if (err) {
         logger.error('Failed to register Inngest routes', {
           error: err.message,
@@ -43,7 +63,9 @@ async function inngestRoutes(fastify) {
         logger.warn(
           'Continuing without Inngest routes - workflows will not execute via Inngest'
         );
+        // Don't set isRegistered on error - allow retry
       } else {
+        isRegistered = true;
         logger.info('Inngest routes registered', {
           path: '/api/inngest',
           functions: ['executeFullWorkflow'],
@@ -61,6 +83,7 @@ async function inngestRoutes(fastify) {
     logger.warn(
       'Continuing without Inngest routes - workflows will not execute via Inngest'
     );
+    // Don't set isRegistered on error - allow retry
   }
 }
 

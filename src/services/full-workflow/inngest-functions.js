@@ -3,6 +3,7 @@ import logger from '#config/logger.js';
 import { getFullWorkflow } from '#services/full-workflow.service.js';
 import { executeWorkflow } from './executor.service.js';
 import { memoryCache } from '#config/cache.js';
+import { trackWorkflowExecution } from './statistics.service.js';
 
 /**
  * Inngest Function: Execute Full Workflow
@@ -47,27 +48,51 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     });
 
     // Step 2: Execute workflow
-    const result = await step.run('execute-workflow', async () => {
-      try {
-        const executionResult = await executeWorkflow(
-          workflow,
-          input || {},
-          userId
-        );
-        logger.info('Workflow executed successfully', {
+    let result;
+    let executionSuccess = false;
+    let executionError = null;
+
+    try {
+      result = await step.run('execute-workflow', async () => {
+        try {
+          const executionResult = await executeWorkflow(
+            workflow,
+            input || {},
+            userId
+          );
+          logger.info('Workflow executed successfully', {
+            workflowId,
+            result: executionResult,
+          });
+          executionSuccess = true;
+          return executionResult;
+        } catch (error) {
+          logger.error('Failed to execute workflow', {
+            workflowId,
+            error: error.message,
+            stack: error.stack,
+          });
+          executionError = error;
+          throw error;
+        }
+      });
+    } catch (error) {
+      executionSuccess = false;
+      executionError = error;
+      throw error;
+    } finally {
+      // Track statistics (async, don't wait)
+      trackWorkflowExecution(
+        workflowId,
+        executionSuccess,
+        executionError
+      ).catch(err => {
+        logger.warn('Failed to track workflow statistics', {
           workflowId,
-          result: executionResult,
+          error: err.message,
         });
-        return executionResult;
-      } catch (error) {
-        logger.error('Failed to execute workflow', {
-          workflowId,
-          error: error.message,
-          stack: error.stack,
-        });
-        throw error;
-      }
-    });
+      });
+    }
 
     // Store execution results in cache for UI polling (TTL: 5 minutes)
     const cacheKey = `workflow-execution:${event.id}`;

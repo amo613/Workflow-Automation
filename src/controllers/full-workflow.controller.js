@@ -14,6 +14,10 @@ import {
   scheduleTriggerPolling,
   removeTriggerPolling,
 } from '#services/full-workflow/trigger-polling.service.js';
+import {
+  getWorkflowStatistics,
+  getWorkflowExecutionHistory,
+} from '#services/full-workflow/statistics.service.js';
 import { memoryCache } from '#config/cache.js';
 
 /**
@@ -148,14 +152,47 @@ export async function updateFullWorkflowHandler(req, reply) {
       );
 
       // Remove old triggers for this workflow
-      const existingTriggers = await getActiveTriggers(workflowId);
-      for (const trigger of existingTriggers) {
-        await removeTriggerPolling(workflowId, trigger.triggerNodeId);
+      try {
+        const existingTriggers = await getActiveTriggers(workflowId);
+        for (const trigger of existingTriggers) {
+          if (trigger && trigger.triggerNodeId) {
+            try {
+              await removeTriggerPolling(workflowId, trigger.triggerNodeId);
+            } catch (error) {
+              logger.warn('Error removing trigger polling job', {
+                workflowId,
+                triggerNodeId: trigger.triggerNodeId,
+                error: error.message,
+              });
+              // Continue with other triggers
+            }
+          } else {
+            logger.warn('Skipping invalid trigger when removing', {
+              workflowId,
+              trigger,
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Error getting/removing existing triggers', {
+          workflowId,
+          error: error.message,
+        });
+        // Continue - don't fail the save operation
       }
 
       // Schedule new triggers if workflow is active
       if (is_active !== false && workflow.is_active) {
         for (const triggerNode of triggerNodes) {
+          // Ensure triggerNode has required properties
+          if (!triggerNode || !triggerNode.id) {
+            logger.warn('Skipping trigger node without id', {
+              workflowId,
+              triggerNode,
+            });
+            continue;
+          }
+
           const triggerConfig = {
             type: 'google-sheets-trigger',
             pollTime: triggerNode.data?.pollTime || '1 minute',
@@ -451,6 +488,86 @@ export async function getWorkflowExecutionResultsHandler(req, reply) {
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to get execution results',
+    });
+  }
+}
+
+/**
+ * Get workflow statistics
+ */
+export async function getWorkflowStatisticsHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const workflowId = parseInt(id, 10);
+
+    // Verify workflow belongs to user
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    // Get statistics
+    const statistics = await getWorkflowStatistics(workflowId);
+
+    return reply.code(200).send({
+      success: true,
+      data: statistics,
+    });
+  } catch (error) {
+    logger.error('Error getting workflow statistics', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get workflow statistics',
+    });
+  }
+}
+
+/**
+ * Get workflow execution history
+ */
+export async function getWorkflowExecutionHistoryHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { limit = 50 } = req.query;
+    const workflowId = parseInt(id, 10);
+
+    // Verify workflow belongs to user
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    // Get execution history
+    const history = await getWorkflowExecutionHistory(
+      workflowId,
+      parseInt(limit, 10)
+    );
+
+    return reply.code(200).send({
+      success: true,
+      data: history,
+    });
+  } catch (error) {
+    logger.error('Error getting workflow execution history', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get execution history',
     });
   }
 }

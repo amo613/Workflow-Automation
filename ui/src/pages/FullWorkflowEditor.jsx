@@ -60,7 +60,19 @@ function FullWorkflowEditor() {
   const [activeTriggers, setActiveTriggers] = useState([]);
   const pollingIntervalRef = useRef(null);
   const pollingTimeoutRef = useRef(null);
-  const [showActiveTriggers, setShowActiveTriggers] = useState(false);
+  const [showActiveTriggers, setShowActiveTriggers] = useState(true); // Default: open
+  const [triggersLoading, setTriggersLoading] = useState(false);
+  const [triggersError, setTriggersError] = useState(null);
+  const [statistics, setStatistics] = useState(null);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
+  const [statisticsError, setStatisticsError] = useState(null);
+  const [showStatistics, setShowStatistics] = useState(false);
+  const [executionHistory, setExecutionHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
+  const [showExecutionHistory, setShowExecutionHistory] = useState(false);
+  const [expandedExecution, setExpandedExecution] = useState(null);
+  const [generalError, setGeneralError] = useState(null);
 
   const onNodeUpdate = (nodeId, newData) => {
     setNodes(nds => {
@@ -133,6 +145,69 @@ function FullWorkflowEditor() {
     }
   }, [id, isNew]);
 
+  // Fetch statistics
+  const fetchStatistics = async () => {
+    if (!id || isNew) return;
+    try {
+      setStatisticsLoading(true);
+      setStatisticsError(null);
+      const response = await fetch(`/api/full-workflows/${id}/statistics`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch statistics');
+      const data = await response.json();
+      setStatistics(data.data);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      setStatisticsError(error.message);
+    } finally {
+      setStatisticsLoading(false);
+    }
+  };
+
+  // Fetch statistics on mount and when workflow changes
+  useEffect(() => {
+    if (!isNew && id) {
+      fetchStatistics();
+      // Refresh statistics every 30 seconds
+      const interval = setInterval(fetchStatistics, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [id, isNew]);
+
+  // Fetch execution history
+  const fetchExecutionHistory = async () => {
+    if (!id || isNew) return;
+    try {
+      setHistoryLoading(true);
+      setHistoryError(null);
+      const response = await fetch(
+        `/api/full-workflows/${id}/execution-history?limit=50`,
+        {
+          credentials: 'include',
+        }
+      );
+      if (!response.ok) throw new Error('Failed to fetch execution history');
+      const data = await response.json();
+      setExecutionHistory(data.data || []);
+    } catch (error) {
+      console.error('Error fetching execution history:', error);
+      setHistoryError(error.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Fetch execution history on mount and when workflow changes
+  useEffect(() => {
+    if (!isNew && id) {
+      fetchExecutionHistory();
+      // Refresh history every 30 seconds
+      const interval = setInterval(fetchExecutionHistory, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [id, isNew]);
+
   // Cleanup polling intervals on unmount
   useEffect(() => {
     return () => {
@@ -150,14 +225,25 @@ function FullWorkflowEditor() {
   const fetchActiveTriggers = async () => {
     if (!id) return;
     try {
+      setTriggersLoading(true);
+      setTriggersError(null);
       const response = await fetch(`/api/full-workflows/${id}/triggers`, {
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch triggers');
       const data = await response.json();
-      setActiveTriggers(data.data || []);
+      const triggers = data.data || [];
+      setActiveTriggers(triggers);
+      // Auto-open if triggers exist
+      if (triggers.length > 0) {
+        setShowActiveTriggers(true);
+      }
+      console.log('Active triggers fetched:', triggers);
     } catch (error) {
       console.error('Error fetching active triggers:', error);
+      setTriggersError(error.message);
+    } finally {
+      setTriggersLoading(false);
     }
   };
 
@@ -342,6 +428,10 @@ function FullWorkflowEditor() {
                   setExecutedEdges(resultsData.data.executedEdges);
                 }
 
+                // Refresh statistics and history after successful execution
+                await fetchStatistics();
+                await fetchExecutionHistory();
+
                 setExecuting(false);
               }
             } else if (resultsResponse.status === 404) {
@@ -375,6 +465,10 @@ function FullWorkflowEditor() {
               );
               setExecutedEdges([]);
               setExecuting(false);
+
+              // Refresh statistics and history after failed execution
+              await fetchStatistics();
+              await fetchExecutionHistory();
             }
           } catch (pollError) {
             console.error('Error polling execution results:', pollError);
@@ -550,6 +644,10 @@ function FullWorkflowEditor() {
         );
         setExecutedEdges([]);
         setExecuting(false);
+
+        // Refresh statistics and history after failed execution
+        await fetchStatistics();
+        await fetchExecutionHistory();
       }
     } catch (error) {
       setExecutionStatus({
@@ -565,6 +663,10 @@ function FullWorkflowEditor() {
         }))
       );
       setExecutedEdges([]);
+
+      // Refresh statistics and history after failed execution
+      await fetchStatistics();
+      await fetchExecutionHistory();
     } finally {
       setExecuting(false);
     }
@@ -623,11 +725,20 @@ function FullWorkflowEditor() {
       if (isNew) {
         navigate(`/fullWorkflows/edit/${result.data.id}`);
       } else {
-        alert('Workflow saved successfully!');
+        setGeneralError(null);
+        // Refresh active triggers, statistics and history after saving
+        await fetchActiveTriggers();
+        await fetchStatistics();
+        await fetchExecutionHistory();
       }
     } catch (err) {
-      alert('Failed to save workflow: ' + err.message);
+      const errorMessage = err.message || 'Failed to save workflow';
+      setGeneralError(errorMessage);
       console.error('Error saving workflow:', err);
+      // Also show alert for immediate feedback
+      setTimeout(() => {
+        alert('Failed to save workflow: ' + errorMessage);
+      }, 100);
     } finally {
       setSaving(false);
     }
@@ -799,6 +910,57 @@ function FullWorkflowEditor() {
         </div>
       </div>
 
+      {/* General Error Display */}
+      {generalError && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10000,
+            padding: '1rem 1.5rem',
+            background: '#fee2e2',
+            border: '2px solid #ef4444',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+            maxWidth: '500px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+          }}
+        >
+          <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontWeight: 600,
+                color: '#dc2626',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Error
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#991b1b' }}>
+              {generalError}
+            </div>
+          </div>
+          <button
+            onClick={() => setGeneralError(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#dc2626',
+              cursor: 'pointer',
+              fontSize: '1.25rem',
+              padding: '0.25rem',
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Main Content */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Node Palette */}
@@ -811,14 +973,15 @@ function FullWorkflowEditor() {
             overflowY: 'auto',
           }}
         >
-          {/* Active Triggers Section */}
-          {!isNew && activeTriggers.length > 0 && (
+          {/* Statistics Section */}
+          {!isNew && (
             <div
               style={{
                 marginBottom: '1.5rem',
                 padding: '0.75rem',
-                background: '#f0f9ff',
-                border: '1px solid #3b82f6',
+                background:
+                  statistics?.totalExecutions > 0 ? '#f0fdf4' : '#f8f9fa',
+                border: `1px solid ${statistics?.totalExecutions > 0 ? '#10b981' : '#e0e0e0'}`,
                 borderRadius: '8px',
               }}
             >
@@ -834,24 +997,654 @@ function FullWorkflowEditor() {
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: '#1e40af',
+                    color:
+                      statistics?.totalExecutions > 0 ? '#059669' : '#64748b',
                     margin: 0,
                   }}
                 >
-                  Active Triggers
+                  📊 Statistics
                 </h3>
                 <button
-                  onClick={() => setShowActiveTriggers(!showActiveTriggers)}
+                  onClick={() => setShowStatistics(!showStatistics)}
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#3b82f6',
+                    color:
+                      statistics?.totalExecutions > 0 ? '#10b981' : '#64748b',
                     cursor: 'pointer',
                     fontSize: '0.75rem',
                   }}
                 >
-                  {showActiveTriggers ? '▼' : '▶'}
+                  {showStatistics ? '▼' : '▶'}
                 </button>
+              </div>
+              {showStatistics && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {statisticsError && (
+                    <div
+                      style={{
+                        padding: '0.5rem',
+                        background: '#fee2e2',
+                        border: '1px solid #ef4444',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#dc2626',
+                      }}
+                    >
+                      Error: {statisticsError}
+                    </div>
+                  )}
+                  {statisticsLoading && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#64748b',
+                        textAlign: 'center',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      Loading statistics...
+                    </div>
+                  )}
+                  {!statisticsLoading && !statisticsError && statistics && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      {/* Total Executions */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.5rem',
+                          paddingBottom: '0.5rem',
+                          borderBottom: '1px solid #e5e7eb',
+                        }}
+                      >
+                        <span style={{ color: '#64748b' }}>
+                          Total Executions
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color: '#1f2937',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          {statistics.totalExecutions || 0}
+                        </span>
+                      </div>
+
+                      {/* Success Rate */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.5rem',
+                          paddingBottom: '0.5rem',
+                          borderBottom: '1px solid #e5e7eb',
+                        }}
+                      >
+                        <span style={{ color: '#64748b' }}>Success Rate</span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color:
+                              parseFloat(statistics.successRate || 0) >= 90
+                                ? '#10b981'
+                                : parseFloat(statistics.successRate || 0) >= 70
+                                  ? '#f59e0b'
+                                  : '#ef4444',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          {parseFloat(statistics.successRate || 0).toFixed(1)}%
+                        </span>
+                      </div>
+
+                      {/* Successful / Failed */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '0.5rem',
+                          marginBottom: '0.5rem',
+                          paddingBottom: '0.5rem',
+                          borderBottom: '1px solid #e5e7eb',
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Successful
+                          </div>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: '#10b981',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {statistics.successfulExecutions || 0}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Failed
+                          </div>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: '#ef4444',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {statistics.failedExecutions || 0}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Last Execution */}
+                      {statistics.lastExecution && (
+                        <div
+                          style={{
+                            marginBottom: '0.5rem',
+                            paddingBottom: '0.5rem',
+                            borderBottom: '1px solid #e5e7eb',
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Last Execution
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#1f2937' }}>
+                            {new Date(
+                              statistics.lastExecution
+                            ).toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Success / Failure */}
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {statistics.lastSuccess && (
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: '0.65rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Last Success
+                            </div>
+                            <div
+                              style={{ fontSize: '0.7rem', color: '#10b981' }}
+                            >
+                              {new Date(
+                                statistics.lastSuccess
+                              ).toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                        {statistics.lastFailure && (
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: '0.65rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Last Failure
+                            </div>
+                            <div
+                              style={{ fontSize: '0.7rem', color: '#ef4444' }}
+                            >
+                              {new Date(
+                                statistics.lastFailure
+                              ).toLocaleString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Recent Errors */}
+                      {statistics.errors && statistics.errors.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: '0.5rem',
+                            paddingTop: '0.5rem',
+                            borderTop: '1px solid #e5e7eb',
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Recent Errors ({statistics.errors.length})
+                          </div>
+                          <div
+                            style={{
+                              maxHeight: '100px',
+                              overflowY: 'auto',
+                              fontSize: '0.65rem',
+                              color: '#dc2626',
+                            }}
+                          >
+                            {statistics.errors.slice(-3).map((err, idx) => (
+                              <div
+                                key={idx}
+                                style={{ marginBottom: '0.25rem' }}
+                              >
+                                {new Date(err.timestamp).toLocaleString()}:{' '}
+                                {err.error}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Execution History Toggle */}
+                      {statistics.totalExecutions > 0 && (
+                        <div
+                          style={{
+                            marginTop: '0.75rem',
+                            paddingTop: '0.75rem',
+                            borderTop: '2px solid #e5e7eb',
+                          }}
+                        >
+                          <button
+                            onClick={() => {
+                              setShowExecutionHistory(!showExecutionHistory);
+                              if (
+                                !showExecutionHistory &&
+                                executionHistory.length === 0
+                              ) {
+                                fetchExecutionHistory();
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '0.5rem',
+                              background: 'transparent',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '0.75rem',
+                              color: '#1f2937',
+                              fontWeight: 600,
+                            }}
+                          >
+                            <span>
+                              📋 Execution History (
+                              {executionHistory.length || 0})
+                            </span>
+                            <span>{showExecutionHistory ? '▼' : '▶'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!statisticsLoading && !statisticsError && !statistics && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#64748b',
+                        textAlign: 'center',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      No statistics available yet. Execute the workflow to see
+                      statistics.
+                    </div>
+                  )}
+
+                  {/* Execution History List */}
+                  {showExecutionHistory &&
+                    statistics &&
+                    statistics.totalExecutions > 0 && (
+                      <div
+                        style={{
+                          marginTop: '0.5rem',
+                          padding: '0.75rem',
+                          background: 'white',
+                          borderRadius: '6px',
+                          border: '1px solid #e0e0e0',
+                          maxHeight: '400px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {historyError && (
+                          <div
+                            style={{
+                              padding: '0.5rem',
+                              background: '#fee2e2',
+                              border: '1px solid #ef4444',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              color: '#dc2626',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            Error: {historyError}
+                          </div>
+                        )}
+                        {historyLoading && (
+                          <div
+                            style={{
+                              padding: '0.75rem',
+                              fontSize: '0.75rem',
+                              color: '#64748b',
+                              textAlign: 'center',
+                            }}
+                          >
+                            Loading execution history...
+                          </div>
+                        )}
+                        {!historyLoading &&
+                          !historyError &&
+                          executionHistory.length === 0 && (
+                            <div
+                              style={{
+                                padding: '0.75rem',
+                                fontSize: '0.75rem',
+                                color: '#64748b',
+                                textAlign: 'center',
+                              }}
+                            >
+                              No execution history available yet.
+                            </div>
+                          )}
+                        {!historyLoading &&
+                          !historyError &&
+                          executionHistory.length > 0 && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              {executionHistory.map((execution, index) => {
+                                const isFailed = !execution.success;
+                                const hasError =
+                                  execution.error || execution.errorStack;
+                                return (
+                                  <div
+                                    key={index}
+                                    style={{
+                                      padding: '0.75rem',
+                                      background: execution.success
+                                        ? '#f0fdf4'
+                                        : '#fef2f2',
+                                      border: `1px solid ${execution.success ? '#10b981' : '#ef4444'}`,
+                                      borderRadius: '6px',
+                                      cursor: isFailed ? 'pointer' : 'default',
+                                      userSelect: 'none',
+                                    }}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      if (isFailed) {
+                                        setExpandedExecution(
+                                          expandedExecution === index
+                                            ? null
+                                            : index
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom:
+                                          isFailed && hasError ? '0.5rem' : '0',
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.5rem',
+                                        }}
+                                      >
+                                        <span style={{ fontSize: '1rem' }}>
+                                          {execution.success ? '✅' : '❌'}
+                                        </span>
+                                        <div>
+                                          <div
+                                            style={{
+                                              fontSize: '0.75rem',
+                                              fontWeight: 600,
+                                              color: execution.success
+                                                ? '#059669'
+                                                : '#dc2626',
+                                            }}
+                                          >
+                                            {execution.success
+                                              ? 'Success'
+                                              : 'Failed'}
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontSize: '0.65rem',
+                                              color: '#64748b',
+                                              marginTop: '0.125rem',
+                                            }}
+                                          >
+                                            {new Date(
+                                              execution.timestamp
+                                            ).toLocaleString()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {isFailed && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.7rem',
+                                            color: '#64748b',
+                                            pointerEvents: 'none',
+                                          }}
+                                        >
+                                          {expandedExecution === index
+                                            ? '▼'
+                                            : '▶'}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {isFailed &&
+                                      hasError &&
+                                      expandedExecution === index && (
+                                        <div
+                                          style={{
+                                            marginTop: '0.5rem',
+                                            padding: '0.75rem',
+                                            background: '#fee2e2',
+                                            border: '1px solid #ef4444',
+                                            borderRadius: '6px',
+                                            fontSize: '0.7rem',
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              fontWeight: 600,
+                                              color: '#dc2626',
+                                              marginBottom: '0.5rem',
+                                            }}
+                                          >
+                                            Error Details:
+                                          </div>
+                                          <div
+                                            style={{
+                                              color: '#991b1b',
+                                              whiteSpace: 'pre-wrap',
+                                              wordBreak: 'break-word',
+                                              fontFamily: 'monospace',
+                                              fontSize: '0.65rem',
+                                              lineHeight: '1.4',
+                                            }}
+                                          >
+                                            {execution.error}
+                                          </div>
+                                          {execution.errorStack && (
+                                            <details
+                                              style={{ marginTop: '0.5rem' }}
+                                            >
+                                              <summary
+                                                style={{
+                                                  cursor: 'pointer',
+                                                  color: '#dc2626',
+                                                  fontSize: '0.65rem',
+                                                  fontWeight: 600,
+                                                }}
+                                              >
+                                                Stack Trace
+                                              </summary>
+                                              <pre
+                                                style={{
+                                                  marginTop: '0.5rem',
+                                                  padding: '0.5rem',
+                                                  background: '#fef2f2',
+                                                  borderRadius: '4px',
+                                                  fontSize: '0.6rem',
+                                                  color: '#991b1b',
+                                                  overflowX: 'auto',
+                                                  whiteSpace: 'pre-wrap',
+                                                  wordBreak: 'break-word',
+                                                  maxHeight: '200px',
+                                                  overflowY: 'auto',
+                                                }}
+                                              >
+                                                {execution.errorStack}
+                                              </pre>
+                                            </details>
+                                          )}
+                                        </div>
+                                      )}
+                                    {isFailed && !hasError && (
+                                      <div
+                                        style={{
+                                          marginTop: '0.5rem',
+                                          padding: '0.5rem',
+                                          background: '#fef3c7',
+                                          border: '1px solid #f59e0b',
+                                          borderRadius: '6px',
+                                          fontSize: '0.7rem',
+                                          color: '#92400e',
+                                        }}
+                                      >
+                                        No error details available
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Active Triggers Section */}
+          {!isNew && (
+            <div
+              style={{
+                marginBottom: '1.5rem',
+                padding: '0.75rem',
+                background: activeTriggers.length > 0 ? '#f0f9ff' : '#f8f9fa',
+                border: `1px solid ${activeTriggers.length > 0 ? '#3b82f6' : '#e0e0e0'}`,
+                borderRadius: '8px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: activeTriggers.length > 0 ? '#1e40af' : '#64748b',
+                    margin: 0,
+                  }}
+                >
+                  Active Triggers{' '}
+                  {activeTriggers.length > 0 && `(${activeTriggers.length})`}
+                </h3>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    alignItems: 'center',
+                  }}
+                >
+                  {triggersLoading && (
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                      Loading...
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setShowActiveTriggers(!showActiveTriggers)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: activeTriggers.length > 0 ? '#3b82f6' : '#64748b',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {showActiveTriggers ? '▼' : '▶'}
+                  </button>
+                </div>
               </div>
               {showActiveTriggers && (
                 <div
@@ -861,28 +1654,130 @@ function FullWorkflowEditor() {
                     gap: '0.5rem',
                   }}
                 >
-                  {activeTriggers.map((trigger, index) => (
+                  {triggersError && (
                     <div
-                      key={index}
                       style={{
                         padding: '0.5rem',
+                        background: '#fee2e2',
+                        border: '1px solid #ef4444',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#dc2626',
+                      }}
+                    >
+                      Error: {triggersError}
+                    </div>
+                  )}
+                  {activeTriggers.length === 0 &&
+                    !triggersLoading &&
+                    !triggersError && (
+                      <div
+                        style={{
+                          padding: '0.75rem',
+                          background: 'white',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          color: '#64748b',
+                          textAlign: 'center',
+                          border: '1px solid #e0e0e0',
+                        }}
+                      >
+                        No active triggers. Add a Google Sheets Trigger node and
+                        save the workflow to activate.
+                      </div>
+                    )}
+                  {activeTriggers.map((trigger, index) => (
+                    <div
+                      key={trigger.id || index}
+                      style={{
+                        padding: '0.75rem',
                         background: 'white',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
                         border: '1px solid #e0e0e0',
                       }}
                     >
-                      <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          marginBottom: '0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
                         {trigger.triggerConfig?.type === 'google-sheets-trigger'
-                          ? '📊 Google Sheets'
-                          : '🚀 Manual'}
+                          ? '📊 Google Sheets Trigger'
+                          : '🚀 Manual Trigger'}
+                        {trigger.state && (
+                          <span
+                            style={{
+                              padding: '0.125rem 0.5rem',
+                              borderRadius: '12px',
+                              fontSize: '0.65rem',
+                              background:
+                                trigger.state === 'active'
+                                  ? '#10b981'
+                                  : '#64748b',
+                              color: 'white',
+                            }}
+                          >
+                            {trigger.state}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
-                        Poll: {trigger.triggerConfig?.pollTime || 'N/A'}
+                      {trigger.triggerConfig?.spreadsheetId && (
+                        <div
+                          style={{
+                            color: '#64748b',
+                            fontSize: '0.7rem',
+                            marginBottom: '0.25rem',
+                          }}
+                        >
+                          Sheet: {trigger.triggerConfig.sheetName || 'N/A'}
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          color: '#64748b',
+                          fontSize: '0.7rem',
+                          marginBottom: '0.25rem',
+                        }}
+                      >
+                        Poll Interval:{' '}
+                        {trigger.triggerConfig?.pollTime || 'N/A'}
                       </div>
+                      {trigger.triggerConfig?.triggerOn && (
+                        <div
+                          style={{
+                            color: '#64748b',
+                            fontSize: '0.7rem',
+                            marginBottom: '0.25rem',
+                          }}
+                        >
+                          Trigger On: {trigger.triggerConfig.triggerOn}
+                        </div>
+                      )}
                       {trigger.nextRun && (
-                        <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
-                          Next: {new Date(trigger.nextRun).toLocaleTimeString()}
+                        <div
+                          style={{
+                            color: '#64748b',
+                            fontSize: '0.7rem',
+                            marginBottom: '0.25rem',
+                          }}
+                        >
+                          Next Run: {new Date(trigger.nextRun).toLocaleString()}
+                        </div>
+                      )}
+                      {trigger.id && (
+                        <div
+                          style={{
+                            color: '#94a3b8',
+                            fontSize: '0.65rem',
+                            marginTop: '0.25rem',
+                          }}
+                        >
+                          ID: {trigger.id}
                         </div>
                       )}
                     </div>
