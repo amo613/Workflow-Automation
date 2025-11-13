@@ -118,6 +118,47 @@ class VariableContext {
   }
 
   /**
+   * Extract array field values (e.g., extract all 'username' values from array)
+   * @param {Array} arr - Array of objects
+   * @param {string} fieldName - Field name to extract
+   * @returns {Array} - Array of field values
+   */
+  extractArrayField(arr, fieldName) {
+    if (!Array.isArray(arr) || arr.length === 0) {
+      return [];
+    }
+
+    const values = [];
+    for (const item of arr) {
+      if (item && typeof item === 'object' && fieldName in item) {
+        values.push(item[fieldName]);
+      }
+    }
+    return values;
+  }
+
+  /**
+   * Get unique field names from array items
+   * @param {Array} arr - Array of objects
+   * @returns {Set<string>} - Set of unique field names
+   */
+  getArrayFieldNames(arr) {
+    if (!Array.isArray(arr) || arr.length === 0) {
+      return new Set();
+    }
+
+    const fieldNames = new Set();
+    for (const item of arr) {
+      if (item && typeof item === 'object') {
+        Object.keys(item).forEach(key => {
+          fieldNames.add(key);
+        });
+      }
+    }
+    return fieldNames;
+  }
+
+  /**
    * Get all available variables as a list
    * @param {string} currentNodeId - Current node ID (optional)
    * @param {Array} edges - Workflow edges (optional)
@@ -149,25 +190,67 @@ class VariableContext {
           description: `Output from node: ${nodeId}`,
         });
 
-        // Add nested fields
-        const addNestedFields = (obj, prefix) => {
+        // Add nested fields with array support
+        const addNestedFields = (obj, prefix, sourceNodeId = nodeId) => {
           Object.keys(obj).forEach(key => {
             const value = obj[key];
             const fullPath = `${prefix}.${key}`;
+
+            // Add the field itself
             variables.push({
               name: fullPath,
               path: fullPath,
               value,
               type: 'node-output-field',
-              description: `Field from ${nodeId}: ${key}`,
+              description: `Field from ${sourceNodeId}: ${key}`,
             });
 
-            if (
+            // Handle arrays: add index examples and array extractions
+            if (Array.isArray(value) && value.length > 0) {
+              // Add array itself (already added above)
+
+              // Add index-based examples (max 5 items)
+              const maxExamples = Math.min(5, value.length);
+              for (let i = 0; i < maxExamples; i++) {
+                const item = value[i];
+                if (item && typeof item === 'object') {
+                  // Add example: data[0].username, data[1].username, etc.
+                  Object.keys(item).forEach(itemKey => {
+                    variables.push({
+                      name: `${fullPath}[${i}].${itemKey}`,
+                      path: `${fullPath}[${i}].${itemKey}`,
+                      value: item[itemKey],
+                      type: 'node-output-field',
+                      description: `Array item ${i} field from ${sourceNodeId}: ${key}.${itemKey}`,
+                      isArrayExample: true,
+                    });
+                  });
+                }
+              }
+
+              // Add array extractions (e.g., data.username → all usernames)
+              const fieldNames = this.getArrayFieldNames(value);
+              fieldNames.forEach(fieldName => {
+                const extractedValues = this.extractArrayField(
+                  value,
+                  fieldName
+                );
+                variables.push({
+                  name: `${fullPath}.${fieldName}`,
+                  path: `${fullPath}.${fieldName}`,
+                  value: extractedValues,
+                  type: 'node-output-field',
+                  description: `Array extraction from ${sourceNodeId}: ${key}.${fieldName} (all ${fieldName} values)`,
+                  isArrayExtraction: true,
+                });
+              });
+            } else if (
               typeof value === 'object' &&
               value !== null &&
               !Array.isArray(value)
             ) {
-              addNestedFields(value, fullPath);
+              // Recursively add nested object fields
+              addNestedFields(value, fullPath, sourceNodeId);
             }
           });
         };
@@ -197,11 +280,13 @@ class VariableContext {
             description: 'Output from previous node',
           });
 
-          // Add nested fields
+          // Add nested fields with array support
           const addNestedFields = (obj, prefix) => {
             Object.keys(obj).forEach(key => {
               const value = obj[key];
               const fullPath = `${prefix}.${key}`;
+
+              // Add the field itself
               variables.push({
                 name: fullPath,
                 path: fullPath,
@@ -210,11 +295,48 @@ class VariableContext {
                 description: `Field from previous node: ${key}`,
               });
 
-              if (
+              // Handle arrays: add index examples and array extractions
+              if (Array.isArray(value) && value.length > 0) {
+                // Add index-based examples (max 5 items)
+                const maxExamples = Math.min(5, value.length);
+                for (let i = 0; i < maxExamples; i++) {
+                  const item = value[i];
+                  if (item && typeof item === 'object') {
+                    Object.keys(item).forEach(itemKey => {
+                      variables.push({
+                        name: `${fullPath}[${i}].${itemKey}`,
+                        path: `${fullPath}[${i}].${itemKey}`,
+                        value: item[itemKey],
+                        type: 'previous-output-field',
+                        description: `Array item ${i} field from previous node: ${key}.${itemKey}`,
+                        isArrayExample: true,
+                      });
+                    });
+                  }
+                }
+
+                // Add array extractions
+                const fieldNames = this.getArrayFieldNames(value);
+                fieldNames.forEach(fieldName => {
+                  const extractedValues = this.extractArrayField(
+                    value,
+                    fieldName
+                  );
+                  variables.push({
+                    name: `${fullPath}.${fieldName}`,
+                    path: `${fullPath}.${fieldName}`,
+                    value: extractedValues,
+                    type: 'previous-output-field',
+                    description: `Array extraction from previous node: ${key}.${fieldName} (all ${fieldName} values)`,
+                    isArrayExtraction: true,
+                  });
+                });
+              } else if (
                 typeof value === 'object' &&
                 value !== null &&
                 !Array.isArray(value)
               ) {
+                // Recursively add nested object fields
                 addNestedFields(value, fullPath);
               }
             });
@@ -247,11 +369,13 @@ class VariableContext {
           description: 'Workflow input data',
         });
 
-        // Add nested fields
+        // Add nested fields with array support
         const addNestedFields = (obj, prefix) => {
           Object.keys(obj).forEach(key => {
             const value = obj[key];
             const fullPath = `${prefix}.${key}`;
+
+            // Add the field itself
             variables.push({
               name: fullPath,
               path: fullPath,
@@ -260,11 +384,48 @@ class VariableContext {
               description: `Field from workflow input: ${key}`,
             });
 
-            if (
+            // Handle arrays: add index examples and array extractions
+            if (Array.isArray(value) && value.length > 0) {
+              // Add index-based examples (max 5 items)
+              const maxExamples = Math.min(5, value.length);
+              for (let i = 0; i < maxExamples; i++) {
+                const item = value[i];
+                if (item && typeof item === 'object') {
+                  Object.keys(item).forEach(itemKey => {
+                    variables.push({
+                      name: `${fullPath}[${i}].${itemKey}`,
+                      path: `${fullPath}[${i}].${itemKey}`,
+                      value: item[itemKey],
+                      type: 'workflow-input-field',
+                      description: `Array item ${i} field from workflow input: ${key}.${itemKey}`,
+                      isArrayExample: true,
+                    });
+                  });
+                }
+              }
+
+              // Add array extractions
+              const fieldNames = this.getArrayFieldNames(value);
+              fieldNames.forEach(fieldName => {
+                const extractedValues = this.extractArrayField(
+                  value,
+                  fieldName
+                );
+                variables.push({
+                  name: `${fullPath}.${fieldName}`,
+                  path: `${fullPath}.${fieldName}`,
+                  value: extractedValues,
+                  type: 'workflow-input-field',
+                  description: `Array extraction from workflow input: ${key}.${fieldName} (all ${fieldName} values)`,
+                  isArrayExtraction: true,
+                });
+              });
+            } else if (
               typeof value === 'object' &&
               value !== null &&
               !Array.isArray(value)
             ) {
+              // Recursively add nested object fields
               addNestedFields(value, fullPath);
             }
           });

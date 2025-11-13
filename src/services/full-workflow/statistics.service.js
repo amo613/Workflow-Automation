@@ -7,7 +7,8 @@ import { getRedisClient } from '#config/cache.js';
 export async function trackWorkflowExecution(
   workflowId,
   success,
-  error = null
+  error = null,
+  eventId = null
 ) {
   try {
     const redisClient = getRedisClient();
@@ -62,7 +63,15 @@ export async function trackWorkflowExecution(
       success,
       error: error ? error.message || String(error) : null,
       errorStack: error?.stack || null,
+      eventId: eventId || null, // Store eventId for retrieving outputs
     };
+
+    logger.debug('Tracking workflow execution in history', {
+      workflowId,
+      success,
+      hasEventId: !!eventId,
+      eventId: eventId || 'none',
+    });
 
     try {
       // Get current history
@@ -202,6 +211,7 @@ export async function getWorkflowExecutionHistory(workflowId, limit = 50) {
       success: execution.success,
       error: execution.error || null,
       errorStack: execution.errorStack || null,
+      eventId: execution.eventId || null, // Include eventId for retrieving outputs
     }));
   } catch (error) {
     logger.error('Error getting workflow execution history', {

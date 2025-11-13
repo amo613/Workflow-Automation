@@ -76,7 +76,7 @@ export default [
       'build/**',
       'ui/node_modules/**',
       'ui/dist/**',
-      'ui/**/*.jsx', // Ignore JSX files as they need special parser
+      'ui/**/*.jsx', // For Eslint we need to ignore JSX files as they need special parser
     ],
   },
   prettier,

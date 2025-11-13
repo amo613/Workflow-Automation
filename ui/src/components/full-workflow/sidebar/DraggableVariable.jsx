@@ -7,13 +7,14 @@ export default function DraggableVariable({
   value,
   path,
   onDragStart,
+  isArrayExtraction = false,
+  isArrayExample = false,
 }) {
-  const fullPath = path ? `${path}.${fieldKey}` : fieldKey;
+  // Use path if provided, otherwise use fieldKey
+  const fullPath = path || fieldKey;
   const displayValue =
     typeof value === 'object' ? JSON.stringify(value) : String(value);
-  const variableExpression = path
-    ? `{{${path}.${fieldKey}}}`
-    : `{{${fieldKey}}}`;
+  const variableExpression = `{{${fullPath}}}`;
 
   return (
     <div
@@ -40,7 +41,46 @@ export default function DraggableVariable({
       }}
       title={`Click to copy: ${variableExpression}`}
     >
-      <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{fullPath}</div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          marginBottom: '0.25rem',
+        }}
+      >
+        <div style={{ fontWeight: 600 }}>{fullPath}</div>
+        {isArrayExtraction && (
+          <span
+            style={{
+              fontSize: '0.65rem',
+              padding: '0.1rem 0.4rem',
+              background: '#3b82f6',
+              color: 'white',
+              borderRadius: '3px',
+              fontWeight: 600,
+            }}
+            title="Array extraction - returns all values as array"
+          >
+            Array
+          </span>
+        )}
+        {isArrayExample && (
+          <span
+            style={{
+              fontSize: '0.65rem',
+              padding: '0.1rem 0.4rem',
+              background: '#64748b',
+              color: 'white',
+              borderRadius: '3px',
+              fontWeight: 600,
+            }}
+            title="Array item example"
+          >
+            Example
+          </span>
+        )}
+      </div>
       <div
         style={{
           color: '#94a3b8',

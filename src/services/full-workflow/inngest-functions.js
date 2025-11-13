@@ -79,22 +79,72 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     } catch (error) {
       executionSuccess = false;
       executionError = error;
+
+      // Even on error, try to store partial results if available
+      if (result && result.nodeOutputs) {
+        const cacheKey = `workflow-execution:${event.id}`;
+        const cacheData = {
+          success: false,
+          workflowId,
+          eventId: event.id,
+          nodeOutputs: result.nodeOutputs || {},
+          executedEdges: result.executedEdges || [],
+          executionResult: result,
+          error: error.message,
+          completedAt: new Date().toISOString(),
+        };
+
+        // Store in memory cache
+        memoryCache.set(cacheKey, cacheData, 300);
+
+        // Also store in Redis
+        try {
+          const { getRedisClient } = await import('#config/cache.js');
+          const redisClient = getRedisClient();
+          if (redisClient && redisClient.isReady) {
+            await redisClient.set(
+              cacheKey,
+              JSON.stringify(cacheData),
+              'EX',
+              3600
+            );
+          }
+        } catch (redisError) {
+          logger.warn('Failed to cache failed execution results in Redis', {
+            workflowId,
+            eventId: event.id,
+            error: redisError.message,
+          });
+        }
+      }
+
       throw error;
     } finally {
-      // Track statistics (async, don't wait)
+      // Track statistics (async, don't wait) - include eventId
+      const eventId = event?.id;
+      logger.info('Tracking workflow execution', {
+        workflowId,
+        executionSuccess,
+        hasEventId: !!eventId,
+        eventId: eventId || 'none',
+      });
+
       trackWorkflowExecution(
         workflowId,
         executionSuccess,
-        executionError
+        executionError,
+        eventId
       ).catch(err => {
         logger.warn('Failed to track workflow statistics', {
           workflowId,
+          eventId: eventId || 'none',
           error: err.message,
         });
       });
     }
 
-    // Store execution results in cache for UI polling (TTL: 5 minutes)
+    // Store execution results in cache for UI polling
+    // Use both memory cache (fast) and Redis (persistent)
     const cacheKey = `workflow-execution:${event.id}`;
     const cacheData = {
       success: true,
@@ -105,7 +155,42 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       executionResult: result,
       completedAt: new Date().toISOString(),
     };
-    memoryCache.set(cacheKey, cacheData, 300); // 5 minutes TTL
+
+    logger.info('Storing execution results in cache', {
+      workflowId,
+      eventId: event.id,
+      nodeOutputsCount: Object.keys(result.nodeOutputs || {}).length,
+      hasNodeOutputs: !!result.nodeOutputs,
+    });
+
+    // Store in memory cache (TTL: 5 minutes) for fast access
+    memoryCache.set(cacheKey, cacheData, 300);
+
+    // Also store in Redis (TTL: 1 hour) for longer availability
+    try {
+      const { getRedisClient } = await import('#config/cache.js');
+      const redisClient = getRedisClient();
+      if (redisClient && redisClient.isReady) {
+        await redisClient.set(
+          cacheKey,
+          JSON.stringify(cacheData),
+          'EX',
+          3600 // 1 hour TTL
+        );
+        logger.info('Workflow execution results cached in Redis', {
+          workflowId,
+          eventId: event.id,
+          cacheKey,
+        });
+      }
+    } catch (redisError) {
+      logger.warn('Failed to cache execution results in Redis', {
+        workflowId,
+        eventId: event.id,
+        error: redisError.message,
+      });
+    }
+
     logger.info('Workflow execution results cached', {
       workflowId,
       eventId: event.id,

@@ -466,7 +466,30 @@ export async function getWorkflowExecutionResultsHandler(req, reply) {
     }
 
     const cacheKey = `workflow-execution:${eventId}`;
-    const cachedResult = memoryCache.get(cacheKey);
+
+    // Try memory cache first (fast)
+    let cachedResult = memoryCache.get(cacheKey);
+
+    // If not in memory cache, try Redis
+    if (!cachedResult) {
+      try {
+        const { getRedisClient } = await import('#config/cache.js');
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isReady) {
+          const redisResult = await redisClient.get(cacheKey);
+          if (redisResult) {
+            cachedResult = JSON.parse(redisResult);
+            // Also store in memory cache for faster access next time
+            memoryCache.set(cacheKey, cachedResult, 300);
+          }
+        }
+      } catch (redisError) {
+        logger.warn('Error reading from Redis cache', {
+          eventId,
+          error: redisError.message,
+        });
+      }
+    }
 
     if (!cachedResult) {
       return reply.code(404).send({

@@ -121,9 +121,31 @@ export function resolveTemplate(template, context = {}) {
 }
 
 /**
+ * Extract array field values (e.g., extract all 'username' values from array)
+ * @param {Array} arr - Array of objects
+ * @param {string} fieldName - Field name to extract
+ * @returns {Array} - Array of field values
+ */
+function extractArrayField(arr, fieldName) {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return [];
+  }
+
+  const values = [];
+  for (const item of arr) {
+    if (item && typeof item === 'object' && fieldName in item) {
+      values.push(item[fieldName]);
+    }
+  }
+  return values;
+}
+
+/**
  * Get nested value from object using dot notation
+ * Supports array extraction: if path is 'data.username' and data is an array,
+ * returns array of all 'username' values
  * @param {Object} obj - Object to get value from
- * @param {string} path - Dot notation path (e.g., 'user.name')
+ * @param {string} path - Dot notation path (e.g., 'user.name' or 'data.username' for array extraction)
  * @returns {*} - Value or undefined
  */
 function getNestedValue(obj, path) {
@@ -134,15 +156,26 @@ function getNestedValue(obj, path) {
   const parts = path.split('.');
   let current = obj;
 
-  for (const part of parts) {
+  // Navigate through the path
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const isLastPart = i === parts.length - 1;
+
     if (current === null || current === undefined) {
       return undefined;
     }
-    // Handle both object property access and array index access
+
+    // Handle array index access: data[0]
     if (Array.isArray(current) && !isNaN(part)) {
       current = current[parseInt(part, 10)];
-    } else {
+    } else if (Array.isArray(current) && isLastPart && isNaN(part)) {
+      // Special case: if current is an array and we're at the last part with a field name,
+      // extract that field from all array items (e.g., 'data.username' where data is an array)
+      return extractArrayField(current, part);
+    } else if (current[part] !== undefined) {
       current = current[part];
+    } else {
+      return undefined;
     }
   }
 

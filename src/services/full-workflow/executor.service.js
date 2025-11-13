@@ -57,7 +57,10 @@ export async function executeWorkflow(
     // Find start node or trigger node
     // Priority: trigger nodes > start node
     const triggerNodes = nodes.filter(
-      node => node.type === 'google-sheets-trigger' || node.type === 'start'
+      node =>
+        node.type === 'google-sheets-trigger' ||
+        node.type === 'webhook-trigger' ||
+        node.type === 'start'
     );
     const startNode = triggerNodes.length > 0 ? triggerNodes[0] : null;
 
@@ -269,20 +272,24 @@ async function executeNodeRecursive(
     }
   }
 
-  // Continue to next node
+  // Continue to next nodes
   const nextNodes = adjacencyList[nodeId] || [];
   if (nextNodes.length > 0) {
+    // Mark ALL outgoing edges as executed (for UI visualization)
+    // Even though we execute sequentially, all edges should be marked as executed
+    nextNodes.forEach(nextNode => {
+      const matchingEdge = edges.find(
+        edge => edge.source === nodeId && edge.target === nextNode.target
+      );
+      if (matchingEdge) {
+        executedEdges.add(matchingEdge.id);
+      }
+    });
+
+    // Execute all next nodes (sequential execution, but all edges are marked)
     // For now, execute first next node (sequential execution)
     // TODO: Handle parallel execution for multiple outgoing edges
     const nextNode = nextNodes[0];
-
-    // Find and mark the executed edge
-    const matchingEdge = edges.find(
-      edge => edge.source === nodeId && edge.target === nextNode.target
-    );
-    if (matchingEdge) {
-      executedEdges.add(matchingEdge.id);
-    }
 
     return executeNodeRecursive(
       nextNode.target,

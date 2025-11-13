@@ -5,24 +5,61 @@ import DraggableVariable from './DraggableVariable.jsx';
 /**
  * InputPanel Component
  * Displays input data from previous nodes
+ * Now also shows array extractions from availableVariables
  */
 export default function InputPanel({
   inputData,
+  availableVariables = [],
   selectedNode,
   edges,
   onDragStart,
 }) {
   const [view, setView] = useState('table');
 
-  if (!inputData || Object.keys(inputData).length === 0) {
-    return (
-      <div
-        style={{ padding: '0.75rem', color: '#94a3b8', fontSize: '0.875rem' }}
-      >
-        No input data available
-      </div>
-    );
-  }
+  // Helper to render variables from availableVariables (includes array extractions)
+  const renderAvailableVariables = () => {
+    if (!availableVariables || availableVariables.length === 0) return null;
+
+    // Group variables by their base path (e.g., "data", "data.username", "data[0].username")
+    const grouped = {};
+    availableVariables.forEach(variable => {
+      // Extract base path (e.g., "data" from "data.username" or "data[0].username")
+      const basePath = variable.path.split('.')[0].split('[')[0];
+      if (!grouped[basePath]) {
+        grouped[basePath] = [];
+      }
+      grouped[basePath].push(variable);
+    });
+
+    return Object.entries(grouped).map(([basePath, vars]) => {
+      // Sort: base variable first, then array extractions, then array examples
+      const sorted = vars.sort((a, b) => {
+        if (a.path === basePath) return -1;
+        if (b.path === basePath) return 1;
+        if (a.isArrayExtraction && !b.isArrayExtraction) return -1;
+        if (!a.isArrayExtraction && b.isArrayExtraction) return 1;
+        if (a.isArrayExample && !b.isArrayExample) return 1;
+        if (!a.isArrayExample && b.isArrayExample) return -1;
+        return a.path.localeCompare(b.path);
+      });
+
+      return (
+        <div key={basePath} style={{ marginBottom: '1rem' }}>
+          {sorted.map(variable => (
+            <DraggableVariable
+              key={variable.path}
+              fieldKey={variable.name}
+              value={variable.value}
+              path={variable.path}
+              onDragStart={onDragStart}
+              isArrayExtraction={variable.isArrayExtraction}
+              isArrayExample={variable.isArrayExample}
+            />
+          ))}
+        </div>
+      );
+    });
+  };
 
   const renderNestedFields = (obj, path = '') => {
     if (!obj || typeof obj !== 'object') return null;
@@ -130,7 +167,10 @@ export default function InputPanel({
             >
               Drag fields to use (or click to copy):
             </div>
-            {renderNestedFields(inputData)}
+            {/* Show available variables (includes array extractions) */}
+            {availableVariables && availableVariables.length > 0
+              ? renderAvailableVariables()
+              : renderNestedFields(inputData)}
           </div>
         </>
       ) : (

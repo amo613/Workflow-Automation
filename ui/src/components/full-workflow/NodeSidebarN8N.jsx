@@ -295,6 +295,7 @@ export default function NodeSidebarN8N({
           </div>
           <InputPanel
             inputData={inputData}
+            availableVariables={availableVariables}
             selectedNode={selectedNode}
             edges={edges}
             onDragStart={(e, variableExpression) => {
@@ -321,6 +322,7 @@ export default function NodeSidebarN8N({
               availableVariables={availableVariables}
               knowledgeBaseEntries={knowledgeBaseEntries}
               workflows={workflows}
+              workflowId={workflowId}
               spreadsheets={googleSheets.spreadsheets || []}
               sheets={googleSheets.sheets || []}
               columns={googleSheets.columns || []}

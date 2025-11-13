@@ -11,6 +11,7 @@ import { executeWait } from './wait.handler.js';
 import { executeDatabaseQuery } from './database-query.handler.js';
 import { executeGoogleSheets } from './google-sheets.handler.js';
 import { executeGoogleSheetsTrigger } from './google-sheets-trigger.handler.js';
+import { executeWebhookTrigger } from './webhook-trigger.handler.js';
 import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
 import { executeAiAgent } from './ai-agent.handler.js';
 import logger from '#config/logger.js';
@@ -42,7 +43,12 @@ export async function executeNode(node, templateContext, variableContext) {
         nodeOutputs: Object.fromEntries(variableContext.nodeOutputs),
       };
 
+    // Webhook node is deprecated - use HTTP Request node instead
+    // Keeping for backward compatibility
     case 'webhook':
+      logger.warn('Webhook node is deprecated, use HTTP Request node instead', {
+        nodeId: node.id,
+      });
       return executeWebhook(data, templateContext);
 
     case 'http-request':
@@ -69,6 +75,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'google-sheets-trigger':
       return executeGoogleSheetsTrigger(data, templateContext);
+
+    case 'webhook-trigger':
+      return executeWebhookTrigger(data, templateContext);
 
     case 'knowledge-base-query':
       return executeKnowledgeBaseQuery(data, templateContext);

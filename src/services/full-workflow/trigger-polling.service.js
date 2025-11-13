@@ -2,16 +2,13 @@ import { Queue, Worker } from 'bullmq';
 import logger from '#config/logger.js';
 import { googleSheetsService } from '#services/google-sheets.service.js';
 import { getIntegration } from '#services/integration.service.js';
-import { executeWorkflow as executeWorkflowInternal } from './executor.service.js';
+import { triggerWorkflow } from './trigger.service.js';
 import { db } from '#config/database.js';
 import { fullWorkflows } from '#models/full-workflow.model.js';
 import { eq } from 'drizzle-orm';
 import { getRedisClient } from '#config/cache.js';
 import crypto from 'crypto';
-import {
-  trackWorkflowExecution,
-  trackTriggerExecution,
-} from './statistics.service.js';
+import { trackTriggerExecution } from './statistics.service.js';
 
 const REDIS_CONFIG = {
   host: process.env.REDIS_HOST || (process.env.CI ? 'localhost' : 'redis'),
@@ -130,10 +127,7 @@ triggerPollingWorker.on('error', err => {
 async function handleGoogleSheetsTrigger(
   workflowId,
   triggerNode,
-  triggerConfig,
-  nodes,
-  edges,
-  _job
+  triggerConfig
 ) {
   const { spreadsheetId, sheetName, triggerOn, userId } = triggerConfig;
 
@@ -251,22 +245,15 @@ async function handleGoogleSheetsTrigger(
           updatedRowCount: updatedRows.length,
         });
 
-        // Execute workflow for each new row
+        // Execute workflow for each new row via Inngest (for proper output tracking)
         for (const { row } of newRows) {
           try {
-            await executeWorkflowInternal(
-              workflowId,
-              {
-                triggerNodeId: triggerNode.id,
-                event: 'added',
-                row,
-              },
-              userId,
-              nodes,
-              edges
-            );
-            // Track successful execution
-            trackWorkflowExecution(workflowId, true).catch(() => {});
+            await triggerWorkflow(workflowId, userId, {
+              triggerNodeId: triggerNode.id,
+              event: 'added',
+              row,
+            });
+            // Track successful trigger (execution tracking happens in Inngest function)
             trackTriggerExecution(
               workflowId,
               triggerNode.id,
@@ -274,12 +261,11 @@ async function handleGoogleSheetsTrigger(
               'added'
             ).catch(() => {});
           } catch (error) {
-            logger.error('Failed to execute workflow for new row', {
+            logger.error('Failed to trigger workflow for new row', {
               workflowId,
               error: error.message,
             });
-            // Track failed execution
-            trackWorkflowExecution(workflowId, false, error).catch(() => {});
+            // Track failed trigger
             trackTriggerExecution(
               workflowId,
               triggerNode.id,
@@ -289,22 +275,15 @@ async function handleGoogleSheetsTrigger(
           }
         }
 
-        // Execute workflow for each updated row
+        // Execute workflow for each updated row via Inngest (for proper output tracking)
         for (const { row } of updatedRows) {
           try {
-            await executeWorkflowInternal(
-              workflowId,
-              {
-                triggerNodeId: triggerNode.id,
-                event: 'updated',
-                row,
-              },
-              userId,
-              nodes,
-              edges
-            );
-            // Track successful execution
-            trackWorkflowExecution(workflowId, true).catch(() => {});
+            await triggerWorkflow(workflowId, userId, {
+              triggerNodeId: triggerNode.id,
+              event: 'updated',
+              row,
+            });
+            // Track successful trigger (execution tracking happens in Inngest function)
             trackTriggerExecution(
               workflowId,
               triggerNode.id,
@@ -312,12 +291,11 @@ async function handleGoogleSheetsTrigger(
               'updated'
             ).catch(() => {});
           } catch (error) {
-            logger.error('Failed to execute workflow for updated row', {
+            logger.error('Failed to trigger workflow for updated row', {
               workflowId,
               error: error.message,
             });
-            // Track failed execution
-            trackWorkflowExecution(workflowId, false, error).catch(() => {});
+            // Track failed trigger
             trackTriggerExecution(
               workflowId,
               triggerNode.id,

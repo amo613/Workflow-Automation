@@ -20,6 +20,7 @@ import WaitNode from '../components/full-workflow/nodes/WaitNode';
 import DatabaseQueryNode from '../components/full-workflow/nodes/DatabaseQueryNode';
 import GoogleSheetsNode from '../components/full-workflow/nodes/GoogleSheetsNode';
 import GoogleSheetsTriggerNode from '../components/full-workflow/nodes/GoogleSheetsTriggerNode';
+import WebhookTriggerNode from '../components/full-workflow/nodes/WebhookTriggerNode';
 import KnowledgeBaseQueryNode from '../components/full-workflow/nodes/KnowledgeBaseQueryNode';
 import AiAgentNode from '../components/full-workflow/nodes/AiAgentNode';
 import NodeSidebarN8N from '../components/full-workflow/NodeSidebarN8N';
@@ -28,7 +29,7 @@ import KnowledgeBaseManager from '../components/full-workflow/KnowledgeBaseManag
 const nodeTypes = {
   start: StartNode,
   end: EndNode,
-  webhook: WebhookNode,
+  webhook: WebhookNode, // Deprecated - kept for backward compatibility
   'http-request': HttpRequestNode,
   'call-agent': CallAgentNode,
   'variable-set': VariableSetNode,
@@ -37,6 +38,7 @@ const nodeTypes = {
   'database-query': DatabaseQueryNode,
   'google-sheets': GoogleSheetsNode,
   'google-sheets-trigger': GoogleSheetsTriggerNode,
+  'webhook-trigger': WebhookTriggerNode,
   'knowledge-base-query': KnowledgeBaseQueryNode,
   'ai-agent': AiAgentNode,
 };
@@ -177,6 +179,9 @@ function FullWorkflowEditor() {
     }
   }, [id, isNew]);
 
+  // Track last seen execution timestamp to detect new executions
+  const lastExecutionTimestampRef = useRef(null);
+
   // Fetch execution history
   const fetchExecutionHistory = async () => {
     if (!id || isNew) return;
@@ -191,7 +196,167 @@ function FullWorkflowEditor() {
       );
       if (!response.ok) throw new Error('Failed to fetch execution history');
       const data = await response.json();
-      setExecutionHistory(data.data || []);
+      const history = data.data || [];
+      setExecutionHistory(history);
+
+      // Check if there's a new execution (for automatic output loading)
+      if (history.length > 0) {
+        const latestExecution = history[0];
+        const latestTimestamp = new Date(latestExecution.timestamp).getTime();
+
+        // Debug logging - expand the object to see full details
+        console.log('📊 Execution history fetched', {
+          historyLength: history.length,
+          latestExecution: latestExecution, // Show full object
+          lastSeenTimestamp: lastExecutionTimestampRef.current,
+          isNewExecution:
+            latestTimestamp > (lastExecutionTimestampRef.current || 0),
+          hasEventId: !!latestExecution.eventId,
+          isSuccess: latestExecution.success,
+        });
+
+        // Initialize lastExecutionTimestampRef on first load (to avoid loading old executions)
+        if (lastExecutionTimestampRef.current === null) {
+          lastExecutionTimestampRef.current = latestTimestamp;
+          console.log('🔵 Initialized lastExecutionTimestampRef', {
+            timestamp: latestTimestamp,
+          });
+          return; // Don't load outputs on initial load
+        }
+
+        // If this is a new execution (not seen before)
+        if (latestTimestamp > lastExecutionTimestampRef.current) {
+          console.log('🆕 New execution detected', {
+            timestamp: latestTimestamp,
+            lastSeen: lastExecutionTimestampRef.current,
+            hasEventId: !!latestExecution.eventId,
+            eventId: latestExecution.eventId,
+            success: latestExecution.success,
+            error: latestExecution.error,
+          });
+
+          // Update last seen timestamp
+          lastExecutionTimestampRef.current = latestTimestamp;
+
+          // Load outputs if execution has an eventId (try for both success and failure)
+          if (!latestExecution.eventId) {
+            console.warn('⚠️ Execution has no eventId - cannot load outputs', {
+              timestamp: latestExecution.timestamp,
+              success: latestExecution.success,
+              execution: latestExecution,
+            });
+            return; // Can't load outputs without eventId
+          }
+
+          console.log(
+            `🔄 Attempting to load outputs for ${latestExecution.success ? 'successful' : 'failed'} execution`,
+            {
+              eventId: latestExecution.eventId,
+              success: latestExecution.success,
+            }
+          );
+
+          // Load outputs for this execution (with retry logic for async executions)
+          const loadOutputs = async (retryCount = 0) => {
+            try {
+              const resultsResponse = await fetch(
+                `/api/full-workflows/execution-results?eventId=${encodeURIComponent(latestExecution.eventId)}`,
+                {
+                  credentials: 'include',
+                }
+              );
+
+              if (resultsResponse.ok) {
+                const resultsData = await resultsResponse.json();
+                if (resultsData.success && resultsData.data?.nodeOutputs) {
+                  // Update nodes with outputs from execution
+                  setNodes(nds =>
+                    nds.map(node => {
+                      const nodeOutput = resultsData.data.nodeOutputs[node.id];
+                      if (nodeOutput !== undefined) {
+                        return {
+                          ...node,
+                          data: {
+                            ...node.data,
+                            status: 'success',
+                            output: nodeOutput,
+                          },
+                        };
+                      }
+                      return node;
+                    })
+                  );
+
+                  // Update executed edges if available
+                  if (resultsData.data.executedEdges) {
+                    setExecutedEdges(resultsData.data.executedEdges);
+                  }
+
+                  console.log(
+                    '✅ Automatically loaded outputs for new execution',
+                    {
+                      eventId: latestExecution.eventId,
+                      timestamp: latestExecution.timestamp,
+                      nodeOutputsCount: Object.keys(
+                        resultsData.data.nodeOutputs
+                      ).length,
+                    }
+                  );
+                } else {
+                  console.warn(
+                    '⚠️ Execution results found but no nodeOutputs',
+                    {
+                      eventId: latestExecution.eventId,
+                      hasData: !!resultsData.data,
+                      dataKeys: resultsData.data
+                        ? Object.keys(resultsData.data)
+                        : [],
+                    }
+                  );
+                }
+              } else if (resultsResponse.status === 404 && retryCount < 6) {
+                // Execution might still be running, retry after 2 seconds (max 6 retries = 12 seconds)
+                console.log('⏳ Execution results not ready yet, retrying...', {
+                  eventId: latestExecution.eventId,
+                  retryCount: retryCount + 1,
+                });
+                setTimeout(() => loadOutputs(retryCount + 1), 2000);
+              } else {
+                console.warn('⚠️ Failed to load execution results', {
+                  eventId: latestExecution.eventId,
+                  status: resultsResponse.status,
+                  retryCount,
+                });
+              }
+            } catch (outputError) {
+              console.warn('❌ Error loading outputs for new execution', {
+                eventId: latestExecution.eventId,
+                error: outputError.message,
+                retryCount,
+              });
+            }
+          };
+
+          // Start loading outputs
+          loadOutputs();
+        } else {
+          // Execution already seen (same timestamp) - this is normal, no action needed
+          // Only log if there's something unusual (e.g., eventId changed)
+          if (
+            latestExecution.eventId &&
+            latestTimestamp === lastExecutionTimestampRef.current
+          ) {
+            // Already processed this execution, nothing to do
+            // This is expected behavior when polling
+          } else if (
+            !latestExecution.eventId &&
+            latestTimestamp === lastExecutionTimestampRef.current
+          ) {
+            // Execution already seen and still no eventId - might be an old execution
+            // Don't spam the console, this is expected for old executions
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching execution history:', error);
       setHistoryError(error.message);
@@ -204,8 +369,8 @@ function FullWorkflowEditor() {
   useEffect(() => {
     if (!isNew && id) {
       fetchExecutionHistory();
-      // Refresh history every 30 seconds
-      const interval = setInterval(fetchExecutionHistory, 30000);
+      // Refresh history every 5 seconds to catch new executions quickly
+      const interval = setInterval(fetchExecutionHistory, 5000);
       return () => clearInterval(interval);
     }
   }, [id, isNew]);
@@ -1845,6 +2010,23 @@ function FullWorkflowEditor() {
               <span>📊</span>
               <span>Google Sheets Trigger</span>
             </button>
+            <button
+              onClick={() => addNode('webhook-trigger')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>🔗</span>
+              <span>Webhook Trigger</span>
+            </button>
           </div>
 
           {/* Action Nodes */}
@@ -1863,23 +2045,6 @@ function FullWorkflowEditor() {
           <div
             style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
           >
-            <button
-              onClick={() => addNode('webhook')}
-              style={{
-                padding: '0.75rem',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                background: 'white',
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span>🔗</span>
-              <span>Webhook</span>
-            </button>
             <button
               onClick={() => addNode('http-request')}
               style={{
@@ -2102,6 +2267,8 @@ function FullWorkflowEditor() {
                   wait: '#6366f1',
                   'database-query': '#06b6d4',
                   'google-sheets': '#34d399',
+                  'google-sheets-trigger': '#34d399',
+                  'webhook-trigger': '#8b5cf6',
                   'knowledge-base-query': '#a78bfa',
                 };
                 return colors[node.type] || '#94a3b8';

@@ -14,6 +14,7 @@ import WaitConfig from './configs/WaitConfig.jsx';
 import DatabaseQueryConfig from './configs/DatabaseQueryConfig.jsx';
 import GoogleSheetsConfig from './configs/GoogleSheetsConfig.jsx';
 import GoogleSheetsTriggerConfig from './configs/GoogleSheetsTriggerConfig.jsx';
+import WebhookTriggerConfig from './configs/WebhookTriggerConfig.jsx';
 import KnowledgeBaseQueryConfig from './configs/KnowledgeBaseQueryConfig.jsx';
 import AiAgentConfig from './configs/AiAgentConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
@@ -28,6 +29,7 @@ const configMap = {
   'database-query': DatabaseQueryConfig,
   'google-sheets': GoogleSheetsConfig,
   'google-sheets-trigger': GoogleSheetsTriggerConfig,
+  'webhook-trigger': WebhookTriggerConfig,
   'knowledge-base-query': KnowledgeBaseQueryConfig,
   'ai-agent': AiAgentConfig,
   start: StartConfig,
