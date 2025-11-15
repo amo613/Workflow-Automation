@@ -12,6 +12,11 @@ import {
   getWorkflowExecutionResultsHandler,
   getWorkflowStatisticsHandler,
   getWorkflowExecutionHistoryHandler,
+  exportWorkflowHandler,
+  importWorkflowHandler,
+  getWorkflowPerformanceHandler,
+  getNodePerformanceHistoryHandler,
+  clearWorkflowPerformanceHandler,
 } from '#controllers/full-workflow.controller.js';
 
 async function fullWorkflowRoutes(fastify) {
@@ -206,6 +211,84 @@ async function fullWorkflowRoutes(fastify) {
       },
     },
     handler: getWorkflowExecutionHistoryHandler,
+  });
+
+  // Export workflow as JSON
+  fastify.get('/api/full-workflows/:id/export', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: exportWorkflowHandler,
+  });
+
+  // Import workflow from JSON
+  fastify.post('/api/full-workflows/import', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['workflowData'],
+        properties: {
+          workflowData: { type: 'object' },
+          name: { type: 'string' }, // Optional: override workflow name
+        },
+      },
+    },
+    handler: importWorkflowHandler,
+  });
+
+  // Get workflow performance statistics
+  fastify.get('/api/full-workflows/:id/performance', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: getWorkflowPerformanceHandler,
+  });
+
+  // Get node performance history (for graph)
+  fastify.get('/api/full-workflows/:id/nodes/:nodeId/performance', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id', 'nodeId'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+          nodeId: { type: 'string' },
+        },
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: getNodePerformanceHistoryHandler,
+  });
+
+  // Clear performance data
+  fastify.delete('/api/full-workflows/:id/performance', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: clearWorkflowPerformanceHandler,
   });
 }
 

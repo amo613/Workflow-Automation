@@ -45,6 +45,9 @@ const requestHandler = (req, res) => {
     pathname.startsWith('/api/inngest') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/ai-agent') ||
+    pathname.startsWith('/api/email') ||
+    (pathname.startsWith('/api/full-workflows') &&
+      pathname.includes('/versions')) ||
     pathname === '/' ||
     pathname === '/api' ||
     pathname === '/login' ||

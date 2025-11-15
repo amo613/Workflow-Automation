@@ -1,4 +1,5 @@
 import FormField from '../FormField.jsx';
+import ErrorConfig from './ErrorConfig.jsx';
 
 /**
  * Database Query Node Configuration
@@ -7,6 +8,8 @@ export default function DatabaseQueryConfig({
   localData,
   handleUpdate,
   availableVariables,
+  nodes = [],
+  currentNodeId,
 }) {
   return (
     <>
@@ -27,6 +30,13 @@ export default function DatabaseQueryConfig({
         placeholder='["{{userId}}", "{{email}}"]'
         multiline
         availableVariables={availableVariables}
+      />
+
+      <ErrorConfig
+        localData={localData}
+        handleUpdate={handleUpdate}
+        nodes={nodes}
+        currentNodeId={currentNodeId}
       />
     </>
   );

@@ -17,6 +17,9 @@ import GoogleSheetsTriggerConfig from './configs/GoogleSheetsTriggerConfig.jsx';
 import WebhookTriggerConfig from './configs/WebhookTriggerConfig.jsx';
 import KnowledgeBaseQueryConfig from './configs/KnowledgeBaseQueryConfig.jsx';
 import AiAgentConfig from './configs/AiAgentConfig.jsx';
+import EmailConfig from './configs/EmailConfig.jsx';
+import ScheduleTriggerConfig from './configs/ScheduleTriggerConfig.jsx';
+import MergeConfig from './configs/MergeConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
 
 const configMap = {
@@ -32,6 +35,9 @@ const configMap = {
   'webhook-trigger': WebhookTriggerConfig,
   'knowledge-base-query': KnowledgeBaseQueryConfig,
   'ai-agent': AiAgentConfig,
+  email: EmailConfig,
+  'schedule-trigger': ScheduleTriggerConfig,
+  merge: MergeConfig,
   start: StartConfig,
 };
 

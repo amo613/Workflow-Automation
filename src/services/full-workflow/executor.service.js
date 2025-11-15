@@ -1,7 +1,14 @@
+import { performance } from 'perf_hooks';
 import logger from '#config/logger.js';
 import VariableContext from './variable-context.service.js';
 import { resolveTemplate } from '#utils/template-engine.js';
 import { executeNode } from './node-handlers/index.js';
+import { trackNodePerformance } from './performance.service.js';
+import { executeWithRetry } from './retry.service.js';
+import {
+  classifyError,
+  shouldContinueOnError,
+} from './error-classification.service.js';
 
 /**
  * Execute a full workflow
@@ -17,7 +24,8 @@ export async function executeWorkflow(
   input = {},
   userId = null,
   nodes = null,
-  edges = null
+  edges = null,
+  incrementalCacheUpdater = null // Optional function to update cache after each node
 ) {
   try {
     // Handle both workflow ID and workflow object
@@ -60,6 +68,7 @@ export async function executeWorkflow(
       node =>
         node.type === 'google-sheets-trigger' ||
         node.type === 'webhook-trigger' ||
+        node.type === 'schedule-trigger' ||
         node.type === 'start'
     );
     const startNode = triggerNodes.length > 0 ? triggerNodes[0] : null;
@@ -86,6 +95,12 @@ export async function executeWorkflow(
       }
     });
 
+    // Get workflow ID for performance tracking
+    const workflowId =
+      typeof workflowIdOrWorkflow === 'object'
+        ? workflowIdOrWorkflow.id
+        : workflowIdOrWorkflow;
+
     // Execute workflow starting from start node
     const executionLog = [];
     const visited = new Set();
@@ -98,7 +113,9 @@ export async function executeWorkflow(
       edges,
       visited,
       executionLog,
-      executedEdges
+      executedEdges,
+      workflowId, // Pass workflowId for performance tracking
+      incrementalCacheUpdater // Pass cache updater for incremental updates
     );
 
     logger.info('Workflow execution completed', {
@@ -108,7 +125,6 @@ export async function executeWorkflow(
           : workflowIdOrWorkflow,
       nodesExecuted: executionLog.length,
       edgesExecuted: executedEdges.size,
-      result: executionResult,
     });
 
     return {
@@ -151,7 +167,9 @@ async function executeNodeRecursive(
   edges,
   visited,
   executionLog,
-  executedEdges
+  executedEdges,
+  workflowId = null,
+  incrementalCacheUpdater = null // Optional function to update cache after each node
 ) {
   // Cycle detection
   if (visited.has(nodeId)) {
@@ -175,17 +193,53 @@ async function executeNodeRecursive(
   // Get context for template resolution
   const templateContext = context.getContext(nodeId, edges);
 
-  // Execute node
+  // Get error configuration
+  const errorConfig = node.data?.errorConfig || {
+    onError: 'stop', // Default: stop on error
+  };
+
+  // Track performance: measure execution time
+  const startTime = performance.now();
   let nodeOutput;
+  let retryCount = 0;
+
   try {
-    nodeOutput = await executeNode(node, templateContext, context);
+    // Execute node with retry logic if configured
+    if (errorConfig.onError === 'retry' && errorConfig.retryCount > 0) {
+      const retryResult = await executeWithRetry(
+        () => executeNode(node, templateContext, context),
+        errorConfig,
+        nodeId,
+        node.type
+      );
+      nodeOutput = retryResult.result;
+      retryCount = retryResult.retryCount;
+    } else {
+      nodeOutput = await executeNode(node, templateContext, context);
+    }
+
     context.setNodeOutput(nodeId, nodeOutput);
+
+    // Track performance after successful execution
+    const executionTime = performance.now() - startTime;
+    if (workflowId && typeof workflowId === 'number' && !isNaN(workflowId)) {
+      // Track asynchronously to not block execution
+      trackNodePerformance(workflowId, nodeId, node.type, executionTime).catch(
+        err => {
+          logger.warn('Failed to track node performance', {
+            workflowId,
+            nodeId,
+            error: err.message,
+          });
+        }
+      );
+    }
 
     executionLog.push({
       nodeId,
       type: node.type,
       status: 'completed',
-      output: nodeOutput,
+      // Don't store output here - it's already in nodeOutputs to avoid duplication
       timestamp: new Date().toISOString(),
     });
 
@@ -194,26 +248,264 @@ async function executeNodeRecursive(
       type: node.type,
       hasOutput: !!nodeOutput,
     });
+
+    // Update cache incrementally after each node (non-blocking)
+    if (incrementalCacheUpdater) {
+      try {
+        incrementalCacheUpdater({
+          nodeOutputs: Object.fromEntries(context.nodeOutputs),
+          executedEdges,
+          executionLog,
+        });
+      } catch (err) {
+        // Don't let cache update errors break execution
+        logger.debug('Error in incremental cache update', {
+          error: err.message,
+        });
+      }
+    }
   } catch (error) {
-    executionLog.push({
+    // Classify error
+    const errorType = classifyError(error);
+
+    // Create error log entry with extended details
+    const errorLogEntry = {
       nodeId,
       type: node.type,
       status: 'failed',
       error: error.message,
+      errorStack: error.stack,
+      errorType,
+      errorContext: {
+        inputs: node.data,
+        timestamp: new Date().toISOString(),
+      },
+      retryAttempts: retryCount,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    executionLog.push(errorLogEntry);
 
     logger.error('Node execution failed', {
       nodeId,
       type: node.type,
       error: error.message,
+      errorType,
+      errorConfig: errorConfig.onError,
     });
-    throw error;
+
+    // Update cache with failed node BEFORE handling error
+    // This ensures frontend sees the failed node even if workflow stops
+    if (incrementalCacheUpdater) {
+      try {
+        incrementalCacheUpdater({
+          nodeOutputs: Object.fromEntries(context.nodeOutputs),
+          executedEdges,
+          executionLog,
+        });
+      } catch (err) {
+        // Don't let cache update errors break error handling
+        logger.debug('Error updating cache with failed node', {
+          error: err.message,
+        });
+      }
+    }
+
+    // Handle error based on errorConfig
+    if (errorConfig.onError === 'continue') {
+      // Check if error should allow continuation
+      const shouldContinue = shouldContinueOnError(
+        error,
+        errorConfig.continueOnErrors || []
+      );
+
+      if (
+        shouldContinue ||
+        !errorConfig.continueOnErrors ||
+        errorConfig.continueOnErrors.length === 0
+      ) {
+        // Workflow continues, node marked as failed
+        logger.info('Continuing workflow after node error', {
+          nodeId,
+          nodeType: node.type,
+          error: error.message,
+        });
+
+        // Return default value or null, so next nodes can execute
+        const defaultValue =
+          errorConfig.defaultValue !== undefined
+            ? errorConfig.defaultValue
+            : null;
+
+        if (defaultValue !== null) {
+          context.setNodeOutput(nodeId, defaultValue);
+        }
+
+        // Continue to next nodes (don't throw error)
+        // The error is already logged, node is marked as failed
+        // Execution will continue below
+      } else {
+        // Error not in continueOnErrors list → stop workflow
+        throw error;
+      }
+    } else if (
+      errorConfig.onError === 'fallback' &&
+      errorConfig.fallbackNodeId
+    ) {
+      // Execute fallback node
+      const fallbackNode = nodeMap[errorConfig.fallbackNodeId];
+      if (fallbackNode) {
+        logger.info('Executing fallback node after error', {
+          failedNodeId: nodeId,
+          fallbackNodeId: errorConfig.fallbackNodeId,
+          error: error.message,
+        });
+
+        // Store error info in context for fallback node to access
+        context.setVariable('_error', {
+          nodeId,
+          error: error.message,
+          errorStack: error.stack,
+          errorType,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Mark the fallback edge as executed (for UI visualization)
+        const fallbackEdge = edges.find(
+          edge =>
+            edge.source === nodeId && edge.target === errorConfig.fallbackNodeId
+        );
+        if (fallbackEdge) {
+          const edgeId =
+            fallbackEdge.id ||
+            `reactflow__edge-${nodeId}-${errorConfig.fallbackNodeId}`;
+          executedEdges.add(edgeId);
+        }
+
+        // Execute fallback node
+        try {
+          const fallbackOutput = await executeNodeRecursive(
+            errorConfig.fallbackNodeId,
+            nodeMap,
+            adjacencyList,
+            context,
+            edges,
+            visited,
+            executionLog,
+            executedEdges,
+            workflowId,
+            incrementalCacheUpdater
+          );
+
+          // Use fallback output as node output
+          context.setNodeOutput(nodeId, fallbackOutput);
+          nodeOutput = fallbackOutput;
+
+          logger.info('Fallback node executed successfully', {
+            failedNodeId: nodeId,
+            fallbackNodeId: errorConfig.fallbackNodeId,
+          });
+
+          // Continue execution from fallback node's output
+          // Don't throw error, continue to next nodes
+        } catch (fallbackError) {
+          // Fallback node also failed → stop workflow
+          logger.error('Fallback node also failed', {
+            failedNodeId: nodeId,
+            fallbackNodeId: errorConfig.fallbackNodeId,
+            error: fallbackError.message,
+          });
+          throw fallbackError;
+        }
+      } else {
+        // Fallback node not found → stop workflow
+        logger.error('Fallback node not found', {
+          nodeId,
+          fallbackNodeId: errorConfig.fallbackNodeId,
+        });
+        throw error;
+      }
+    } else {
+      // Default: stop on error (onError === 'stop' or not configured)
+      throw error;
+    }
   }
 
   // Handle end node
   if (node.type === 'end') {
     return nodeOutput;
+  }
+
+  // Handle merge node (waits for all incoming parallel branches)
+  if (node.type === 'merge') {
+    // Merge node needs to collect outputs from all incoming nodes
+    // Find all nodes that connect to this merge node
+    const incomingEdges = edges.filter(edge => edge.target === nodeId);
+    const incomingNodeIds = incomingEdges.map(edge => edge.source);
+
+    logger.info('Merge node collecting inputs', {
+      nodeId,
+      incomingNodeIds,
+      incomingEdgesCount: incomingEdges.length,
+      allNodeOutputsKeys: Array.from(context.nodeOutputs.keys()),
+    });
+
+    // Collect outputs from all incoming nodes
+    const incomingOutputs = incomingNodeIds
+      .map(sourceNodeId => {
+        const sourceOutput = context.getNodeOutput(sourceNodeId);
+        logger.debug('Merge node: checking source node output', {
+          sourceNodeId,
+          hasOutput: !!sourceOutput,
+          outputType: typeof sourceOutput,
+          isParallel: sourceOutput?.parallel,
+          outputKeys:
+            sourceOutput && typeof sourceOutput === 'object'
+              ? Object.keys(sourceOutput)
+              : null,
+        });
+
+        // If source output is from parallel execution, extract results
+        if (sourceOutput && sourceOutput.parallel && sourceOutput.results) {
+          // This is a parallel result object - extract the actual results
+          return sourceOutput.results;
+        }
+        return sourceOutput;
+      })
+      .filter(output => output !== undefined);
+
+    logger.info('Merge node collected inputs', {
+      nodeId,
+      inputCount: incomingOutputs.length,
+      inputs: incomingOutputs.map((inp, idx) => ({
+        index: idx,
+        type: typeof inp,
+        isObject: typeof inp === 'object',
+        isArray: Array.isArray(inp),
+        keys: typeof inp === 'object' && inp !== null ? Object.keys(inp) : null,
+      })),
+    });
+
+    // Flatten if we have nested arrays from parallel executions
+    const flattenedOutputs = incomingOutputs.flat();
+
+    // Store in context for merge handler to access
+    if (flattenedOutputs.length > 0) {
+      context.setVariable('_mergeInputs', flattenedOutputs);
+      logger.info('Merge node stored inputs in context', {
+        nodeId,
+        flattenedCount: flattenedOutputs.length,
+      });
+    } else {
+      logger.warn('Merge node: No inputs collected', {
+        nodeId,
+        incomingNodeIds,
+        nodeOutputsKeys: Array.from(context.nodeOutputs.keys()),
+      });
+    }
+
+    // Merge node execution is handled in the node handler
+    // It will use the collected outputs
   }
 
   // Handle if node (conditional branching)
@@ -237,12 +529,15 @@ async function executeNodeRecursive(
 
     // Mark the executed edge
     if (matchingEdge) {
-      executedEdges.add(matchingEdge.id);
+      // Ensure edge has an ID before adding to executedEdges
+      const edgeId =
+        matchingEdge.id ||
+        `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
+      executedEdges.add(edgeId);
       logger.debug('If node condition evaluated', {
         nodeId,
         conditionResult,
         handleId,
-        edgeId: matchingEdge.id,
         nextNodeId,
       });
     }
@@ -257,7 +552,9 @@ async function executeNodeRecursive(
         edges,
         new Set(visited), // Reset visited for new branch
         executionLog,
-        executedEdges
+        executedEdges,
+        workflowId,
+        incrementalCacheUpdater
       );
     }
 
@@ -274,33 +571,189 @@ async function executeNodeRecursive(
 
   // Continue to next nodes
   const nextNodes = adjacencyList[nodeId] || [];
+
   if (nextNodes.length > 0) {
     // Mark ALL outgoing edges as executed (for UI visualization)
-    // Even though we execute sequentially, all edges should be marked as executed
     nextNodes.forEach(nextNode => {
       const matchingEdge = edges.find(
         edge => edge.source === nodeId && edge.target === nextNode.target
       );
       if (matchingEdge) {
-        executedEdges.add(matchingEdge.id);
+        // Ensure edge has an ID before adding to executedEdges
+        const edgeId =
+          matchingEdge.id ||
+          `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
+        executedEdges.add(edgeId);
+      } else {
+        logger.warn('Could not find matching edge', {
+          source: nodeId,
+          target: nextNode.target,
+          nodeType: node.type,
+        });
       }
     });
 
-    // Execute all next nodes (sequential execution, but all edges are marked)
-    // For now, execute first next node (sequential execution)
-    // TODO: Handle parallel execution for multiple outgoing edges
-    const nextNode = nextNodes[0];
+    // Handle parallel execution for multiple outgoing edges
+    if (nextNodes.length > 1) {
+      // Multiple outgoing edges - execute all branches in parallel
+      logger.info('Executing multiple branches in parallel', {
+        nodeId,
+        nodeType: node.type,
+        branchCount: nextNodes.length,
+        targets: nextNodes.map(n => n.target),
+      });
 
-    return executeNodeRecursive(
-      nextNode.target,
-      nodeMap,
-      adjacencyList,
-      context,
-      edges,
-      visited,
-      executionLog,
-      executedEdges
-    );
+      // Execute all branches in parallel with isolated contexts
+      // Store branch contexts so we can copy their outputs later
+      const branchContexts = [];
+      const parallelExecutions = nextNodes.map((nextNode, index) => {
+        // Clone context for each branch to avoid conflicts
+        const branchContext = context.clone();
+        branchContexts[index] = branchContext; // Store for later
+        // Create isolated visited set for each branch (prevents cycle detection issues)
+        const branchVisited = new Set(visited);
+
+        return executeNodeRecursive(
+          nextNode.target,
+          nodeMap,
+          adjacencyList,
+          branchContext,
+          edges,
+          branchVisited,
+          executionLog,
+          executedEdges,
+          workflowId,
+          incrementalCacheUpdater
+        ).catch(error => {
+          // Log error but don't fail entire parallel execution
+          logger.error('Error in parallel branch execution', {
+            sourceNodeId: nodeId,
+            targetNodeId: nextNode.target,
+            error: error.message,
+          });
+          // Return error info instead of throwing
+          return {
+            error: true,
+            errorMessage: error.message,
+            nodeId: nextNode.target,
+          };
+        });
+      });
+
+      // Wait for all parallel executions to complete
+      const results = await Promise.all(parallelExecutions);
+
+      // IMPORTANT: Copy node outputs from all branch contexts to main context
+      // This ensures merge nodes can access outputs from all parallel branches
+      nextNodes.forEach((nextNode, index) => {
+        const branchContext = branchContexts[index];
+        const branchResult = results[index];
+
+        logger.info('Copying outputs from parallel branch', {
+          branchIndex: index,
+          targetNodeId: nextNode.target,
+          hasBranchContext: !!branchContext,
+          hasBranchResult: !!branchResult,
+          branchResultError: branchResult?.error,
+          branchOutputsCount: branchContext?.nodeOutputs?.size || 0,
+        });
+
+        if (branchContext) {
+          // Copy all node outputs from branch context to main context
+          // This includes outputs from all nodes in the branch, not just the final result
+          // IMPORTANT: Don't overwrite existing outputs - only copy if not already present
+          branchContext.nodeOutputs.forEach((output, outputNodeId) => {
+            // Only set if not already present (to avoid overwriting outputs from other branches)
+            if (!context.nodeOutputs.has(outputNodeId)) {
+              context.setNodeOutput(outputNodeId, output);
+              logger.debug('Copied node output from branch to main context', {
+                branchIndex: index,
+                sourceNodeId: outputNodeId,
+                targetNodeId: nextNode.target,
+                hasOutput: !!output,
+                outputType: typeof output,
+              });
+            } else {
+              logger.debug('Skipped copying output (already exists)', {
+                branchIndex: index,
+                sourceNodeId: outputNodeId,
+                existingOutputType:
+                  typeof context.nodeOutputs.get(outputNodeId),
+              });
+            }
+          });
+        }
+
+        // DON'T overwrite the first node's output with branchResult
+        // The branchResult is the result of the entire branch execution (last node's output)
+        // All individual node outputs have already been copied from branchContext above
+        // Only store branchResult if the first node doesn't have an output yet
+        if (branchResult && !branchResult.error) {
+          // Check if the first node in the branch already has an output
+          if (!context.nodeOutputs.has(nextNode.target)) {
+            // If not, store the branch result (which is the last node's output in the branch)
+            // But this should rarely happen since we copied all outputs above
+            if (branchResult.parallel && branchResult.results) {
+              // This branch itself returned parallel results - store the last result
+              const lastResult =
+                branchResult.results[branchResult.results.length - 1];
+              context.setNodeOutput(nextNode.target, lastResult);
+            } else {
+              // Store the direct result
+              context.setNodeOutput(nextNode.target, branchResult);
+            }
+            logger.debug(
+              'Stored branch result for first node (no existing output)',
+              {
+                branchIndex: index,
+                targetNodeId: nextNode.target,
+              }
+            );
+          }
+        } else if (branchResult?.error) {
+          // Store error info only if node doesn't have output yet
+          if (!context.nodeOutputs.has(nextNode.target)) {
+            logger.warn('Branch execution had error', {
+              branchIndex: index,
+              targetNodeId: nextNode.target,
+              error: branchResult.errorMessage,
+            });
+            context.setNodeOutput(nextNode.target, branchResult);
+          }
+        }
+      });
+
+      logger.info(
+        'Copied node outputs from parallel branches to main context',
+        {
+          nodeId,
+          branchCount: nextNodes.length,
+          totalOutputsCopied: Array.from(context.nodeOutputs.keys()).length,
+        }
+      );
+
+      // Return results array (can be used by merge nodes or other nodes that need all results)
+      return {
+        parallel: true,
+        results,
+        count: results.length,
+      };
+    } else {
+      // Single outgoing edge - execute sequentially (as before)
+      const nextNode = nextNodes[0];
+      return executeNodeRecursive(
+        nextNode.target,
+        nodeMap,
+        adjacencyList,
+        context,
+        edges,
+        visited,
+        executionLog,
+        executedEdges,
+        workflowId,
+        incrementalCacheUpdater
+      );
+    }
   }
 
   return nodeOutput;

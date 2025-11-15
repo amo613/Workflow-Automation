@@ -14,6 +14,9 @@ import { executeGoogleSheetsTrigger } from './google-sheets-trigger.handler.js';
 import { executeWebhookTrigger } from './webhook-trigger.handler.js';
 import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
 import { executeAiAgent } from './ai-agent.handler.js';
+import { executeEmail } from './email.handler.js';
+import { executeScheduleTrigger } from './schedule-trigger.handler.js';
+import { executeMerge } from './merge.handler.js';
 import logger from '#config/logger.js';
 
 /**
@@ -84,6 +87,15 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'ai-agent':
       return executeAiAgent(node, templateContext, variableContext);
+
+    case 'email':
+      return executeEmail(node, templateContext);
+
+    case 'schedule-trigger':
+      return executeScheduleTrigger(data, templateContext);
+
+    case 'merge':
+      return executeMerge(node, templateContext, variableContext);
 
     default:
       throw new Error(`Unknown node type: ${type}`);

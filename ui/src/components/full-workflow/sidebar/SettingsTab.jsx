@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import EmailCredentialsManager from './EmailCredentialsManager.jsx';
 
 /**
  * Settings Tab Component
@@ -584,6 +585,41 @@ export default function SettingsTab({
               background: '#2a2a2a',
               color: 'white',
             }}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (nodeType === 'email') {
+    return (
+      <>
+        {/* Email Credentials Configuration */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+              marginBottom: '1rem',
+            }}
+          >
+            SMTP Credentials
+          </div>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: '#94a3b8',
+              marginBottom: '1rem',
+            }}
+          >
+            Configure your SMTP credentials to send emails. These credentials
+            will be encrypted and stored securely. If not set, environment
+            variables (ACCOUNT_EMAIL, EMAIL_PASSWORD) will be used as fallback.
+          </div>
+          <EmailCredentialsManager
+            localData={localData}
+            handleUpdate={handleUpdate}
           />
         </div>
       </>

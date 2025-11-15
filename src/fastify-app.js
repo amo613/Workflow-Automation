@@ -29,6 +29,8 @@ import fullWorkflowRoutes from '#routes/full-workflow.routes.js';
 import webhookRoutes from '#routes/webhook.routes.js';
 import inngestRoutes from '#routes/inngest.routes.js';
 import aiAgentRoutes from '#routes/ai-agent.routes.js';
+import emailRoutes from '#routes/email.routes.js';
+import workflowVersionRoutes from '#routes/workflow-version.routes.js';
 import { initRedis } from '#config/cache.js';
 import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
 import './services/full-workflow/trigger-polling.service.js'; // (auto-starts trigger polling worker when imported)
@@ -363,6 +365,8 @@ fastify.register(
     fastify.addHook('preHandler', csrfProtectionFastify);
 
     fastify.register(aiAgentRoutes, { prefix: '' });
+    fastify.register(emailRoutes, { prefix: '' });
+    fastify.register(workflowVersionRoutes, { prefix: '' });
   },
   { prefix: '' }
 );

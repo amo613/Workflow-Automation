@@ -1,4 +1,5 @@
 import FormField from '../FormField.jsx';
+import ErrorConfig from './ErrorConfig.jsx';
 
 /**
  * Variable Set Node Configuration
@@ -7,6 +8,8 @@ export default function VariableSetConfig({
   localData,
   handleUpdate,
   availableVariables,
+  nodes = [],
+  currentNodeId,
 }) {
   return (
     <>
@@ -25,6 +28,13 @@ export default function VariableSetConfig({
         placeholder="Use {{previous.output}} or {{variable}}"
         multiline
         availableVariables={availableVariables}
+      />
+
+      <ErrorConfig
+        localData={localData}
+        handleUpdate={handleUpdate}
+        nodes={nodes}
+        currentNodeId={currentNodeId}
       />
     </>
   );

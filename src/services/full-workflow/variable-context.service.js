@@ -118,6 +118,30 @@ class VariableContext {
   }
 
   /**
+   * Clone the context for parallel execution branches
+   * Creates a deep copy of the context to avoid conflicts between parallel branches
+   * @returns {VariableContext} - Cloned context
+   */
+  clone() {
+    const cloned = new VariableContext();
+
+    // Clone variables Map
+    this.variables.forEach((value, key) => {
+      cloned.variables.set(key, value);
+    });
+
+    // Clone nodeOutputs Map
+    this.nodeOutputs.forEach((value, key) => {
+      cloned.nodeOutputs.set(key, value);
+    });
+
+    // Clone workflowInput (shallow copy is usually sufficient)
+    cloned.workflowInput = this.workflowInput;
+
+    return cloned;
+  }
+
+  /**
    * Extract array field values (e.g., extract all 'username' values from array)
    * @param {Array} arr - Array of objects
    * @param {string} fieldName - Field name to extract

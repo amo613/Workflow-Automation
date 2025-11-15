@@ -332,6 +332,8 @@ export default function NodeSidebarN8N({
               setShowSpreadsheetModal={viewModel.setShowSpreadsheetModal}
               setShowSheetModal={viewModel.setShowSheetModal}
               handleDrop={handleDrop}
+              nodes={nodes}
+              currentNodeId={selectedNode?.id}
             />
           )}
           {activeTab === 'settings' && (

@@ -12,15 +12,20 @@ export function useNodeData(selectedNode, onNodeUpdate) {
     if (selectedNode?.id !== lastNodeIdRef.current) {
       lastNodeIdRef.current = selectedNode?.id;
       setLocalData(selectedNode?.data || {});
+    } else if (selectedNode?.data) {
+      // Also sync when data changes but id stays the same (e.g., after external update)
+      setLocalData(selectedNode.data);
     }
   }, [selectedNode?.id, selectedNode?.data]);
 
   const handleUpdate = (field, value) => {
-    const updated = { ...localData, [field]: value };
-    setLocalData(updated);
-    if (onNodeUpdate) {
-      onNodeUpdate(selectedNode?.id, updated);
-    }
+    setLocalData(prevData => {
+      const updated = { ...prevData, [field]: value };
+      if (onNodeUpdate) {
+        onNodeUpdate(selectedNode?.id, updated);
+      }
+      return updated;
+    });
   };
 
   return { localData, setLocalData, handleUpdate };

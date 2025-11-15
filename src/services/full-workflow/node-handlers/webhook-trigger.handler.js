@@ -8,8 +8,11 @@ import logger from '#config/logger.js';
 export async function executeWebhookTrigger(data, context) {
   // Trigger nodes don't execute anything themselves
   // They just pass through the trigger data (webhook payload)
+  const webhookId = data.webhookId || data.id || null;
+
   logger.info('Webhook Trigger executed', {
-    webhookId: data.webhookId || context.workflowId,
+    webhookId,
+    hasWorkflowInput: !!context.workflowInput,
   });
 
   // The webhook payload is passed through the workflow input
@@ -23,7 +26,7 @@ export async function executeWebhookTrigger(data, context) {
   return {
     success: true,
     triggerData: {
-      webhookId: data.webhookId || context.workflowId,
+      webhookId: webhookId || 'unknown',
       method: webhookMeta.method || 'POST',
       headers: webhookMeta.headers || {},
       query: webhookMeta.query || {},

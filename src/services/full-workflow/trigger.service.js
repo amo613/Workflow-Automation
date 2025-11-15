@@ -1,5 +1,6 @@
 import { inngest } from '#config/inngest.js';
 import logger from '#config/logger.js';
+import { memoryCache } from '#config/cache.js';
 
 /**
  * Trigger Service for Full Workflows
@@ -30,12 +31,14 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
       },
     });
 
+    const eventId = event.ids?.[0];
+
     logger.info('Workflow triggered successfully', {
       workflowId,
-      eventId: event.ids?.[0],
+      eventId,
     });
 
-    if (!event?.ids?.length) {
+    if (!eventId) {
       logger.warn(
         'Inngest send returned no event IDs; run may not appear in dashboard',
         {
@@ -43,11 +46,55 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
           userId,
         }
       );
+      return {
+        success: true,
+        eventId: null,
+        workflowId,
+      };
+    }
+
+    // Create pending cache entry IMMEDIATELY so frontend can see workflow is running
+    // This prevents 404 errors while waiting for execution to complete
+    const cacheKey = `workflow-execution:${eventId}`;
+    const pendingCacheData = {
+      success: false,
+      workflowId,
+      eventId,
+      status: 'pending',
+      nodeOutputs: {},
+      executedEdges: [],
+      executionLog: [],
+      startedAt: new Date().toISOString(),
+    };
+
+    // Store in memory cache immediately (TTL: 5 minutes)
+    memoryCache.set(cacheKey, pendingCacheData, 300);
+
+    // Also store in Redis immediately (async, don't wait)
+    try {
+      const { getRedisClient } = await import('#config/cache.js');
+      const redisClient = getRedisClient();
+      if (redisClient && redisClient.isReady) {
+        // Don't await - do this asynchronously to not block
+        redisClient
+          .set(cacheKey, JSON.stringify(pendingCacheData), 'EX', 3600)
+          .catch(err => {
+            logger.warn('Failed to cache pending execution in Redis', {
+              eventId,
+              error: err.message,
+            });
+          });
+      }
+    } catch {
+      // Ignore Redis errors - memory cache is enough
+      logger.debug('Redis not available for pending cache', {
+        eventId,
+      });
     }
 
     return {
       success: true,
-      eventId: event.ids?.[0],
+      eventId,
       workflowId,
     };
   } catch (error) {
@@ -81,22 +128,69 @@ export async function triggerByWebhook(webhookId, payload = {}) {
       },
     });
 
+    const eventId = event.ids?.[0];
+
     logger.info('Webhook workflow triggered successfully', {
       webhookId,
-      eventId: event.ids?.[0],
+      eventId,
     });
-    if (!event?.ids?.length) {
+
+    if (!eventId) {
       logger.warn(
         'Inngest send (webhook) returned no event IDs; run may not appear in dashboard',
         {
           webhookId,
         }
       );
+      return {
+        success: true,
+        eventId: null,
+        webhookId,
+      };
+    }
+
+    // Create pending cache entry IMMEDIATELY (same as triggerWorkflow)
+    // This prevents 404 errors while waiting for execution to complete
+    const cacheKey = `workflow-execution:${eventId}`;
+    const pendingCacheData = {
+      success: false,
+      workflowId: null, // Will be set when workflow is loaded
+      eventId,
+      status: 'pending',
+      nodeOutputs: {},
+      executedEdges: [],
+      executionLog: [],
+      startedAt: new Date().toISOString(),
+    };
+
+    // Store in memory cache immediately (TTL: 5 minutes)
+    memoryCache.set(cacheKey, pendingCacheData, 300);
+
+    // Also store in Redis immediately (async, don't wait)
+    try {
+      const { getRedisClient } = await import('#config/cache.js');
+      const redisClient = getRedisClient();
+      if (redisClient && redisClient.isReady) {
+        // Don't await - do this asynchronously to not block
+        redisClient
+          .set(cacheKey, JSON.stringify(pendingCacheData), 'EX', 3600)
+          .catch(err => {
+            logger.warn('Failed to cache pending webhook execution in Redis', {
+              eventId,
+              error: err.message,
+            });
+          });
+      }
+    } catch {
+      // Ignore Redis errors - memory cache is enough
+      logger.debug('Redis not available for pending webhook cache', {
+        eventId,
+      });
     }
 
     return {
       success: true,
-      eventId: event.ids?.[0],
+      eventId,
       webhookId,
     };
   } catch (error) {

@@ -15,6 +15,11 @@ export async function executeHttpRequest(data, context) {
 
   // Resolve template variables
   const resolvedUrl = resolveTemplate(url, context);
+
+  // Validate resolved URL (after template resolution)
+  if (!resolvedUrl || resolvedUrl.trim() === '') {
+    throw new Error('HTTP Request URL is required (resolved to empty string)');
+  }
   let resolvedHeaders = {};
   let resolvedBody = null;
   let resolvedQueryParams = {};

@@ -18,6 +18,13 @@ import {
   getWorkflowStatistics,
   getWorkflowExecutionHistory,
 } from '#services/full-workflow/statistics.service.js';
+import {
+  getWorkflowPerformanceStats,
+  getAllNodePerformanceStats,
+  getNodeExecutionHistory,
+  clearWorkflowPerformance,
+} from '#services/full-workflow/performance.service.js';
+import { createWorkflowVersion } from '#services/workflow-version.service.js';
 import { memoryCache } from '#config/cache.js';
 
 /**
@@ -134,6 +141,17 @@ export async function updateFullWorkflowHandler(req, reply) {
     const { name, description, type, workflow_json, is_active } = req.body;
     const workflowId = parseInt(id, 10);
 
+    // Get existing workflow to compare workflow_json for versioning
+    let existingWorkflow = null;
+    try {
+      const { getFullWorkflow } = await import(
+        '#services/full-workflow.service.js'
+      );
+      existingWorkflow = await getFullWorkflow(workflowId, userId);
+    } catch {
+      // Workflow might not exist yet, that's okay
+    }
+
     const workflow = await updateFullWorkflow(workflowId, userId, {
       name,
       description,
@@ -142,13 +160,40 @@ export async function updateFullWorkflowHandler(req, reply) {
       is_active,
     });
 
+    // Automatically create a version if workflow_json changed
+    if (workflow_json && existingWorkflow) {
+      const oldJson = JSON.stringify(existingWorkflow.workflow_json || {});
+      const newJson = JSON.stringify(workflow_json);
+
+      if (oldJson !== newJson) {
+        try {
+          // Create version snapshot automatically
+          await createWorkflowVersion(workflowId, userId, workflow_json, {
+            description: 'Auto-saved on workflow update',
+          });
+          logger.info('Created automatic workflow version', {
+            workflowId,
+            userId,
+          });
+        } catch (error) {
+          // Don't fail the save operation if versioning fails
+          logger.warn('Failed to create workflow version', {
+            workflowId,
+            error: error.message,
+          });
+        }
+      }
+    }
+
     // Handle trigger scheduling if workflow_json is updated
     if (workflow_json && workflow_json.nodes) {
       const nodes = workflow_json.nodes || [];
 
       // Find all trigger nodes
       const triggerNodes = nodes.filter(
-        node => node.type === 'google-sheets-trigger'
+        node =>
+          node.type === 'google-sheets-trigger' ||
+          node.type === 'schedule-trigger'
       );
 
       // Remove old triggers for this workflow
@@ -193,23 +238,52 @@ export async function updateFullWorkflowHandler(req, reply) {
             continue;
           }
 
-          const triggerConfig = {
-            type: 'google-sheets-trigger',
-            pollTime: triggerNode.data?.pollTime || '1 minute',
-            spreadsheetId: triggerNode.data?.spreadsheetId,
-            sheetName: triggerNode.data?.sheetName,
-            triggerOn: triggerNode.data?.triggerOn || 'Row added or updated',
-            userId,
-          };
+          let triggerConfig;
 
-          // Only schedule if all required fields are present
-          if (triggerConfig.spreadsheetId && triggerConfig.sheetName) {
-            await scheduleTriggerPolling(
-              workflowId,
-              triggerNode,
-              triggerConfig,
-              userId
-            );
+          if (triggerNode.type === 'google-sheets-trigger') {
+            triggerConfig = {
+              type: 'google-sheets-trigger',
+              pollTime: triggerNode.data?.pollTime || '1 minute',
+              spreadsheetId: triggerNode.data?.spreadsheetId,
+              sheetName: triggerNode.data?.sheetName,
+              triggerOn: triggerNode.data?.triggerOn || 'Row added or updated',
+              userId,
+            };
+
+            // Only schedule if all required fields are present
+            if (triggerConfig.spreadsheetId && triggerConfig.sheetName) {
+              await scheduleTriggerPolling(
+                workflowId,
+                triggerNode,
+                triggerConfig,
+                userId
+              );
+            }
+          } else if (triggerNode.type === 'schedule-trigger') {
+            triggerConfig = {
+              type: 'schedule-trigger',
+              preset: triggerNode.data?.preset || null,
+              cronExpression: triggerNode.data?.cronExpression || null,
+              userId,
+            };
+
+            // Only schedule if preset or cronExpression is present
+            if (triggerConfig.preset || triggerConfig.cronExpression) {
+              await scheduleTriggerPolling(
+                workflowId,
+                triggerNode,
+                triggerConfig,
+                userId
+              );
+            } else {
+              logger.warn(
+                'Skipping schedule trigger without preset or cronExpression',
+                {
+                  workflowId,
+                  triggerNodeId: triggerNode.id,
+                }
+              );
+            }
           }
         }
       }
@@ -591,6 +665,281 @@ export async function getWorkflowExecutionHistoryHandler(req, reply) {
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to get execution history',
+    });
+  }
+}
+
+/**
+ * Export workflow as JSON
+ */
+export async function exportWorkflowHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const workflowId = parseInt(id, 10);
+
+    // Get workflow
+    const workflow = await getFullWorkflow(workflowId, userId);
+
+    // Prepare export data (exclude sensitive/internal fields)
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      workflow: {
+        name: workflow.name,
+        description: workflow.description,
+        type: workflow.type,
+        workflow_json: workflow.workflow_json,
+        // Don't export: id, user_id, is_active, created_at, updated_at, trigger_config
+      },
+    };
+
+    // Set headers for file download
+    reply.header('Content-Type', 'application/json');
+    reply.header(
+      'Content-Disposition',
+      `attachment; filename="workflow-${workflow.name.replace(/[^a-z0-9]/gi, '_')}-${workflowId}.json"`
+    );
+
+    return reply.code(200).send(exportData);
+  } catch (error) {
+    logger.error('Error exporting workflow', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+
+    if (error.message === 'Full workflow not found') {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to export workflow',
+    });
+  }
+}
+
+/**
+ * Import workflow from JSON
+ */
+export async function importWorkflowHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { workflowData, name: newName } = req.body;
+
+    // Validate import data
+    if (!workflowData || typeof workflowData !== 'object') {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid workflow data. Expected a JSON object.',
+      });
+    }
+
+    // Validate required fields
+    if (!workflowData.workflow) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid workflow format. Missing "workflow" property.',
+      });
+    }
+
+    const workflow = workflowData.workflow;
+
+    // Validate workflow structure
+    if (!workflow.workflow_json || typeof workflow.workflow_json !== 'object') {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid workflow format. Missing or invalid "workflow_json".',
+      });
+    }
+
+    if (
+      !workflow.workflow_json.nodes ||
+      !Array.isArray(workflow.workflow_json.nodes)
+    ) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid workflow format. Missing or invalid "nodes" array.',
+      });
+    }
+
+    if (
+      !workflow.workflow_json.edges ||
+      !Array.isArray(workflow.workflow_json.edges)
+    ) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid workflow format. Missing or invalid "edges" array.',
+      });
+    }
+
+    // Prepare workflow data for creation
+    const workflowToCreate = {
+      name:
+        newName ||
+        workflow.name ||
+        `Imported Workflow ${new Date().toISOString()}`,
+      description: workflow.description || null,
+      type: workflow.type || 'automation',
+      workflow_json: {
+        nodes: workflow.workflow_json.nodes,
+        edges: workflow.workflow_json.edges,
+        viewport: workflow.workflow_json.viewport || { x: 0, y: 0, zoom: 1 },
+      },
+    };
+
+    // Create new workflow
+    const createdWorkflow = await createFullWorkflow(userId, workflowToCreate);
+
+    logger.info('Workflow imported successfully', {
+      workflowId: createdWorkflow.id,
+      userId,
+      importedName: workflowToCreate.name,
+    });
+
+    return reply.code(201).send({
+      success: true,
+      data: createdWorkflow,
+      message: 'Workflow imported successfully',
+    });
+  } catch (error) {
+    logger.error('Error importing workflow', {
+      error: error.message,
+      userId: req.user?.id,
+    });
+
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to import workflow',
+    });
+  }
+}
+
+/**
+ * Get workflow performance statistics
+ */
+export async function getWorkflowPerformanceHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const workflowId = parseInt(id, 10);
+
+    // Verify workflow belongs to user
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    // Get workflow-level and node-level performance stats
+    const [workflowStats, nodeStats] = await Promise.all([
+      getWorkflowPerformanceStats(workflowId),
+      getAllNodePerformanceStats(workflowId),
+    ]);
+
+    return reply.code(200).send({
+      success: true,
+      data: {
+        workflow: workflowStats,
+        nodes: nodeStats,
+      },
+    });
+  } catch (error) {
+    logger.error('Error getting workflow performance', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get performance statistics',
+    });
+  }
+}
+
+/**
+ * Get node execution history for performance graph
+ */
+export async function getNodePerformanceHistoryHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id, nodeId } = req.params;
+    const { limit = 50 } = req.query;
+    const workflowId = parseInt(id, 10);
+
+    // Verify workflow belongs to user
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    // Get execution history for the node
+    const history = await getNodeExecutionHistory(
+      workflowId,
+      nodeId,
+      parseInt(limit, 10)
+    );
+
+    return reply.code(200).send({
+      success: true,
+      data: history,
+    });
+  } catch (error) {
+    logger.error('Error getting node performance history', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+      nodeId: req.params?.nodeId,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get node performance history',
+    });
+  }
+}
+
+/**
+ * Clear performance data for a workflow
+ */
+export async function clearWorkflowPerformanceHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const workflowId = parseInt(id, 10);
+
+    // Verify workflow belongs to user
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Workflow not found',
+      });
+    }
+
+    await clearWorkflowPerformance(workflowId);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Performance data cleared successfully',
+    });
+  } catch (error) {
+    logger.error('Error clearing workflow performance', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to clear performance data',
     });
   }
 }

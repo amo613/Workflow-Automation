@@ -8,6 +8,10 @@ import { getIntegration } from '#services/integration.service.js';
  * Supports multiple operations: create, append, update, get, delete
  */
 export async function executeGoogleSheets(data, context) {
+  if (!data) {
+    throw new Error('Google Sheets node data is required');
+  }
+
   const {
     resource,
     operation,
@@ -422,6 +426,15 @@ export async function executeGoogleSheets(data, context) {
       }
     }
 
+    // Better error message with validation
+    if (!resource) {
+      throw new Error('Google Sheets resource is required (document or sheet)');
+    }
+    if (!operation) {
+      throw new Error(
+        `Google Sheets operation is required for resource: ${resource}`
+      );
+    }
     throw new Error(
       `Unknown operation: ${operation} for resource: ${resource}`
     );

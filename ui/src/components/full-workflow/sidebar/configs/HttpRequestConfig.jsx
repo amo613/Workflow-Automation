@@ -1,4 +1,5 @@
 import FormField from '../FormField.jsx';
+import ErrorConfig from './ErrorConfig.jsx';
 
 /**
  * HTTP Request Node Configuration
@@ -8,6 +9,8 @@ export default function HttpRequestConfig({
   handleUpdate,
   availableVariables,
   handleDrop,
+  nodes = [],
+  currentNodeId,
 }) {
   return (
     <>
@@ -79,6 +82,13 @@ export default function HttpRequestConfig({
           handleUpdate('body', newValue);
         }}
         onDragOver={e => e.preventDefault()}
+      />
+
+      <ErrorConfig
+        localData={localData}
+        handleUpdate={handleUpdate}
+        nodes={nodes}
+        currentNodeId={currentNodeId}
       />
     </>
   );

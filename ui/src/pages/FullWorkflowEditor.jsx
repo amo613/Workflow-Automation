@@ -21,10 +21,17 @@ import DatabaseQueryNode from '../components/full-workflow/nodes/DatabaseQueryNo
 import GoogleSheetsNode from '../components/full-workflow/nodes/GoogleSheetsNode';
 import GoogleSheetsTriggerNode from '../components/full-workflow/nodes/GoogleSheetsTriggerNode';
 import WebhookTriggerNode from '../components/full-workflow/nodes/WebhookTriggerNode';
+import ScheduleTriggerNode from '../components/full-workflow/nodes/ScheduleTriggerNode';
 import KnowledgeBaseQueryNode from '../components/full-workflow/nodes/KnowledgeBaseQueryNode';
 import AiAgentNode from '../components/full-workflow/nodes/AiAgentNode';
+import EmailNode from '../components/full-workflow/nodes/EmailNode';
+import MergeNode from '../components/full-workflow/nodes/MergeNode';
 import NodeSidebarN8N from '../components/full-workflow/NodeSidebarN8N';
 import KnowledgeBaseManager from '../components/full-workflow/KnowledgeBaseManager';
+import VersionHistory from '../components/full-workflow/VersionHistory';
+import WorkflowImportModal from '../components/full-workflow/WorkflowImportModal';
+import { workflowExportImportService } from '../services/workflowExportImport.service.js';
+import { workflowPerformanceService } from '../services/workflowPerformance.service.js';
 
 const nodeTypes = {
   start: StartNode,
@@ -39,8 +46,11 @@ const nodeTypes = {
   'google-sheets': GoogleSheetsNode,
   'google-sheets-trigger': GoogleSheetsTriggerNode,
   'webhook-trigger': WebhookTriggerNode,
+  'schedule-trigger': ScheduleTriggerNode,
   'knowledge-base-query': KnowledgeBaseQueryNode,
   'ai-agent': AiAgentNode,
+  email: EmailNode,
+  merge: MergeNode,
 };
 
 function FullWorkflowEditor() {
@@ -77,6 +87,14 @@ function FullWorkflowEditor() {
   const [showExecutionHistory, setShowExecutionHistory] = useState(false);
   const [expandedExecution, setExpandedExecution] = useState(null);
   const [generalError, setGeneralError] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [performance, setPerformance] = useState(null);
+  const [performanceLoading, setPerformanceLoading] = useState(false);
+  const [performanceError, setPerformanceError] = useState(null);
+  const [showPerformance, setShowPerformance] = useState(false);
+  const [selectedNodeForGraph, setSelectedNodeForGraph] = useState(null);
+  const [nodeHistory, setNodeHistory] = useState([]);
 
   const onNodeUpdate = (nodeId, newData) => {
     setNodes(nds => {
@@ -179,6 +197,47 @@ function FullWorkflowEditor() {
     }
   }, [id, isNew]);
 
+  // Fetch performance data
+  const fetchPerformance = async () => {
+    if (!id || isNew) return;
+    try {
+      setPerformanceLoading(true);
+      setPerformanceError(null);
+      const data = await workflowPerformanceService.getPerformance(
+        parseInt(id, 10)
+      );
+      setPerformance(data);
+    } catch (error) {
+      console.error('Error fetching performance:', error);
+      setPerformanceError(error.message);
+    } finally {
+      setPerformanceLoading(false);
+    }
+  };
+
+  // Fetch performance on mount and when workflow changes
+  useEffect(() => {
+    if (!isNew && id) {
+      fetchPerformance();
+      // Refresh performance every 30 seconds
+      const interval = setInterval(fetchPerformance, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [id, isNew]);
+
+  // Fetch node history when node is selected for graph
+  useEffect(() => {
+    if (selectedNodeForGraph && id && !isNew) {
+      workflowPerformanceService
+        .getNodeHistory(parseInt(id, 10), selectedNodeForGraph, 50)
+        .then(setNodeHistory)
+        .catch(err => {
+          console.error('Error fetching node history:', err);
+          setNodeHistory([]);
+        });
+    }
+  }, [selectedNodeForGraph, id, isNew]);
+
   // Track last seen execution timestamp to detect new executions
   const lastExecutionTimestampRef = useRef(null);
 
@@ -238,6 +297,16 @@ function FullWorkflowEditor() {
           // Update last seen timestamp
           lastExecutionTimestampRef.current = latestTimestamp;
 
+          // Reset all nodes to 'running' status and clear executed edges
+          // This gives visual feedback that a new execution has started (like manual execute button)
+          setNodes(nds =>
+            nds.map(node => ({
+              ...node,
+              data: { ...node.data, status: 'running' },
+            }))
+          );
+          setExecutedEdges([]);
+
           // Load outputs if execution has an eventId (try for both success and failure)
           if (!latestExecution.eventId) {
             console.warn('⚠️ Execution has no eventId - cannot load outputs', {
@@ -268,24 +337,119 @@ function FullWorkflowEditor() {
 
               if (resultsResponse.ok) {
                 const resultsData = await resultsResponse.json();
+
+                // Check if workflow is still running (pending/running status)
+                const status = resultsData.data?.status;
+                if (status === 'pending' || status === 'running') {
+                  // Workflow is still running - update nodes incrementally as they complete
+                  if (
+                    resultsData.data.executionLog &&
+                    resultsData.data.executionLog.length > 0
+                  ) {
+                    const executionLog = resultsData.data.executionLog || [];
+                    const nodeOutputs = resultsData.data.nodeOutputs || {};
+
+                    // Update nodes immediately as they appear in executionLog
+                    setNodes(nds =>
+                      nds.map(node => {
+                        const logEntry = executionLog.find(
+                          e => e.nodeId === node.id
+                        );
+                        if (logEntry) {
+                          const nodeOutput = nodeOutputs[node.id];
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              status:
+                                logEntry.status === 'failed'
+                                  ? 'failed'
+                                  : 'success',
+                              output: nodeOutput || node.data.output,
+                            },
+                          };
+                        }
+                        // Keep nodes that haven't executed yet as 'running'
+                        return node;
+                      })
+                    );
+
+                    // Update executed edges immediately
+                    if (resultsData.data.executedEdges) {
+                      setExecutedEdges(resultsData.data.executedEdges);
+                    }
+                  }
+                  // Continue polling - workflow still running
+                  // Retry after 1 second to get updates
+                  if (retryCount < 30) {
+                    // Max 30 retries = 30 seconds
+                    setTimeout(() => loadOutputs(retryCount + 1), 1000);
+                  }
+                  return;
+                }
+
+                // Workflow completed - update all nodes
                 if (resultsData.success && resultsData.data?.nodeOutputs) {
                   // Update nodes with outputs from execution
-                  setNodes(nds =>
-                    nds.map(node => {
-                      const nodeOutput = resultsData.data.nodeOutputs[node.id];
-                      if (nodeOutput !== undefined) {
-                        return {
-                          ...node,
-                          data: {
-                            ...node.data,
-                            status: 'success',
-                            output: nodeOutput,
-                          },
-                        };
-                      }
-                      return node;
-                    })
-                  );
+                  // Use executionLog to update nodes in order (with timestamps)
+                  const executionLog = resultsData.data.executionLog || [];
+                  const nodeOutputs = resultsData.data.nodeOutputs || {};
+
+                  // Sort execution log by timestamp to get correct order
+                  const sortedLog = [...executionLog].sort((a, b) => {
+                    const timeA = new Date(a.timestamp || 0).getTime();
+                    const timeB = new Date(b.timestamp || 0).getTime();
+                    return timeA - timeB;
+                  });
+
+                  // Update nodes one by one with a small delay for visual effect
+                  sortedLog.forEach((logEntry, index) => {
+                    setTimeout(() => {
+                      setNodes(nds =>
+                        nds.map(node => {
+                          if (node.id === logEntry.nodeId) {
+                            const nodeOutput = nodeOutputs[node.id];
+                            return {
+                              ...node,
+                              data: {
+                                ...node.data,
+                                status:
+                                  logEntry.status === 'failed'
+                                    ? 'failed'
+                                    : 'success',
+                                output: nodeOutput || node.data.output,
+                              },
+                            };
+                          }
+                          return node;
+                        })
+                      );
+                    }, index * 100); // 100ms delay between each node update
+                  });
+
+                  // Also update any nodes that have outputs but aren't in executionLog
+                  // (fallback for nodes that completed but weren't logged)
+                  setTimeout(() => {
+                    setNodes(nds =>
+                      nds.map(node => {
+                        const nodeOutput = nodeOutputs[node.id];
+                        if (
+                          nodeOutput !== undefined &&
+                          !sortedLog.find(e => e.nodeId === node.id)
+                        ) {
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              status: 'success',
+                              output: nodeOutput,
+                            },
+                          };
+                        }
+                        return node;
+                      })
+                    );
+                  }, sortedLog.length * 100);
 
                   // Update executed edges if available
                   if (resultsData.data.executedEdges) {
@@ -435,7 +599,16 @@ function FullWorkflowEditor() {
       // Load nodes and edges from workflow_json
       const workflowJson = workflow.workflow_json || {};
       setNodes(workflowJson.nodes || []);
-      setEdges(workflowJson.edges || []);
+      // Ensure all edges have IDs when loading (React Flow requires IDs)
+      // This fixes issues with workflows that were saved without edge IDs
+      const loadedEdges = (workflowJson.edges || []).map((edge, index) => ({
+        ...edge,
+        id:
+          edge.id ||
+          `reactflow__edge-${edge.source}-${edge.target}` ||
+          `edge-${index}-${edge.source}-${edge.target}`,
+      }));
+      setEdges(loadedEdges);
     } catch (err) {
       alert('Failed to load workflow: ' + err.message);
       console.error('Error fetching workflow:', err);
@@ -531,7 +704,7 @@ function FullWorkflowEditor() {
           workflowId: Number(id),
         });
 
-        // Start polling with the existing eventId
+        // Start polling with the existing eventId immediately
         pollingIntervalRef.current = setInterval(async () => {
           try {
             const resultsResponse = await fetch(
@@ -543,6 +716,52 @@ function FullWorkflowEditor() {
 
             if (resultsResponse.ok) {
               const resultsData = await resultsResponse.json();
+
+              // Check if workflow is still pending or running
+              if (resultsData.success && resultsData.data) {
+                const status = resultsData.data.status;
+                if (status === 'pending' || status === 'running') {
+                  // Workflow is still running - update nodes incrementally as they complete
+                  if (
+                    resultsData.data.executionLog &&
+                    resultsData.data.executionLog.length > 0
+                  ) {
+                    const executionLog = resultsData.data.executionLog || [];
+                    const nodeOutputs = resultsData.data.nodeOutputs || {};
+
+                    // Update nodes immediately as they appear in executionLog
+                    setNodes(nds =>
+                      nds.map(node => {
+                        const logEntry = executionLog.find(
+                          e => e.nodeId === node.id
+                        );
+                        if (logEntry) {
+                          const nodeOutput = nodeOutputs[node.id];
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              status:
+                                logEntry.status === 'failed'
+                                  ? 'failed'
+                                  : 'success',
+                              output: nodeOutput || node.data.output,
+                            },
+                          };
+                        }
+                        return node;
+                      })
+                    );
+
+                    // Update executed edges immediately
+                    if (resultsData.data.executedEdges) {
+                      setExecutedEdges(resultsData.data.executedEdges);
+                    }
+                  }
+                  // Continue polling - workflow still running
+                  return;
+                }
+              }
 
               if (resultsData.success && resultsData.data) {
                 if (pollingIntervalRef.current) {
@@ -562,31 +781,32 @@ function FullWorkflowEditor() {
                   workflowId: resultsData.data.workflowId,
                 });
 
-                // Update nodes with outputs from execution
+                // Final update of all nodes (in case some weren't updated incrementally)
                 if (resultsData.data.nodeOutputs) {
+                  const executionLog = resultsData.data.executionLog || [];
+                  const nodeOutputs = resultsData.data.nodeOutputs || {};
+
                   setNodes(nds =>
                     nds.map(node => {
-                      const nodeOutput = resultsData.data.nodeOutputs[node.id];
-                      return {
-                        ...node,
-                        data: {
-                          ...node.data,
-                          status:
-                            nodeOutput !== undefined
-                              ? 'success'
-                              : node.data.status || 'idle',
-                          output: nodeOutput || node.data.output,
-                        },
-                      };
+                      const logEntry = executionLog.find(
+                        e => e.nodeId === node.id
+                      );
+                      const nodeOutput = nodeOutputs[node.id];
+                      if (logEntry || nodeOutput !== undefined) {
+                        return {
+                          ...node,
+                          data: {
+                            ...node.data,
+                            status:
+                              logEntry?.status === 'failed'
+                                ? 'failed'
+                                : 'success',
+                            output: nodeOutput || node.data.output,
+                          },
+                        };
+                      }
+                      return node;
                     })
-                  );
-                } else {
-                  // Fallback: mark all nodes as success
-                  setNodes(nds =>
-                    nds.map(node => ({
-                      ...node,
-                      data: { ...node.data, status: 'success' },
-                    }))
                   );
                 }
 
@@ -598,19 +818,15 @@ function FullWorkflowEditor() {
                 // Refresh statistics and history after successful execution
                 await fetchStatistics();
                 await fetchExecutionHistory();
+                await fetchPerformance();
 
                 setExecuting(false);
               }
             } else if (resultsResponse.status === 404) {
-              // Still running, continue polling
-              setExecutionStatus({
-                status: 'running',
-                message: 'Workflow executing via Inngest...',
-                eventId: eventId,
-                workflowId: Number(id),
-              });
+              // Still running, continue polling silently (no error, just wait)
+              // Don't update status unnecessarily, just continue
             } else {
-              // Error occurred
+              // Only stop on non-404 errors (5xx, etc.)
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
                 pollingIntervalRef.current = null;
@@ -638,10 +854,13 @@ function FullWorkflowEditor() {
               await fetchExecutionHistory();
             }
           } catch (pollError) {
-            console.error('Error polling execution results:', pollError);
-            // Continue polling on error
+            // Silently continue polling on network errors (404s are expected)
+            // Only log actual errors, not expected 404s
+            if (!pollError.message?.includes('404')) {
+              // Continue polling silently
+            }
           }
-        }, 500); // Poll every 500ms
+        }, 200); // Poll every 200ms for fast response
 
         // Stop polling after 5 minutes (timeout)
         pollingTimeoutRef.current = setTimeout(() => {
@@ -674,7 +893,7 @@ function FullWorkflowEditor() {
           workflowId: result.data?.workflowId,
         });
 
-        // Poll for execution results
+        // Poll for execution results immediately
         pollingIntervalRef.current = setInterval(async () => {
           try {
             const resultsResponse = await fetch(
@@ -686,6 +905,52 @@ function FullWorkflowEditor() {
 
             if (resultsResponse.ok) {
               const resultsData = await resultsResponse.json();
+
+              // Check if workflow is still pending or running
+              if (resultsData.success && resultsData.data) {
+                const status = resultsData.data.status;
+                if (status === 'pending' || status === 'running') {
+                  // Workflow is still running - update nodes incrementally as they complete
+                  if (
+                    resultsData.data.executionLog &&
+                    resultsData.data.executionLog.length > 0
+                  ) {
+                    const executionLog = resultsData.data.executionLog || [];
+                    const nodeOutputs = resultsData.data.nodeOutputs || {};
+
+                    // Update nodes immediately as they appear in executionLog
+                    setNodes(nds =>
+                      nds.map(node => {
+                        const logEntry = executionLog.find(
+                          e => e.nodeId === node.id
+                        );
+                        if (logEntry) {
+                          const nodeOutput = nodeOutputs[node.id];
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              status:
+                                logEntry.status === 'failed'
+                                  ? 'failed'
+                                  : 'success',
+                              output: nodeOutput || node.data.output,
+                            },
+                          };
+                        }
+                        return node;
+                      })
+                    );
+
+                    // Update executed edges immediately
+                    if (resultsData.data.executedEdges) {
+                      setExecutedEdges(resultsData.data.executedEdges);
+                    }
+                  }
+                  // Continue polling - workflow still running
+                  return;
+                }
+              }
 
               if (resultsData.success && resultsData.data) {
                 if (pollingIntervalRef.current) {
@@ -705,31 +970,32 @@ function FullWorkflowEditor() {
                   workflowId: resultsData.data.workflowId,
                 });
 
-                // Update nodes with outputs from execution
+                // Final update of all nodes (in case some weren't updated incrementally)
                 if (resultsData.data.nodeOutputs) {
+                  const executionLog = resultsData.data.executionLog || [];
+                  const nodeOutputs = resultsData.data.nodeOutputs || {};
+
                   setNodes(nds =>
                     nds.map(node => {
-                      const nodeOutput = resultsData.data.nodeOutputs[node.id];
-                      return {
-                        ...node,
-                        data: {
-                          ...node.data,
-                          status:
-                            nodeOutput !== undefined
-                              ? 'success'
-                              : node.data.status || 'idle',
-                          output: nodeOutput || node.data.output,
-                        },
-                      };
+                      const logEntry = executionLog.find(
+                        e => e.nodeId === node.id
+                      );
+                      const nodeOutput = nodeOutputs[node.id];
+                      if (logEntry || nodeOutput !== undefined) {
+                        return {
+                          ...node,
+                          data: {
+                            ...node.data,
+                            status:
+                              logEntry?.status === 'failed'
+                                ? 'failed'
+                                : 'success',
+                            output: nodeOutput || node.data.output,
+                          },
+                        };
+                      }
+                      return node;
                     })
-                  );
-                } else {
-                  // Fallback: mark all nodes as success
-                  setNodes(nds =>
-                    nds.map(node => ({
-                      ...node,
-                      data: { ...node.data, status: 'success' },
-                    }))
                   );
                 }
 
@@ -741,15 +1007,10 @@ function FullWorkflowEditor() {
                 setExecuting(false);
               }
             } else if (resultsResponse.status === 404) {
-              // Still running, continue polling
-              setExecutionStatus({
-                status: 'running',
-                message: 'Workflow executing via Inngest...',
-                eventId: eventId,
-                workflowId: result.data?.workflowId,
-              });
+              // Still running, continue polling silently (no error, just wait)
+              // Don't update status unnecessarily, just continue
             } else {
-              // Error occurred
+              // Only stop on non-404 errors (5xx, etc.)
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
                 pollingIntervalRef.current = null;
@@ -773,10 +1034,13 @@ function FullWorkflowEditor() {
               setExecuting(false);
             }
           } catch (pollError) {
-            console.error('Error polling execution results:', pollError);
-            // Continue polling on error
+            // Silently continue polling on network errors (404s are expected)
+            // Only log actual errors, not expected 404s
+            if (!pollError.message?.includes('404')) {
+              // Continue polling silently
+            }
           }
-        }, 500); // Poll every 500ms
+        }, 200); // Poll every 200ms for fast response
 
         // Stop polling after 5 minutes (timeout)
         pollingTimeoutRef.current = setTimeout(() => {
@@ -834,9 +1098,32 @@ function FullWorkflowEditor() {
       // Refresh statistics and history after failed execution
       await fetchStatistics();
       await fetchExecutionHistory();
+      await fetchPerformance();
     } finally {
       setExecuting(false);
     }
+  };
+
+  const handleExport = async () => {
+    if (isNew) {
+      alert('Please save the workflow before exporting');
+      return;
+    }
+
+    try {
+      setExporting(true);
+      await workflowExportImportService.exportWorkflow(parseInt(id, 10));
+    } catch (err) {
+      alert('Failed to export workflow: ' + err.message);
+      console.error('Error exporting workflow:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportSuccess = importedWorkflow => {
+    // Navigate to the imported workflow
+    navigate(`/fullWorkflows/edit/${importedWorkflow.id}`);
   };
 
   const handleSave = async () => {
@@ -855,15 +1142,25 @@ function FullWorkflowEditor() {
           position,
           data,
         })),
-        edges: edges.map(
-          ({ id, source, target, sourceHandle, targetHandle }) => ({
-            id,
-            source,
-            target,
-            sourceHandle,
-            targetHandle,
-          })
-        ),
+        edges: edges.map((edge, index) => {
+          // Ensure every edge has an ID - React Flow generates IDs automatically
+          // Format: reactflow__edge-${source}-${target}
+          const edgeId =
+            edge.id ||
+            `reactflow__edge-${edge.source}-${edge.target}` ||
+            `edge-${index}-${edge.source}-${edge.target}`;
+          return {
+            id: edgeId,
+            source: edge.source,
+            target: edge.target,
+            ...(edge.sourceHandle != null && {
+              sourceHandle: edge.sourceHandle,
+            }),
+            ...(edge.targetHandle != null && {
+              targetHandle: edge.targetHandle,
+            }),
+          };
+        }),
       };
 
       const url = isNew ? '/api/full-workflows' : `/api/full-workflows/${id}`;
@@ -893,10 +1190,11 @@ function FullWorkflowEditor() {
         navigate(`/fullWorkflows/edit/${result.data.id}`);
       } else {
         setGeneralError(null);
-        // Refresh active triggers, statistics and history after saving
+        // Refresh active triggers, statistics, history and performance after saving
         await fetchActiveTriggers();
         await fetchStatistics();
         await fetchExecutionHistory();
+        await fetchPerformance();
       }
     } catch (err) {
       const errorMessage = err.message || 'Failed to save workflow';
@@ -1022,6 +1320,76 @@ function FullWorkflowEditor() {
             }}
           >
             📚 Knowledge Base
+          </button>
+          {!isNew && (
+            <button
+              onClick={handleExport}
+              disabled={exporting || saving}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: exporting || saving ? 'not-allowed' : 'pointer',
+                opacity: exporting || saving ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => {
+                if (!exporting && !saving) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow =
+                    '0 4px 12px rgba(245, 158, 11, 0.3)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!exporting && !saving) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
+            >
+              {exporting ? '⏳ Exporting...' : '📤 Export'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowImportModal(true)}
+            disabled={saving}
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              if (!saving) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow =
+                  '0 4px 12px rgba(16, 185, 129, 0.3)';
+              }
+            }}
+            onMouseLeave={e => {
+              if (!saving) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            📥 Import
           </button>
           <button
             onClick={handleSave}
@@ -1757,6 +2125,419 @@ function FullWorkflowEditor() {
             </div>
           )}
 
+          {/* Performance Section */}
+          {!isNew && (
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '0.75rem',
+                background: '#f8fafc',
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: performance?.workflow ? '#059669' : '#64748b',
+                    margin: 0,
+                  }}
+                >
+                  ⚡ Performance
+                </h3>
+                <button
+                  onClick={() => setShowPerformance(!showPerformance)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: performance?.workflow ? '#10b981' : '#64748b',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  {showPerformance ? '▼' : '▶'}
+                </button>
+              </div>
+              {showPerformance && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {performanceError && (
+                    <div
+                      style={{
+                        padding: '0.5rem',
+                        background: '#fee2e2',
+                        border: '1px solid #ef4444',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#dc2626',
+                      }}
+                    >
+                      Error: {performanceError}
+                    </div>
+                  )}
+                  {performanceLoading && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#64748b',
+                        textAlign: 'center',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      Loading performance data...
+                    </div>
+                  )}
+                  {!performanceLoading && !performanceError && performance && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      {/* Workflow-Level Performance */}
+                      {performance.workflow && (
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              color: '#64748b',
+                              marginBottom: '0.5rem',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Workflow Performance
+                          </div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            <span style={{ color: '#64748b' }}>Avg Time</span>
+                            <span style={{ fontWeight: 600, color: '#1f2937' }}>
+                              {performance.workflow.avgExecutionTime.toFixed(2)}
+                              ms
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            <span style={{ color: '#64748b' }}>Min Time</span>
+                            <span style={{ fontWeight: 600, color: '#10b981' }}>
+                              {performance.workflow.minExecutionTime.toFixed(2)}
+                              ms
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            <span style={{ color: '#64748b' }}>Max Time</span>
+                            <span style={{ fontWeight: 600, color: '#ef4444' }}>
+                              {performance.workflow.maxExecutionTime.toFixed(2)}
+                              ms
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span style={{ color: '#64748b' }}>
+                              Total Executions
+                            </span>
+                            <span style={{ fontWeight: 600, color: '#1f2937' }}>
+                              {performance.workflow.totalExecutions}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Node-Level Performance (Bottlenecks) */}
+                      {performance.nodes && performance.nodes.length > 0 && (
+                        <div>
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              color: '#64748b',
+                              marginBottom: '0.5rem',
+                              textTransform: 'uppercase',
+                              borderTop: '1px solid #e5e7eb',
+                              paddingTop: '0.75rem',
+                            }}
+                          >
+                            Node Performance (Top Bottlenecks)
+                          </div>
+                          <div
+                            style={{ maxHeight: '300px', overflowY: 'auto' }}
+                          >
+                            {performance.nodes.slice(0, 5).map((node, idx) => (
+                              <div
+                                key={node.nodeId}
+                                style={{
+                                  padding: '0.5rem',
+                                  background: idx === 0 ? '#fef3c7' : '#f8fafc',
+                                  borderRadius: '6px',
+                                  marginBottom: '0.5rem',
+                                  border:
+                                    idx === 0
+                                      ? '1px solid #f59e0b'
+                                      : '1px solid #e0e0e0',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: '0.25rem',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontWeight: 600,
+                                      color: '#1f2937',
+                                      fontSize: '0.7rem',
+                                    }}
+                                  >
+                                    {node.nodeType}
+                                  </span>
+                                  {idx === 0 && (
+                                    <span
+                                      style={{
+                                        fontSize: '0.65rem',
+                                        color: '#f59e0b',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      🔥 Slowest
+                                    </span>
+                                  )}
+                                </div>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    fontSize: '0.65rem',
+                                    color: '#64748b',
+                                  }}
+                                >
+                                  <span>Avg: {node.avg.toFixed(2)}ms</span>
+                                  <span>Min: {node.min.toFixed(2)}ms</span>
+                                  <span>Max: {node.max.toFixed(2)}ms</span>
+                                  <span>Count: {node.count}</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedNodeForGraph(
+                                      selectedNodeForGraph === node.nodeId
+                                        ? null
+                                        : node.nodeId
+                                    );
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    marginTop: '0.5rem',
+                                    padding: '0.25rem',
+                                    background: 'transparent',
+                                    border: '1px solid #e0e0e0',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.65rem',
+                                    color: '#64748b',
+                                  }}
+                                >
+                                  {selectedNodeForGraph === node.nodeId
+                                    ? 'Hide Graph'
+                                    : 'Show Graph'}
+                                </button>
+                                {selectedNodeForGraph === node.nodeId &&
+                                  nodeHistory.length > 0 && (
+                                    <div
+                                      style={{
+                                        marginTop: '0.5rem',
+                                        padding: '0.5rem',
+                                        background: 'white',
+                                        borderRadius: '4px',
+                                        border: '1px solid #e0e0e0',
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          fontSize: '0.65rem',
+                                          color: '#64748b',
+                                          marginBottom: '0.25rem',
+                                        }}
+                                      >
+                                        Execution Time Over Time
+                                      </div>
+                                      <div
+                                        style={{
+                                          height: '60px',
+                                          display: 'flex',
+                                          alignItems: 'flex-end',
+                                          gap: '2px',
+                                        }}
+                                      >
+                                        {nodeHistory
+                                          .slice(-20)
+                                          .map((record, i) => {
+                                            const maxTime = Math.max(
+                                              ...nodeHistory.map(
+                                                r => r.executionTime
+                                              )
+                                            );
+                                            const height =
+                                              (record.executionTime / maxTime) *
+                                              100;
+                                            return (
+                                              <div
+                                                key={i}
+                                                style={{
+                                                  flex: 1,
+                                                  background:
+                                                    record.executionTime >
+                                                    node.avg
+                                                      ? '#ef4444'
+                                                      : '#10b981',
+                                                  height: `${height}%`,
+                                                  minHeight: '2px',
+                                                  borderRadius: '2px 2px 0 0',
+                                                }}
+                                                title={`${record.executionTime.toFixed(2)}ms`}
+                                              />
+                                            );
+                                          })}
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {(!performance.workflow ||
+                        !performance.nodes ||
+                        performance.nodes.length === 0) && (
+                        <div
+                          style={{
+                            padding: '0.75rem',
+                            textAlign: 'center',
+                            color: '#64748b',
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          No performance data available yet. Execute the
+                          workflow to collect performance metrics.
+                        </div>
+                      )}
+
+                      {/* Clear Performance Button */}
+                      {performance.workflow && (
+                        <button
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                'Are you sure you want to clear all performance data?'
+                              )
+                            ) {
+                              try {
+                                await workflowPerformanceService.clearPerformance(
+                                  parseInt(id, 10)
+                                );
+                                await fetchPerformance();
+                              } catch (err) {
+                                alert(
+                                  'Failed to clear performance data: ' +
+                                    err.message
+                                );
+                              }
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            marginTop: '0.75rem',
+                            padding: '0.5rem',
+                            background: '#fee2e2',
+                            border: '1px solid #ef4444',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            color: '#dc2626',
+                            fontWeight: 600,
+                          }}
+                        >
+                          🗑️ Clear Performance Data
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {!performanceLoading && !performanceError && !performance && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'white',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        color: '#64748b',
+                        textAlign: 'center',
+                        border: '1px solid #e0e0e0',
+                      }}
+                    >
+                      No performance data available yet.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Version History Section */}
+          {!isNew && (
+            <VersionHistory
+              workflowId={parseInt(id, 10)}
+              onRestore={restoredWorkflowJson => {
+                // Update the workflow with restored version
+                setNodes(restoredWorkflowJson.nodes || []);
+                setEdges(restoredWorkflowJson.edges || []);
+                // Reload the workflow to get the latest data
+                window.location.reload();
+              }}
+            />
+          )}
+
           {/* Active Triggers Section */}
           {!isNew && (
             <div
@@ -1849,8 +2630,8 @@ function FullWorkflowEditor() {
                           border: '1px solid #e0e0e0',
                         }}
                       >
-                        No active triggers. Add a Google Sheets Trigger node and
-                        save the workflow to activate.
+                        No active triggers. Add a Trigger node (Google Sheets,
+                        Schedule, or Webhook) and save the workflow to activate.
                       </div>
                     )}
                   {activeTriggers.map((trigger, index) => (
@@ -1875,7 +2656,11 @@ function FullWorkflowEditor() {
                       >
                         {trigger.triggerConfig?.type === 'google-sheets-trigger'
                           ? '📊 Google Sheets Trigger'
-                          : '🚀 Manual Trigger'}
+                          : trigger.triggerConfig?.type === 'schedule-trigger'
+                            ? '⏰ Schedule Trigger'
+                            : trigger.triggerConfig?.type === 'webhook-trigger'
+                              ? '🔗 Webhook Trigger'
+                              : '🚀 Manual Trigger'}
                         {trigger.state && (
                           <span
                             style={{
@@ -1893,37 +2678,106 @@ function FullWorkflowEditor() {
                           </span>
                         )}
                       </div>
-                      {trigger.triggerConfig?.spreadsheetId && (
-                        <div
-                          style={{
-                            color: '#64748b',
-                            fontSize: '0.7rem',
-                            marginBottom: '0.25rem',
-                          }}
-                        >
-                          Sheet: {trigger.triggerConfig.sheetName || 'N/A'}
-                        </div>
+                      {/* Webhook Trigger Info */}
+                      {trigger.triggerConfig?.type === 'webhook-trigger' && (
+                        <>
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.7rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Method: {trigger.triggerConfig.method || 'POST'}
+                          </div>
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.7rem',
+                              marginBottom: '0.25rem',
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            URL:{' '}
+                            <code
+                              style={{
+                                background: '#f1f5f9',
+                                padding: '0.125rem 0.25rem',
+                                borderRadius: '4px',
+                                fontSize: '0.65rem',
+                              }}
+                            >
+                              {typeof window !== 'undefined'
+                                ? `${window.location.origin}${trigger.triggerConfig.webhookUrl}`
+                                : trigger.triggerConfig.webhookUrl}
+                            </code>
+                          </div>
+                        </>
                       )}
-                      <div
-                        style={{
-                          color: '#64748b',
-                          fontSize: '0.7rem',
-                          marginBottom: '0.25rem',
-                        }}
-                      >
-                        Poll Interval:{' '}
-                        {trigger.triggerConfig?.pollTime || 'N/A'}
-                      </div>
-                      {trigger.triggerConfig?.triggerOn && (
-                        <div
-                          style={{
-                            color: '#64748b',
-                            fontSize: '0.7rem',
-                            marginBottom: '0.25rem',
-                          }}
-                        >
-                          Trigger On: {trigger.triggerConfig.triggerOn}
-                        </div>
+                      {/* Google Sheets Trigger Info */}
+                      {trigger.triggerConfig?.type ===
+                        'google-sheets-trigger' && (
+                        <>
+                          {trigger.triggerConfig?.spreadsheetId && (
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Sheet: {trigger.triggerConfig.sheetName || 'N/A'}
+                            </div>
+                          )}
+                          <div
+                            style={{
+                              color: '#64748b',
+                              fontSize: '0.7rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Poll Interval:{' '}
+                            {trigger.triggerConfig?.pollTime || 'N/A'}
+                          </div>
+                          {trigger.triggerConfig?.triggerOn && (
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Trigger On: {trigger.triggerConfig.triggerOn}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {/* Schedule Trigger Info */}
+                      {trigger.triggerConfig?.type === 'schedule-trigger' && (
+                        <>
+                          {trigger.triggerConfig?.cronExpression && (
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Cron: {trigger.triggerConfig.cronExpression}
+                            </div>
+                          )}
+                          {trigger.triggerConfig?.preset && (
+                            <div
+                              style={{
+                                color: '#64748b',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Preset: {trigger.triggerConfig.preset}
+                            </div>
+                          )}
+                        </>
                       )}
                       {trigger.nextRun && (
                         <div
@@ -2027,6 +2881,23 @@ function FullWorkflowEditor() {
               <span>🔗</span>
               <span>Webhook Trigger</span>
             </button>
+            <button
+              onClick={() => addNode('schedule-trigger')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>⏰</span>
+              <span>Schedule Trigger</span>
+            </button>
           </div>
 
           {/* Action Nodes */}
@@ -2078,57 +2949,6 @@ function FullWorkflowEditor() {
             >
               <span>📞</span>
               <span>Call Agent</span>
-            </button>
-            <button
-              onClick={() => addNode('variable-set')}
-              style={{
-                padding: '0.75rem',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                background: 'white',
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span>📝</span>
-              <span>Set Variable</span>
-            </button>
-            <button
-              onClick={() => addNode('if')}
-              style={{
-                padding: '0.75rem',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                background: 'white',
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span>❓</span>
-              <span>If Condition</span>
-            </button>
-            <button
-              onClick={() => addNode('wait')}
-              style={{
-                padding: '0.75rem',
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                background: 'white',
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span>⏱️</span>
-              <span>Wait</span>
             </button>
             <button
               onClick={() => addNode('database-query')}
@@ -2199,6 +3019,110 @@ function FullWorkflowEditor() {
               <span>AI Agent</span>
             </button>
             <button
+              onClick={() => addNode('email')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>📧</span>
+              <span>Email</span>
+            </button>
+          </div>
+
+          {/* Utility Nodes */}
+          <h3
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: '#64748b',
+              marginTop: '1.5rem',
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+            }}
+          >
+            Utility Nodes
+          </h3>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+          >
+            <button
+              onClick={() => addNode('if')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>🔀</span>
+              <span>If (Condition)</span>
+            </button>
+            <button
+              onClick={() => addNode('merge')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>🔀</span>
+              <span>Merge</span>
+            </button>
+            <button
+              onClick={() => addNode('wait')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>⏳</span>
+              <span>Wait</span>
+            </button>
+            <button
+              onClick={() => addNode('variable-set')}
+              style={{
+                padding: '0.75rem',
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                background: 'white',
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>📝</span>
+              <span>Variable Set</span>
+            </button>
+            <button
               onClick={() => addNode('end')}
               style={{
                 padding: '0.75rem',
@@ -2231,19 +3155,34 @@ function FullWorkflowEditor() {
         >
           <ReactFlow
             nodes={nodes}
-            edges={edges.map(edge => ({
-              ...edge,
-              style: {
-                ...edge.style,
-                stroke: executedEdges.includes(edge.id)
-                  ? '#10b981'
-                  : edge.style?.stroke || '#b1b1b7',
-                strokeWidth: executedEdges.includes(edge.id)
-                  ? 3
-                  : edge.style?.strokeWidth || 2,
-              },
-              animated: executedEdges.includes(edge.id),
-            }))}
+            edges={edges.map(edge => {
+              // Check if this is a fallback edge
+              const sourceNode = nodes.find(n => n.id === edge.source);
+              const isFallbackEdge =
+                sourceNode?.data?.errorConfig?.onError === 'fallback' &&
+                sourceNode?.data?.errorConfig?.fallbackNodeId === edge.target;
+
+              return {
+                ...edge,
+                style: {
+                  ...edge.style,
+                  stroke: isFallbackEdge
+                    ? executedEdges.includes(edge.id)
+                      ? '#f59e0b' // Orange when executed
+                      : '#ef4444' // Red for fallback edges
+                    : executedEdges.includes(edge.id)
+                      ? '#10b981' // Green when executed
+                      : edge.style?.stroke || '#b1b1b7',
+                  strokeWidth: executedEdges.includes(edge.id)
+                    ? 3
+                    : isFallbackEdge
+                      ? 2.5
+                      : edge.style?.strokeWidth || 2,
+                  strokeDasharray: isFallbackEdge ? '5,5' : undefined, // Dashed line for fallback
+                },
+                animated: executedEdges.includes(edge.id),
+              };
+            })}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -2262,13 +3201,16 @@ function FullWorkflowEditor() {
                   'http-request': '#3b82f6',
                   'call-agent': '#10b981',
                   'ai-agent': '#3b82f6',
+                  email: '#8b5cf6',
                   'variable-set': '#f59e0b',
                   if: '#f59e0b',
+                  merge: '#8b5cf6',
                   wait: '#6366f1',
                   'database-query': '#06b6d4',
                   'google-sheets': '#34d399',
                   'google-sheets-trigger': '#34d399',
                   'webhook-trigger': '#8b5cf6',
+                  'schedule-trigger': '#8b5cf6',
                   'knowledge-base-query': '#a78bfa',
                 };
                 return colors[node.type] || '#94a3b8';
@@ -2394,6 +3336,13 @@ function FullWorkflowEditor() {
           </button>
         </div>
       )}
+
+      {/* Import Modal */}
+      <WorkflowImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={handleImportSuccess}
+      />
     </div>
   );
 }

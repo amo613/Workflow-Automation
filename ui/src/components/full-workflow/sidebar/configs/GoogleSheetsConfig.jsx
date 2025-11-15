@@ -1,4 +1,5 @@
 import VariableAutocomplete from '../../VariableAutocomplete.jsx';
+import ErrorConfig from './ErrorConfig.jsx';
 
 /**
  * Google Sheets Node Configuration
@@ -16,6 +17,8 @@ export default function GoogleSheetsConfig({
   fetchColumns,
   setShowSpreadsheetModal,
   setShowSheetModal,
+  nodes = [],
+  currentNodeId,
 }) {
   return (
     <>
@@ -979,6 +982,13 @@ export default function GoogleSheetsConfig({
           )}
         </>
       )}
+
+      <ErrorConfig
+        localData={localData}
+        handleUpdate={handleUpdate}
+        nodes={nodes}
+        currentNodeId={currentNodeId}
+      />
     </>
   );
 }

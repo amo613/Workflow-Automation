@@ -75,6 +75,17 @@ export const triggerPollingWorker = new Worker(
         );
       }
 
+      if (triggerConfig.type === 'schedule-trigger') {
+        // Get userId from triggerConfig or workflow
+        const userId = triggerConfig.userId || workflow.user_id;
+        return await handleScheduleTrigger(
+          workflowId,
+          triggerNode,
+          triggerConfig,
+          userId
+        );
+      }
+
       return { success: false, reason: 'unknown_trigger_type' };
     } catch (error) {
       logger.error('Error processing trigger polling job', {
@@ -349,6 +360,61 @@ async function handleGoogleSheetsTrigger(
 }
 
 /**
+ * Handle Schedule trigger execution
+ */
+async function handleScheduleTrigger(
+  workflowId,
+  triggerNode,
+  triggerConfig,
+  userId
+) {
+  try {
+    logger.info('Schedule trigger executed', {
+      workflowId,
+      triggerNodeId: triggerNode.id,
+      schedule: triggerConfig.schedule || triggerConfig.cronExpression,
+    });
+
+    // Trigger the workflow via Inngest
+    await triggerWorkflow(workflowId, userId, {
+      triggerNodeId: triggerNode.id,
+      event: 'schedule_triggered',
+      schedule: triggerConfig.schedule || triggerConfig.cronExpression,
+      preset: triggerConfig.preset || null,
+    });
+
+    // Track successful trigger
+    trackTriggerExecution(
+      workflowId,
+      triggerNode.id,
+      true,
+      'schedule_triggered'
+    ).catch(() => {});
+
+    return {
+      success: true,
+      event: 'schedule_triggered',
+    };
+  } catch (error) {
+    logger.error('Error handling schedule trigger', {
+      workflowId,
+      triggerNodeId: triggerNode.id,
+      error: error.message,
+    });
+
+    // Track failed trigger
+    trackTriggerExecution(
+      workflowId,
+      triggerNode.id,
+      false,
+      'schedule_triggered'
+    ).catch(() => {});
+
+    throw error;
+  }
+}
+
+/**
  * Schedule a trigger polling job
  */
 export async function scheduleTriggerPolling(
@@ -366,31 +432,89 @@ export async function scheduleTriggerPolling(
     throw new Error('Workflow ID is required');
   }
 
-  const { pollTime } = triggerConfig;
-
   // Add userId to triggerConfig if not present
   if (!triggerConfig.userId && userId) {
     triggerConfig.userId = userId;
   }
 
-  // Convert poll time to milliseconds
-  const pollIntervalMs =
-    {
-      '1 minute': 60 * 1000,
-      '15 minutes': 15 * 60 * 1000,
-      '30 minutes': 30 * 60 * 1000,
-      '1 hour': 60 * 60 * 1000,
-      '3 hours': 3 * 60 * 60 * 1000,
-      '12 hours': 12 * 60 * 60 * 1000,
-      '24 hours': 24 * 60 * 60 * 1000,
-    }[pollTime] || 60 * 1000; // Default: 1 minute
-
   const triggerNodeId = triggerNode.id;
   const jobName = `trigger:${workflowId}:${triggerNodeId}`;
   const jobId = `trigger:${workflowId}:${triggerNodeId}`;
 
-  // Create repeating job - starts immediately
-  // First run will only set baseline (no workflow execution)
+  let repeatConfig;
+
+  // Handle schedule-trigger with cron expression
+  if (triggerConfig.type === 'schedule-trigger') {
+    const { cronExpression, preset } = triggerConfig;
+
+    if (cronExpression) {
+      // Use cron expression
+      repeatConfig = {
+        pattern: cronExpression, // BullMQ uses 'pattern' for cron
+      };
+    } else if (preset) {
+      // Convert preset to cron expression
+      const presetCrons = {
+        'Every minute': '* * * * *',
+        'Every 5 minutes': '*/5 * * * *',
+        'Every 15 minutes': '*/15 * * * *',
+        'Every 30 minutes': '*/30 * * * *',
+        'Every hour': '0 * * * *',
+        'Every day at midnight': '0 0 * * *',
+        'Every day at noon': '0 12 * * *',
+        'Every Monday': '0 0 * * 1',
+        'Every week on Monday': '0 0 * * 1',
+        'Every month on 1st': '0 0 1 * *',
+      };
+
+      const cronPattern = presetCrons[preset] || '0 * * * *'; // Default: every hour
+      repeatConfig = {
+        pattern: cronPattern,
+      };
+    } else {
+      // Default: every hour
+      repeatConfig = {
+        pattern: '0 * * * *',
+      };
+    }
+
+    logger.info('Scheduled trigger polling job (cron)', {
+      workflowId,
+      triggerNodeId,
+      cronExpression: repeatConfig.pattern,
+      preset,
+      jobId,
+    });
+  } else {
+    // Handle google-sheets-trigger with poll interval
+    const { pollTime } = triggerConfig;
+
+    // Convert poll time to milliseconds
+    const pollIntervalMs =
+      {
+        '1 minute': 60 * 1000,
+        '15 minutes': 15 * 60 * 1000,
+        '30 minutes': 30 * 60 * 1000,
+        '1 hour': 60 * 60 * 1000,
+        '3 hours': 3 * 60 * 60 * 1000,
+        '12 hours': 12 * 60 * 60 * 1000,
+        '24 hours': 24 * 60 * 60 * 1000,
+      }[pollTime] || 60 * 1000; // Default: 1 minute
+
+    repeatConfig = {
+      every: pollIntervalMs,
+    };
+
+    logger.info('Scheduled trigger polling job (interval)', {
+      workflowId,
+      triggerNodeId,
+      pollTime,
+      pollIntervalMs,
+      jobId,
+    });
+  }
+
+  // Create repeating job
   const job = await triggerPollingQueue.add(
     jobName,
     {
@@ -399,20 +523,10 @@ export async function scheduleTriggerPolling(
       triggerConfig,
     },
     {
-      repeat: {
-        every: pollIntervalMs,
-      },
+      repeat: repeatConfig,
       jobId,
     }
   );
-
-  logger.info('Scheduled trigger polling job', {
-    workflowId,
-    triggerNodeId,
-    pollTime,
-    pollIntervalMs,
-    jobId: job.id || jobId,
-  });
 
   return job;
 }
@@ -433,41 +547,120 @@ export async function removeTriggerPolling(workflowId, triggerNodeId) {
   }
 
   const jobId = `trigger:${workflowId}:${triggerNodeId}`;
+  const jobName = `trigger:${workflowId}:${triggerNodeId}`;
 
   try {
-    // Remove repeating job
-    const job = await triggerPollingQueue.getJob(jobId);
-    if (job) {
-      await job.remove();
-      logger.info('Removed trigger polling job', {
+    // First, find the repeatable job by searching through all repeatable jobs
+    const repeatableJobs = await triggerPollingQueue.getRepeatableJobs();
+    let foundRepeatableKey = null;
+
+    for (const repeatableJob of repeatableJobs) {
+      // Check if this repeatable job matches our workflow and trigger node
+      const key = repeatableJob.key || '';
+      const name = repeatableJob.name || '';
+      const id = repeatableJob.id || '';
+
+      // Match by name or id pattern: trigger:${workflowId}:${triggerNodeId}
+      const nameMatch = name.match(/trigger:(\d+):(.+)/);
+      const idMatch = id.match(/trigger:(\d+):(.+)/);
+      const keyMatch = key.match(/trigger:(\d+):(.+)/);
+
+      if (
+        (nameMatch &&
+          parseInt(nameMatch[1], 10) === workflowId &&
+          nameMatch[2] === triggerNodeId) ||
+        (idMatch &&
+          parseInt(idMatch[1], 10) === workflowId &&
+          idMatch[2] === triggerNodeId) ||
+        (keyMatch &&
+          parseInt(keyMatch[1], 10) === workflowId &&
+          keyMatch[2] === triggerNodeId)
+      ) {
+        foundRepeatableKey = repeatableJob.key;
+        break;
+      }
+    }
+
+    // Remove repeatable job by key if found
+    if (foundRepeatableKey) {
+      try {
+        await triggerPollingQueue.removeRepeatableByKey(foundRepeatableKey);
+        logger.info('Removed repeatable trigger polling job', {
+          workflowId,
+          triggerNodeId,
+          repeatableKey: foundRepeatableKey,
+        });
+      } catch (error) {
+        logger.warn('Error removing repeatable job by key', {
+          workflowId,
+          triggerNodeId,
+          repeatableKey: foundRepeatableKey,
+          error: error.message,
+        });
+      }
+    } else {
+      logger.warn('Could not find repeatable job to remove', {
         workflowId,
         triggerNodeId,
         jobId,
+        totalRepeatableJobs: repeatableJobs.length,
       });
     }
 
-    // Remove all jobs with this pattern
-    const jobs = await triggerPollingQueue.getJobs([
-      'repeat',
-      'waiting',
-      'active',
-    ]);
-    for (const j of jobs) {
-      if (!j || !j.id) {
-        continue;
+    // Also remove any individual jobs with this ID
+    const job = await triggerPollingQueue.getJob(jobId);
+    if (job) {
+      try {
+        await job.remove();
+        logger.info('Removed individual trigger polling job', {
+          workflowId,
+          triggerNodeId,
+          jobId,
+        });
+      } catch (error) {
+        logger.warn('Error removing individual job', {
+          jobId,
+          error: error.message,
+        });
       }
-      if (
-        j.id === jobId ||
-        j.id.startsWith(`trigger:${workflowId}:${triggerNodeId}`)
-      ) {
-        try {
-          await j.remove();
-        } catch (error) {
-          logger.warn('Error removing job', {
-            jobId: j.id,
-            error: error.message,
-          });
+    }
+
+    // Remove all jobs with this pattern from various states
+    const jobStates = ['repeat', 'waiting', 'active', 'delayed', 'paused'];
+    for (const state of jobStates) {
+      try {
+        const jobs = await triggerPollingQueue.getJobs([state]);
+        for (const j of jobs) {
+          if (!j || !j.id) {
+            continue;
+          }
+          if (
+            j.id === jobId ||
+            j.id === jobName ||
+            j.id.startsWith(`trigger:${workflowId}:${triggerNodeId}`)
+          ) {
+            try {
+              await j.remove();
+              logger.info('Removed job from state', {
+                state,
+                jobId: j.id,
+                workflowId,
+                triggerNodeId,
+              });
+            } catch (error) {
+              logger.warn('Error removing job from state', {
+                state,
+                jobId: j.id,
+                error: error.message,
+              });
+            }
+          }
         }
+      } catch (error) {
+        logger.warn('Error getting jobs from state', {
+          state,
+          error: error.message,
+        });
       }
     }
   } catch (error) {
@@ -786,9 +979,35 @@ export async function getActiveTriggers(workflowId) {
     // Filter out null values
     const validTriggers = triggersToProcess.filter(t => t !== null);
 
+    // Also check for webhook-trigger nodes (passive triggers, not BullMQ jobs)
+    const webhookTriggerNodes = workflowNodes.filter(
+      node => node.type === 'webhook-trigger'
+    );
+
+    for (const webhookNode of webhookTriggerNodes) {
+      // Get webhook URL from node data or generate it
+      const webhookId = webhookNode.data?.webhookId || workflowId;
+      const webhookUrl = `/api/webhooks/${webhookId}`;
+
+      validTriggers.push({
+        id: `webhook:${workflowId}:${webhookNode.id}`,
+        workflowId,
+        triggerNodeId: webhookNode.id,
+        triggerConfig: {
+          type: 'webhook-trigger',
+          webhookId,
+          webhookUrl,
+          method: webhookNode.data?.method || 'POST',
+        },
+        nextRun: null, // Webhooks are passive, no scheduled runs
+        state: 'active', // Always active for webhook triggers
+      });
+    }
+
     logger.info('Returning active triggers', {
       workflowId,
       triggerCount: validTriggers.length,
+      webhookTriggerCount: webhookTriggerNodes.length,
       source: workflowJobs.length > 0 ? 'direct_queue' : 'repeatable_jobs',
     });
 

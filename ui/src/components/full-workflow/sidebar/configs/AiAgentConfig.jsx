@@ -1,5 +1,6 @@
 import FormField from '../FormField.jsx';
 import VariableAutocomplete from '../../VariableAutocomplete.jsx';
+import ErrorConfig from './ErrorConfig.jsx';
 import { useState, useEffect } from 'react';
 
 /**
@@ -9,6 +10,8 @@ export default function AiAgentConfig({
   localData,
   handleUpdate,
   availableVariables,
+  nodes = [],
+  currentNodeId,
 }) {
   const [models, setModels] = useState([]);
   const [modelsLoading, setModelsLoading] = useState(false);
@@ -105,6 +108,13 @@ export default function AiAgentConfig({
                   { value: 'o1-mini', label: 'O1 Mini' },
                 ]
         }
+      />
+
+      <ErrorConfig
+        localData={localData}
+        handleUpdate={handleUpdate}
+        nodes={nodes}
+        currentNodeId={currentNodeId}
       />
     </>
   );
