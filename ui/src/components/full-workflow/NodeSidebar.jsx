@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import VariableAutocomplete from './VariableAutocomplete';
+import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 
 /**
  * Node Sidebar for Full Workflows
@@ -26,9 +27,7 @@ export default function NodeSidebar({
 
   const fetchKnowledgeBaseEntries = async () => {
     try {
-      const response = await fetch('/api/knowledge-base', {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF('/api/knowledge-base');
       if (!response.ok) throw new Error('Failed to fetch entries');
       const data = await response.json();
       setKnowledgeBaseEntries(data.data || []);

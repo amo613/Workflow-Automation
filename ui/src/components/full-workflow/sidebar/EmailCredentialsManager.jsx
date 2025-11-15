@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithCSRF } from '../../../utils/csrf.utils.js';
 
 /**
  * Email Credentials Manager Component
@@ -24,9 +25,7 @@ export default function EmailCredentialsManager({ localData, handleUpdate }) {
     const checkCredentials = async () => {
       try {
         setChecking(true);
-        const response = await fetch('/api/email/credentials/check', {
-          credentials: 'include',
-        });
+        const response = await fetchWithCSRF('/api/email/credentials/check');
         if (response.ok) {
           const data = await response.json();
           setHasCredentials(data.hasCredentials || false);
@@ -55,12 +54,11 @@ export default function EmailCredentialsManager({ localData, handleUpdate }) {
 
     try {
       setSaving(true);
-      const response = await fetch('/api/email/credentials', {
+      const response = await fetchWithCSRF('/api/email/credentials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify(credentials),
       });
 
@@ -95,9 +93,8 @@ export default function EmailCredentialsManager({ localData, handleUpdate }) {
     }
 
     try {
-      const response = await fetch('/api/email/credentials', {
+      const response = await fetchWithCSRF('/api/email/credentials', {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (response.ok) {

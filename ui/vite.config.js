@@ -7,5 +7,5 @@ export default defineConfig({
     outDir: '../dist/workflows',
     emptyOutDir: true,
   },
-  base: '/workflows/',
+  base: '/',
 });

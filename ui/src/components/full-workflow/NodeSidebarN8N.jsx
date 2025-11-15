@@ -6,6 +6,7 @@ import SettingsTab from './sidebar/SettingsTab.jsx';
 import DocsTab from './sidebar/DocsTab.jsx';
 import { nodeExecutionService } from '../../services/nodeExecution.service.js';
 import { googleSheetsService } from '../../services/googleSheets.service.js';
+import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 
 /**
  * n8n-style Node Sidebar with INPUT/OUTPUT Panels
@@ -76,9 +77,7 @@ export default function NodeSidebarN8N({
         : '/fullWorkflows';
       const authUrl = `/api/integrations/google-sheets/auth?returnUrl=${encodeURIComponent(returnUrl)}${workflowId ? `&workflowId=${workflowId}` : ''}`;
 
-      const response = await fetch(authUrl, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF(authUrl);
       if (!response.ok) {
         const errorData = await response
           .json()

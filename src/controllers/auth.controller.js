@@ -57,7 +57,7 @@ export const signUp = async (req, res, next) => {
       redirectTo ||
       (typeof accept === 'string' && accept.includes('text/html'))
     ) {
-      const redirectUrl = redirectTo || '/api/test-openai';
+      const redirectUrl = redirectTo || '/test-openai';
       if (isFastifyRequest) {
         return reply.redirect(302, redirectUrl);
       }
@@ -160,7 +160,7 @@ export const signIn = async (req, res, next) => {
       redirectTo ||
       (typeof accept === 'string' && accept.includes('text/html'))
     ) {
-      const redirectUrl = redirectTo || '/api/test-openai';
+      const redirectUrl = redirectTo || '/test-openai';
       if (isFastifyRequest) {
         return reply.redirect(302, redirectUrl);
       }

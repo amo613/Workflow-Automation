@@ -1,42 +1,14 @@
-import { join, dirname } from 'path';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
 import {
   getConfig,
   validateConfig,
   makeOutboundCall,
   twilioWebhook,
 } from '#controllers/openai-realtime.controller.js';
-import logger from '#config/logger.js';
 import { authenticateTokenFastify } from '#middleware/auth.middleware.js';
 import { securityMiddlewareFastify } from '#middleware/security.middleware.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 // Fastify plugin function
 export const openaiTestRoutesFastify = async fastify => {
-  // GET /api/test-openai - Serve OpenAI test UI
-  fastify.get(
-    '/test-openai',
-    {
-      preHandler: authenticateTokenFastify,
-    },
-    async (request, reply) => {
-      try {
-        const htmlPath = join(__dirname, '../../ui/openai-test.html');
-        const html = readFileSync(htmlPath, 'utf-8');
-
-        reply.type('text/html');
-        return reply.send(html);
-      } catch (error) {
-        logger.error('Error serving OpenAI test UI', { error: error.message });
-        reply.status(500).send('Error loading test UI');
-        throw error;
-      }
-    }
-  );
-
   // GET /api/test-openai/config - Get OpenAI Realtime API configuration
   fastify.get(
     '/test-openai/config',

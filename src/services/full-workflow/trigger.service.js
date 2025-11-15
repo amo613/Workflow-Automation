@@ -102,6 +102,9 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
       workflowId,
       userId,
       error: error.message,
+      errorStack: error.stack,
+      errorName: error.name,
+      errorCode: error.code,
     });
     throw error;
   }

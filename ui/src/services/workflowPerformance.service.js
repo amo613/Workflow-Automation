@@ -1,5 +1,7 @@
 /* eslint-env browser */
 
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
+
 /**
  * Service for workflow performance data
  */
@@ -10,13 +12,15 @@ export const workflowPerformanceService = {
    * Get workflow performance statistics
    */
   async getPerformance(workflowId) {
-    const response = await fetch(`${API_BASE}/${workflowId}/performance`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetchWithCSRF(
+      `${API_BASE}/${workflowId}/performance`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     if (!response.ok) {
       const error = await response
@@ -33,11 +37,10 @@ export const workflowPerformanceService = {
    * Get node execution history for graph
    */
   async getNodeHistory(workflowId, nodeId, limit = 50) {
-    const response = await fetch(
+    const response = await fetchWithCSRF(
       `${API_BASE}/${workflowId}/nodes/${encodeURIComponent(nodeId)}/performance?limit=${limit}`,
       {
         method: 'GET',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -59,13 +62,15 @@ export const workflowPerformanceService = {
    * Clear performance data
    */
   async clearPerformance(workflowId) {
-    const response = await fetch(`${API_BASE}/${workflowId}/performance`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetchWithCSRF(
+      `${API_BASE}/${workflowId}/performance`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     if (!response.ok) {
       const error = await response

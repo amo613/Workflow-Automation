@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
 
 function WorkflowList() {
   const [workflows, setWorkflows] = useState([]);
@@ -14,9 +15,7 @@ function WorkflowList() {
   const fetchWorkflows = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/workflows', {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF('/api/workflows');
 
       if (!response.ok) {
         throw new Error('Failed to fetch workflows');
@@ -40,9 +39,8 @@ function WorkflowList() {
     }
 
     try {
-      const response = await fetch(`/api/workflows/${id}`, {
+      const response = await fetchWithCSRF(`/api/workflows/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -59,12 +57,11 @@ function WorkflowList() {
   const handleToggleActive = async (workflow, e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(`/api/workflows/${workflow.id}`, {
+      const response = await fetchWithCSRF(`/api/workflows/${workflow.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({
           is_active: !workflow.is_active,
         }),

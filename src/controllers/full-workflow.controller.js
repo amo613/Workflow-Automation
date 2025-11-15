@@ -354,6 +354,18 @@ export async function deleteFullWorkflowHandler(req, reply) {
  */
 export async function triggerWorkflowHandler(req, reply) {
   try {
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      logger.error('Unauthorized: User not authenticated', {
+        hasUser: !!req.user,
+        userId: req.user?.id,
+      });
+      return reply.code(401).send({
+        success: false,
+        error: 'Unauthorized: User not authenticated',
+      });
+    }
+
     const userId = req.user.id;
     const { id } = req.params;
     const { input = {} } = req.body;
@@ -419,12 +431,23 @@ export async function triggerWorkflowHandler(req, reply) {
   } catch (error) {
     logger.error('Error triggering workflow', {
       error: error.message,
+      errorStack: error.stack,
+      errorName: error.name,
+      errorCode: error.code,
       userId: req.user?.id,
       workflowId: req.params?.id,
     });
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to trigger workflow',
+      details:
+        process.env.NODE_ENV === 'development'
+          ? {
+              name: error.name,
+              code: error.code,
+              message: error.message,
+            }
+          : undefined,
     });
   }
 }
@@ -434,6 +457,18 @@ export async function triggerWorkflowHandler(req, reply) {
  */
 export async function executeSingleNodeHandler(req, reply) {
   try {
+    // Check if user is authenticated
+    if (!req.user || !req.user.id) {
+      logger.error('Unauthorized: User not authenticated for execute-node', {
+        hasUser: !!req.user,
+        userId: req.user?.id,
+      });
+      return reply.code(401).send({
+        success: false,
+        error: 'Unauthorized: User not authenticated',
+      });
+    }
+
     const userId = req.user.id;
     const { node, edges = [], input = {} } = req.body;
 
@@ -477,12 +512,24 @@ export async function executeSingleNodeHandler(req, reply) {
   } catch (error) {
     logger.error('Error executing single node', {
       error: error.message,
+      errorStack: error.stack,
+      errorName: error.name,
+      errorCode: error.code,
       userId: req.user?.id,
       nodeId: req.body?.node?.id,
+      nodeType: req.body?.node?.type,
     });
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to execute node',
+      details:
+        process.env.NODE_ENV === 'development'
+          ? {
+              name: error.name,
+              code: error.code,
+              message: error.message,
+            }
+          : undefined,
     });
   }
 }

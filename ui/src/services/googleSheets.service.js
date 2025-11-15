@@ -1,4 +1,6 @@
 /* eslint-env browser */
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
+
 /**
  * Google Sheets Service
  * Handles all API calls related to Google Sheets integration
@@ -70,10 +72,13 @@ export const googleSheetsService = {
   },
 
   async authenticate() {
-    const response = await fetch('/api/integrations/google-sheets/auth', {
-      method: 'POST',
-      credentials: 'include',
-    });
+    const response = await fetchWithCSRF(
+      '/api/integrations/google-sheets/auth',
+      {
+        method: 'POST',
+        credentials: 'include',
+      }
+    );
     if (!response.ok) throw new Error('Failed to authenticate');
     const data = await response.json();
     if (data.authUrl) {
@@ -82,7 +87,7 @@ export const googleSheetsService = {
   },
 
   async disconnect() {
-    const response = await fetch('/api/integrations/google-sheets', {
+    const response = await fetchWithCSRF('/api/integrations/google-sheets', {
       method: 'DELETE',
       credentials: 'include',
     });

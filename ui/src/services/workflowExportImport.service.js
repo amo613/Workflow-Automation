@@ -1,5 +1,7 @@
 /* eslint-env browser */
 
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
+
 /**
  * Service for workflow export/import
  */
@@ -10,9 +12,8 @@ export const workflowExportImportService = {
    * Export workflow as JSON file
    */
   async exportWorkflow(workflowId) {
-    const response = await fetch(`${API_BASE}/${workflowId}/export`, {
+    const response = await fetchWithCSRF(`${API_BASE}/${workflowId}/export`, {
       method: 'GET',
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -50,9 +51,8 @@ export const workflowExportImportService = {
    * Import workflow from JSON file
    */
   async importWorkflow(workflowData, name = null) {
-    const response = await fetch(`${API_BASE}/import`, {
+    const response = await fetchWithCSRF(`${API_BASE}/import`, {
       method: 'POST',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

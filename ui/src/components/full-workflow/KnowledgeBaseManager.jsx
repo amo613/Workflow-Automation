@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 
 /**
  * Knowledge Base Manager Component
@@ -18,9 +19,7 @@ export default function KnowledgeBaseManager({ onClose }) {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/knowledge-base', {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF('/api/knowledge-base');
       if (!response.ok) throw new Error('Failed to fetch entries');
       const data = await response.json();
       setEntries(data.data || []);
@@ -39,10 +38,9 @@ export default function KnowledgeBaseManager({ onClose }) {
     }
 
     try {
-      const response = await fetch('/api/knowledge-base', {
+      const response = await fetchWithCSRF('/api/knowledge-base', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           name: formData.name.trim(),
           text: formData.text.trim(),
@@ -65,10 +63,9 @@ export default function KnowledgeBaseManager({ onClose }) {
     }
 
     try {
-      const response = await fetch(`/api/knowledge-base/${id}`, {
+      const response = await fetchWithCSRF(`/api/knowledge-base/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           name: formData.name.trim(),
           text: formData.text.trim(),
@@ -89,9 +86,8 @@ export default function KnowledgeBaseManager({ onClose }) {
     if (!confirm('Are you sure you want to delete this entry?')) return;
 
     try {
-      const response = await fetch(`/api/knowledge-base/${id}`, {
+      const response = await fetchWithCSRF(`/api/knowledge-base/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (!response.ok) throw new Error('Failed to delete entry');

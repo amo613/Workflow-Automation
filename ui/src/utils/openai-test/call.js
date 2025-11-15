@@ -1,18 +1,20 @@
 /**
  * Phone Call Module
  * Handles outbound phone calls via Twilio
+ * React-compatible: No DOM manipulation, uses callbacks
  */
 
-import { addCSRFToFetchOptions } from './csrf.js';
+import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 
 export class CallManager {
-  constructor(logFn, getConfigFromForm) {
+  constructor(logFn, getConfigFromForm, onCallStateChange) {
     this.logFn = logFn;
     this.getConfigFromForm = getConfigFromForm;
+    this.onCallStateChange = onCallStateChange; // Callback: (isCalling, buttonText) => void
   }
-  //HUGEDEMUGEDE
-  async makeCall(phoneNumberInput) {
-    const phoneInput = phoneNumberInput.value.trim();
+
+  async makeCall(phoneNumber) {
+    const phoneInput = phoneNumber.trim();
 
     if (!phoneInput) {
       this.logFn('❌ Please enter a phone number', 'error');
@@ -44,13 +46,14 @@ export class CallManager {
     const isBulk = phoneNumbers.length > 1;
     const toNumber = isBulk ? phoneNumbers : phoneNumbers[0];
 
-    const callBtn = document.getElementById('callBtn');
     try {
-      if (callBtn) {
-        callBtn.disabled = true;
-        callBtn.textContent = isBulk
-          ? `Creating job for ${phoneNumbers.length} numbers...`
-          : 'Creating job...';
+      if (this.onCallStateChange) {
+        this.onCallStateChange(
+          true,
+          isBulk
+            ? `Creating job for ${phoneNumbers.length} numbers...`
+            : 'Creating job...'
+        );
       }
 
       if (isBulk) {
@@ -66,20 +69,17 @@ export class CallManager {
       // Get config from form
       const config = this.getConfigFromForm();
 
-      const response = await fetch(
-        '/api/test-openai/call',
-        addCSRFToFetchOptions({
-          method: 'POST',
-          credentials: 'include', // Include cookies for CSRF token
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            toNumber,
-            config: { ...config, provider: 'openai' },
-          }),
-        })
-      );
+      const response = await fetchWithCSRF('/api/test-openai/call', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toNumber,
+          config: { ...config, provider: 'openai' },
+        }),
+      });
 
       const data = await response.json();
 
@@ -112,34 +112,9 @@ export class CallManager {
       this.logFn(`❌ Error making call: ${error.message}`, 'error');
       console.error('Call error:', error);
     } finally {
-      if (callBtn) {
-        callBtn.disabled = false;
-        callBtn.textContent = 'Make Call';
+      if (this.onCallStateChange) {
+        this.onCallStateChange(false, 'Make Call');
       }
     }
-  }
-
-  setupCallSection() {
-    const phoneNumberInput = document.getElementById('phoneNumber');
-    const callBtn = document.getElementById('callBtn');
-
-    if (callBtn) {
-      callBtn.addEventListener('click', () => {
-        if (phoneNumberInput) {
-          this.makeCall(phoneNumberInput);
-        }
-      });
-    }
-
-    // Allow Enter key to trigger call
-    if (phoneNumberInput) {
-      phoneNumberInput.addEventListener('keypress', e => {
-        if (e.key === 'Enter') {
-          this.makeCall(phoneNumberInput);
-        }
-      });
-    }
-
-    // Twilio call section is now visible by default; toggle removed
   }
 }

@@ -15,6 +15,7 @@ import StepNode from '../components/nodes/StepNode';
 import EndNode from '../components/nodes/EndNode';
 import NodeSidebar from '../components/NodeSidebar';
 import { compileWorkflowToPrompt } from '../utils/workflow-compiler.js';
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
 
 const nodeTypes = {
   start: StartNode,
@@ -58,9 +59,7 @@ function WorkflowEditor() {
   const fetchWorkflow = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/workflows/${id}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF(`/api/workflows/${id}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch workflow');
@@ -266,12 +265,11 @@ function WorkflowEditor() {
       const url = isNew ? '/api/workflows' : `/api/workflows/${id}`;
       const method = isNew ? 'POST' : 'PUT';
 
-      const response = await fetch(url, {
+      const response = await fetchWithCSRF(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || null,

@@ -53,7 +53,12 @@ const requestHandler = (req, res) => {
     pathname === '/login' ||
     pathname === '/register' ||
     pathname.startsWith('/js/') ||
-    pathname.startsWith('/workflows');
+    pathname.startsWith('/assets/') ||
+    pathname.startsWith('/workflows') ||
+    pathname.startsWith('/choose') ||
+    pathname.startsWith('/fullWorkflows') ||
+    pathname.startsWith('/oauth-callback') ||
+    pathname.startsWith('/test-openai');
 
   if (isFastifyRoute && fastifyReady) {
     // Fastify handles the request (only if ready)
@@ -188,7 +193,9 @@ server.on('upgrade', (request, socket, head) => {
       );
       logger.info(`   - /api/ai-agent/* → Fastify (migrated)`);
       logger.info(`   - /, /api, /login → Fastify (migrated)`);
-      logger.info(`   - /js/*, /workflows/* → Fastify (migrated)`);
+      logger.info(
+        `   - /js/*, /assets/*, /workflows/*, /choose, /fullWorkflows/*, /oauth-callback/* → Fastify (migrated)`
+      );
       logger.info(`   - All other routes → Express`);
 
       // Start ngrok tunnel

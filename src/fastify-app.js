@@ -121,12 +121,17 @@ fastify.addHook('onResponse', async (request, reply) => {
   );
 });
 
-// Register static files plugin (only once - multiple prefixes not supported, so we serve manually)
-// Note: @fastify/static can only be registered once per Fastify instance
-// We'll serve static files manually for different roots
+// Register static files plugin for /js/ (openai-test)
 fastify.register(staticFiles, {
   root: join(process.cwd(), 'src/public/js'),
   prefix: '/js/',
+});
+
+// Register static files plugin for /assets/ (React build assets)
+fastify.register(staticFiles, {
+  root: join(process.cwd(), 'dist/workflows/assets'),
+  prefix: '/assets/',
+  decorateReply: false,
 });
 
 // For /workflows, we'll serve static files manually via routes
@@ -179,6 +184,10 @@ fastify.get('/workflows/*', async (request, reply) => {
   }
 });
 
+// Global CSRF token generation for all GET requests (including React pages)
+// This ensures React pages get CSRF tokens when they load
+fastify.addHook('onRequest', generateCSRFTokenFastify);
+
 // Root routes
 fastify.get('/', async (request, reply) => {
   return reply.status(200).send('Hello World!');
@@ -186,32 +195,6 @@ fastify.get('/', async (request, reply) => {
 
 fastify.get('/api', async (request, reply) => {
   return reply.status(200).send({ message: 'API is running!' });
-});
-
-fastify.get('/login', async (request, reply) => {
-  try {
-    const htmlPath = join(process.cwd(), 'ui/login.html');
-    const html = readFileSync(htmlPath, 'utf-8');
-    reply.type('text/html');
-    return reply.send(html);
-  } catch (error) {
-    logger.error('Error serving login page', { error: error.message });
-    reply.status(500).send('Error loading login page');
-    throw error;
-  }
-});
-
-fastify.get('/register', async (request, reply) => {
-  try {
-    const htmlPath = join(process.cwd(), 'ui/register.html');
-    const html = readFileSync(htmlPath, 'utf-8');
-    reply.type('text/html');
-    return reply.send(html);
-  } catch (error) {
-    logger.error('Error serving register page', { error: error.message });
-    reply.status(500).send('Error loading register page');
-    throw error;
-  }
 });
 
 // Health check route (migrated from Express)
@@ -458,6 +441,37 @@ fastify.addHook('onReady', async () => {
     aiAgentRoutes.forEach(route => logger.info(`   - ${route}`));
   } else {
     logger.warn('⚠️ No AI Agent routes found in registered routes');
+  }
+});
+
+// SPA Fallback for all non-API routes (login, register, workflows, etc.)
+// This must be registered LAST, after all other routes
+// Order matters: more specific routes first, then catch-all
+// IMPORTANT: This route should NOT match /assets/*, /api/*, or /js/* - those are handled above
+fastify.get('/*', async (request, reply) => {
+  // Skip API routes and static assets (these should be handled by specific routes above)
+  if (
+    request.url.startsWith('/api/') ||
+    request.url.startsWith('/assets/') ||
+    request.url.startsWith('/js/')
+  ) {
+    // These should have been handled by specific routes above
+    // If we reach here, return 404
+    return reply.status(404).send('Not found');
+  }
+
+  try {
+    const indexPath = join(process.cwd(), 'dist/workflows/index.html');
+    const html = readFileSync(indexPath, 'utf-8');
+    reply.type('text/html');
+    return reply.send(html);
+  } catch (error) {
+    logger.error('Error serving SPA page', {
+      error: error.message,
+      url: request.url,
+    });
+    reply.status(500).send('Error loading page');
+    throw error;
   }
 });
 

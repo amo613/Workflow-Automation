@@ -2,6 +2,7 @@ import FormField from '../FormField.jsx';
 import VariableAutocomplete from '../../VariableAutocomplete.jsx';
 import ErrorConfig from './ErrorConfig.jsx';
 import { useState, useEffect } from 'react';
+import { fetchWithCSRF } from '../../../../utils/csrf.utils.js';
 
 /**
  * AI Agent Node Configuration
@@ -21,9 +22,7 @@ export default function AiAgentConfig({
     const fetchModels = async () => {
       try {
         setModelsLoading(true);
-        const response = await fetch('/api/ai-agent/models', {
-          credentials: 'include',
-        });
+        const response = await fetchWithCSRF('/api/ai-agent/models');
         if (response.ok) {
           const data = await response.json();
           setModels(data.data || []);

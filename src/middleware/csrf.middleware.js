@@ -7,9 +7,18 @@ function generateCSRFToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// Helper: Detect if request is from API client (Bearer or Cookie header)
+// Helper: Detect if request is from API client (Bearer Token only)
+// Note: Browser cookies (req.cookies.token) are NOT API clients and need CSRF protection
+// Only Bearer tokens in Authorization header or explicit API client flag from auth middleware
 
 function isApiClient(req) {
+  // PRIORITY 1: Check if marked as API client by auth middleware
+  // Auth middleware sets req.isApiClient = true for Bearer tokens or explicit API clients
+  if (req.isApiClient === true) {
+    return true;
+  }
+
+  // PRIORITY 2: Check for Bearer token in Authorization header
   const authHeader =
     req.headers.authorization ||
     req.headers['authorization'] ||
@@ -20,22 +29,9 @@ function isApiClient(req) {
     }
   }
 
-  // Check 2: Cookie Header (präziser - findet token= explizit)
-  if (req.headers.cookie) {
-    const cookieHeader = String(req.headers.cookie);
-    const tokenMatch = cookieHeader
-      .split(';')
-      .map(v => v.trim())
-      .find(v => v.startsWith('token='));
-    if (tokenMatch) {
-      return true;
-    }
-  }
-
-  // Check 3: Was marked as API client by auth middleware
-  if (req.isApiClient === true) {
-    return true;
-  }
+  // Note: We do NOT check req.headers.cookie for token= anymore
+  // Browser cookies (req.cookies.token) are browser clients and need CSRF protection
+  // Only explicit Bearer tokens or req.isApiClient flag indicate API clients
 
   return false;
 }
@@ -51,11 +47,6 @@ export const csrfProtection = (req, res, next) => {
   // PRIORITY 1: Skip CSRF for API Clients
   // API clients use Bearer tokens or Cookie headers both CSRF-safe
   if (isApiClient(req)) {
-    logger.debug('✅ Skipping CSRF for API client', {
-      path: req.path,
-      method: req.method,
-      authMethod: req.authMethod || 'unknown',
-    });
     return next();
   }
 
@@ -65,10 +56,6 @@ export const csrfProtection = (req, res, next) => {
     req.path.includes('/webhook') ||
     req.path.includes('/callback')
   ) {
-    logger.debug('✅ Skipping CSRF for webhook', {
-      path: req.path,
-      method: req.method,
-    });
     return next();
   }
 
@@ -80,39 +67,62 @@ export const csrfProtection = (req, res, next) => {
     req.path.includes('/auth/sign-up') ||
     req.path.includes('/auth/sign-out')
   ) {
-    logger.debug('✅ Skipping CSRF for auth route', {
-      path: req.path,
-      method: req.method,
-    });
     return next();
   }
 
   // PRIORITY 4: Skip CSRF for OAuth Callbacks (use state parameter)
   if (req.path.includes('/integrations/google-calendar/callback')) {
-    logger.debug('✅ Skipping CSRF for OAuth callback', {
-      path: req.path,
-      method: req.method,
-    });
     return next();
   }
 
   // PRIORITY 5: Validate CSRF Token for Browser Clients
   const tokenFromCookie = req.cookies['csrf-token'];
+
+  // Fastify normalizes all headers to lowercase automatically
+  // So we only need to check lowercase version
   const tokenFromHeader = req.headers['x-csrf-token'];
   const tokenFromBody = req.body?._csrf;
-  const tokenFromRequest = tokenFromHeader || tokenFromBody;
+
+  // Also check raw headers in case Fastify hasn't normalized yet
+  // Fastify normalizes headers to lowercase, so we should only need lowercase
+  // But check raw headers as fallback if available
+  let tokenFromRawHeader = null;
+  try {
+    const rawHeaders = req.raw?.headers || req.headers;
+    tokenFromRawHeader =
+      rawHeaders['x-csrf-token'] ||
+      rawHeaders['X-CSRF-Token'] ||
+      rawHeaders['X-Csrf-Token'];
+  } catch {
+    // Ignore errors accessing raw headers
+  }
+
+  const finalTokenFromHeader = tokenFromHeader || tokenFromRawHeader;
+  const finalTokenFromRequest = finalTokenFromHeader || tokenFromBody;
 
   // Check if token exists
-  if (!tokenFromCookie || !tokenFromRequest) {
+  if (!tokenFromCookie || !finalTokenFromRequest) {
     logger.warn('❌ CSRF token missing', {
       path: req.path,
       method: req.method,
       hasCookieToken: !!tokenFromCookie,
-      hasRequestToken: !!tokenFromRequest,
-      headers: {
-        authorization: !!req.get('Authorization'),
-        cookie: !!req.headers.cookie,
-      },
+      hasRequestToken: !!finalTokenFromRequest,
+      tokenFromHeader: !!finalTokenFromHeader,
+      tokenFromBody: !!tokenFromBody,
+      cookieTokenValue: tokenFromCookie
+        ? tokenFromCookie.substring(0, 10) + '...'
+        : null,
+      headerTokenValue: finalTokenFromHeader
+        ? finalTokenFromHeader.substring(0, 10) + '...'
+        : null,
+      headerKeys: Object.keys(req.headers).filter(k =>
+        k.toLowerCase().includes('csrf')
+      ),
+      cookieKeys: req.cookies ? Object.keys(req.cookies) : [],
+      cookieHeader: req.headers.cookie
+        ? req.headers.cookie.substring(0, 200)
+        : null,
+      allHeaderKeys: Object.keys(req.headers),
       ip: req.ip,
     });
     return res.status(403).json({
@@ -123,7 +133,7 @@ export const csrfProtection = (req, res, next) => {
   }
 
   // Validate token
-  if (tokenFromCookie !== tokenFromRequest) {
+  if (tokenFromCookie !== finalTokenFromRequest) {
     logger.warn('❌ CSRF token mismatch', {
       path: req.path,
       method: req.method,
@@ -135,30 +145,24 @@ export const csrfProtection = (req, res, next) => {
     });
   }
 
-  logger.debug('✅ CSRF token validated', {
-    path: req.path,
-    method: req.method,
-  });
   next();
 };
 
 // CSRF Token Generation Middleware (for Browser Clients)
 export const generateCSRFTokenMiddleware = (req, res, next) => {
   // Only for GET requests - generate and set token in cookie
-  if (req.method === 'GET' && !req.cookies['csrf-token']) {
-    const token = generateCSRFToken();
-    cookies.set(res, 'csrf-token', token, {
-      httpOnly: false, // Must be JavaScript-accessible
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
-    });
-    res.locals.csrfToken = token;
-    logger.debug('🔐 Generated new CSRF token', {
-      path: req.path,
-    });
-  } else if (req.method === 'GET' && req.cookies['csrf-token']) {
-    // Token already exists - set in res.locals for templates
-    res.locals.csrfToken = req.cookies['csrf-token'];
+  if (req.method === 'GET') {
+    if (!req.cookies['csrf-token']) {
+      const token = generateCSRFToken();
+      // Use cookies utility which will merge with getCSRFOptions
+      cookies.set(res, 'csrf-token', token, {
+        path: '/', // Ensure cookie is available for all paths
+      });
+      res.locals.csrfToken = token;
+    } else {
+      // Token already exists - set in res.locals for templates
+      res.locals.csrfToken = req.cookies['csrf-token'];
+    }
   }
   next();
 };
@@ -324,6 +328,7 @@ const createExpressLikeReqRes = (request, reply) => {
   const req = {
     ...request,
     headers: request.headers,
+    raw: request.raw || {}, // Store raw request for header access
     cookies: request.cookies,
     body: request.body,
     params: request.params,
@@ -417,17 +422,51 @@ export const originCheckFastify = async (request, reply) => {
 
 // CSRF Protection (Fastify Hook)
 export const csrfProtectionFastify = async (request, reply) => {
-  const { req, res } = createExpressLikeReqRes(request, reply);
+  try {
+    // Fastify normalizes headers to lowercase, so check directly on request
+    // Also check raw headers as fallback
+    let csrfHeader = request.headers['x-csrf-token'];
 
-  return new Promise((resolve, reject) => {
-    const next = err => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    };
+    // Check raw headers as fallback if not found
+    if (!csrfHeader && request.raw?.headers) {
+      csrfHeader =
+        request.raw.headers['x-csrf-token'] ||
+        request.raw.headers['X-CSRF-Token'] ||
+        request.raw.headers['X-Csrf-Token'];
+    }
 
-    csrfProtection(req, res, next);
-  });
+    const { req, res } = createExpressLikeReqRes(request, reply);
+
+    return new Promise((resolve, reject) => {
+      const next = err => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      };
+
+      csrfProtection(req, res, next);
+    });
+  } catch (error) {
+    logger.error('Error in CSRF protection hook', {
+      error: error.message,
+      stack: error.stack,
+      path: request.url,
+      method: request.method,
+    });
+    // Don't block the request if CSRF check fails due to an error
+    // Let the actual CSRF validation handle it
+    const { req, res } = createExpressLikeReqRes(request, reply);
+    return new Promise((resolve, reject) => {
+      const next = err => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      };
+      csrfProtection(req, res, next);
+    });
+  }
 };

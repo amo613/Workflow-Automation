@@ -1,11 +1,13 @@
 /* eslint-env browser */
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
+
 /**
  * Node Execution Service
  * Handles single node execution for testing
  */
 export const nodeExecutionService = {
   async executeNode(node, edges, input) {
-    const response = await fetch('/api/full-workflows/execute-node', {
+    const response = await fetchWithCSRF('/api/full-workflows/execute-node', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

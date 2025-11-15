@@ -164,7 +164,7 @@ export const handleCallback = async (req, res) => {
 
     // Redirect back to OpenAI test page with success flag
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const redirectUrl = `${frontendUrl}/api/test-openai?googleCalendar=connected`;
+    const redirectUrl = `${frontendUrl}/test-openai?googleCalendar=connected`;
 
     if (isFastifyRequest) {
       return reply.redirect(redirectUrl);

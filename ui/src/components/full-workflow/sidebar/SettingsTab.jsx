@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import EmailCredentialsManager from './EmailCredentialsManager.jsx';
+import { fetchWithCSRF } from '../../../utils/csrf.utils.js';
 
 /**
  * Settings Tab Component
@@ -648,9 +649,7 @@ function ApiKeyManager({ localData, handleUpdate }) {
     const checkApiKey = async () => {
       try {
         setChecking(true);
-        const response = await fetch('/api/ai-agent/api-key/check', {
-          credentials: 'include',
-        });
+        const response = await fetchWithCSRF('/api/ai-agent/api-key/check');
         if (response.ok) {
           const data = await response.json();
           setHasApiKey(data.hasApiKey || false);
@@ -673,12 +672,11 @@ function ApiKeyManager({ localData, handleUpdate }) {
 
     try {
       setSaving(true);
-      const response = await fetch('/api/ai-agent/api-key', {
+      const response = await fetchWithCSRF('/api/ai-agent/api-key', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ apiKey }),
       });
 
@@ -707,9 +705,8 @@ function ApiKeyManager({ localData, handleUpdate }) {
     }
 
     try {
-      const response = await fetch('/api/ai-agent/api-key', {
+      const response = await fetchWithCSRF('/api/ai-agent/api-key', {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (response.ok) {

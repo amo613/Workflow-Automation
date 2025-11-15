@@ -32,6 +32,7 @@ import VersionHistory from '../components/full-workflow/VersionHistory';
 import WorkflowImportModal from '../components/full-workflow/WorkflowImportModal';
 import { workflowExportImportService } from '../services/workflowExportImport.service.js';
 import { workflowPerformanceService } from '../services/workflowPerformance.service.js';
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
 
 const nodeTypes = {
   start: StartNode,
@@ -173,9 +174,9 @@ function FullWorkflowEditor() {
     try {
       setStatisticsLoading(true);
       setStatisticsError(null);
-      const response = await fetch(`/api/full-workflows/${id}/statistics`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF(
+        `/api/full-workflows/${id}/statistics`
+      );
       if (!response.ok) throw new Error('Failed to fetch statistics');
       const data = await response.json();
       setStatistics(data.data);
@@ -247,11 +248,8 @@ function FullWorkflowEditor() {
     try {
       setHistoryLoading(true);
       setHistoryError(null);
-      const response = await fetch(
-        `/api/full-workflows/${id}/execution-history?limit=50`,
-        {
-          credentials: 'include',
-        }
+      const response = await fetchWithCSRF(
+        `/api/full-workflows/${id}/execution-history?limit=50`
       );
       if (!response.ok) throw new Error('Failed to fetch execution history');
       const data = await response.json();
@@ -328,11 +326,8 @@ function FullWorkflowEditor() {
           // Load outputs for this execution (with retry logic for async executions)
           const loadOutputs = async (retryCount = 0) => {
             try {
-              const resultsResponse = await fetch(
-                `/api/full-workflows/execution-results?eventId=${encodeURIComponent(latestExecution.eventId)}`,
-                {
-                  credentials: 'include',
-                }
+              const resultsResponse = await fetchWithCSRF(
+                `/api/full-workflows/execution-results?eventId=${encodeURIComponent(latestExecution.eventId)}`
               );
 
               if (resultsResponse.ok) {
@@ -558,9 +553,9 @@ function FullWorkflowEditor() {
     try {
       setTriggersLoading(true);
       setTriggersError(null);
-      const response = await fetch(`/api/full-workflows/${id}/triggers`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF(
+        `/api/full-workflows/${id}/triggers`
+      );
       if (!response.ok) throw new Error('Failed to fetch triggers');
       const data = await response.json();
       const triggers = data.data || [];
@@ -634,19 +629,16 @@ function FullWorkflowEditor() {
 
     // Check if workflow is active
     try {
-      const response = await fetch(`/api/full-workflows/${id}`, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF(`/api/full-workflows/${id}`);
       const data = await response.json();
       if (!data.data.is_active) {
         const activate = confirm(
           'Workflow is not active. Do you want to activate it and execute?'
         );
         if (activate) {
-          await fetch(`/api/full-workflows/${id}`, {
+          await fetchWithCSRF(`/api/full-workflows/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({ is_active: true }),
           });
         } else {
@@ -684,12 +676,14 @@ function FullWorkflowEditor() {
       );
       setExecutedEdges([]);
 
-      const response = await fetch(`/api/full-workflows/${id}/trigger`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ input: {} }), // Empty input
-      });
+      const response = await fetchWithCSRF(
+        `/api/full-workflows/${id}/trigger`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: {} }), // Empty input
+        }
+      );
 
       const result = await response.json();
 
@@ -707,11 +701,8 @@ function FullWorkflowEditor() {
         // Start polling with the existing eventId immediately
         pollingIntervalRef.current = setInterval(async () => {
           try {
-            const resultsResponse = await fetch(
-              `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`,
-              {
-                credentials: 'include',
-              }
+            const resultsResponse = await fetchWithCSRF(
+              `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`
             );
 
             if (resultsResponse.ok) {
@@ -896,11 +887,8 @@ function FullWorkflowEditor() {
         // Poll for execution results immediately
         pollingIntervalRef.current = setInterval(async () => {
           try {
-            const resultsResponse = await fetch(
-              `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`,
-              {
-                credentials: 'include',
-              }
+            const resultsResponse = await fetchWithCSRF(
+              `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`
             );
 
             if (resultsResponse.ok) {
@@ -1166,12 +1154,11 @@ function FullWorkflowEditor() {
       const url = isNew ? '/api/full-workflows' : `/api/full-workflows/${id}`;
       const method = isNew ? 'POST' : 'PUT';
 
-      const response = await fetch(url, {
+      const response = await fetchWithCSRF(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({
           name,
           description,

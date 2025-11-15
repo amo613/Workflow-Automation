@@ -1,4 +1,5 @@
 /* eslint-env browser */
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
 
 /**
  * Service for workflow version management
@@ -59,7 +60,7 @@ export const workflowVersionService = {
    * Restore workflow to a version
    */
   async restoreVersion(workflowId, versionId) {
-    const response = await fetch(
+    const response = await fetchWithCSRF(
       `${API_BASE}/${workflowId}/versions/${versionId}/restore`,
       {
         method: 'POST',
@@ -82,7 +83,7 @@ export const workflowVersionService = {
    * Delete a version
    */
   async deleteVersion(workflowId, versionId) {
-    const response = await fetch(
+    const response = await fetchWithCSRF(
       `${API_BASE}/${workflowId}/versions/${versionId}`,
       {
         method: 'DELETE',

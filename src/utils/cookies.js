@@ -17,6 +17,7 @@ export const cookies = {
     secure: NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: 15 * 60 * 1000,
+    path: '/', // Ensure cookie is available for all paths
   }),
 
   // Standard Cookie-Optionen

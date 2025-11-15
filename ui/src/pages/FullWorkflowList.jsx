@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { fetchWithCSRF } from '../utils/csrf.utils.js';
 
 function FullWorkflowList() {
   const [workflows, setWorkflows] = useState([]);
@@ -19,9 +20,7 @@ function FullWorkflowList() {
         filterType === 'all'
           ? '/api/full-workflows'
           : `/api/full-workflows?type=${filterType}`;
-      const response = await fetch(url, {
-        credentials: 'include',
-      });
+      const response = await fetchWithCSRF(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch workflows');
@@ -45,9 +44,8 @@ function FullWorkflowList() {
     }
 
     try {
-      const response = await fetch(`/api/full-workflows/${id}`, {
+      const response = await fetchWithCSRF(`/api/full-workflows/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -64,16 +62,18 @@ function FullWorkflowList() {
   const handleToggleActive = async (workflow, e) => {
     e.stopPropagation();
     try {
-      const response = await fetch(`/api/full-workflows/${workflow.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          is_active: !workflow.is_active,
-        }),
-      });
+      const response = await fetchWithCSRF(
+        `/api/full-workflows/${workflow.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            is_active: !workflow.is_active,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Failed to update workflow');

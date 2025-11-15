@@ -186,15 +186,43 @@ export const authenticateTokenFastify = async (request, reply) => {
   return new Promise((resolve, reject) => {
     const next = err => {
       if (err) {
-        reject(err);
+        // If authentication failed, check if response was already sent
+        if (res.headersSent || reply.sent) {
+          // Response already sent (e.g., 401 redirect), just resolve
+          resolve();
+        } else {
+          // Authentication error - reject with proper status
+          const error = new Error(err.message || 'Authentication failed');
+          error.statusCode = 401;
+          reject(error);
+        }
       } else {
-        request.user = req.user;
-        request.isApiClient = req.isApiClient;
-        resolve();
+        // Authentication successful
+        if (!req.user) {
+          // User not set - authentication failed
+          const error = new Error('Authentication failed - user not set');
+          error.statusCode = 401;
+          reject(error);
+        } else {
+          request.user = req.user;
+          request.isApiClient = req.isApiClient;
+          resolve();
+        }
       }
     };
 
-    authenticateToken(req, res, next);
+    try {
+      authenticateToken(req, res, next);
+    } catch (error) {
+      // Catch any synchronous errors
+      if (res.headersSent || reply.sent) {
+        resolve();
+      } else {
+        const authError = new Error(error.message || 'Authentication error');
+        authError.statusCode = 401;
+        reject(authError);
+      }
+    }
   });
 };
 
