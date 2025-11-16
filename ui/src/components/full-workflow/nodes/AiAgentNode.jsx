@@ -4,14 +4,16 @@ export default function AiAgentNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected ? '#f0f9ff' : 'white',
+        background: selected
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--card))',
         border: `2px solid ${selected ? '#3b82f6' : '#3b82f6'}`,
-        borderRadius: '12px',
+        borderRadius: '0.75rem',
         padding: '1.5rem',
         minWidth: '150px',
         boxShadow: selected
-          ? '0 4px 12px #3b82f640'
-          : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          ? '0 4px 12px rgba(59, 130, 246, 0.3)'
+          : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         textAlign: 'center',
       }}
@@ -28,7 +30,7 @@ export default function AiAgentNode({ data, selected }) {
         style={{
           fontWeight: 700,
           fontSize: '1rem',
-          color: '#1a202c',
+          color: 'hsl(var(--foreground))',
           marginBottom: '0.25rem',
         }}
       >
@@ -38,7 +40,7 @@ export default function AiAgentNode({ data, selected }) {
         <div
           style={{
             fontSize: '0.75rem',
-            color: '#64748b',
+            color: 'hsl(var(--muted-foreground))',
             marginTop: '0.25rem',
           }}
         >
@@ -52,7 +54,7 @@ export default function AiAgentNode({ data, selected }) {
           background: '#3b82f6',
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
       <Handle
@@ -62,7 +64,7 @@ export default function AiAgentNode({ data, selected }) {
           background: '#3b82f6',
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
     </div>

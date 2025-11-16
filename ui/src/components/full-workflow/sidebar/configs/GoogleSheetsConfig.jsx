@@ -30,7 +30,7 @@ export default function GoogleSheetsConfig({
             marginBottom: '0.5rem',
             fontSize: '0.875rem',
             fontWeight: 600,
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}
         >
           Resource
@@ -43,11 +43,11 @@ export default function GoogleSheetsConfig({
           style={{
             width: '100%',
             padding: '0.75rem',
-            border: '1px solid #333',
+            border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
             fontSize: '0.875rem',
             background: '#2a2a2a',
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}
         >
           <option value="Document">Document</option>
@@ -63,7 +63,7 @@ export default function GoogleSheetsConfig({
             marginBottom: '0.5rem',
             fontSize: '0.875rem',
             fontWeight: 600,
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}
         >
           Operation
@@ -74,11 +74,11 @@ export default function GoogleSheetsConfig({
           style={{
             width: '100%',
             padding: '0.75rem',
-            border: '1px solid #333',
+            border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
             fontSize: '0.875rem',
             background: '#2a2a2a',
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}
         >
           {localData.resource === 'Document' ? (
@@ -111,7 +111,7 @@ export default function GoogleSheetsConfig({
                   marginBottom: '0.5rem',
                   fontSize: '0.875rem',
                   fontWeight: 600,
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 Document
@@ -123,11 +123,11 @@ export default function GoogleSheetsConfig({
                   style={{
                     flex: 1,
                     padding: '0.75rem',
-                    border: '1px solid #333',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
                     background: '#2a2a2a',
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   <option value="">Select document to delete...</option>
@@ -145,7 +145,7 @@ export default function GoogleSheetsConfig({
                   style={{
                     background: '#3b82f6',
                     border: 'none',
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                     padding: '0.5rem 1rem',
                     borderRadius: '8px',
                     cursor: 'pointer',
@@ -170,7 +170,7 @@ export default function GoogleSheetsConfig({
                   marginBottom: '0.5rem',
                   fontSize: '0.875rem',
                   fontWeight: 600,
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 Title
@@ -189,7 +189,7 @@ export default function GoogleSheetsConfig({
                   marginBottom: '0.5rem',
                   fontSize: '0.875rem',
                   fontWeight: 600,
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 Initial Sheets
@@ -197,7 +197,7 @@ export default function GoogleSheetsConfig({
               <div
                 style={{
                   background: '#2a2a2a',
-                  border: '1px solid #333',
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                   padding: '0.75rem',
                 }}
@@ -227,11 +227,11 @@ export default function GoogleSheetsConfig({
                       style={{
                         flex: 1,
                         padding: '0.5rem',
-                        border: '1px solid #333',
+                        border: '1px solid hsl(var(--border))',
                         borderRadius: '6px',
                         fontSize: '0.875rem',
-                        background: '#1a1a1a',
-                        color: 'white',
+                        background: 'hsl(var(--muted))',
+                        color: 'hsl(var(--foreground))',
                       }}
                     />
                     <label
@@ -267,7 +267,7 @@ export default function GoogleSheetsConfig({
                       style={{
                         background: '#ef4444',
                         border: 'none',
-                        color: 'white',
+                        color: 'hsl(var(--foreground))',
                         padding: '0.25rem 0.5rem',
                         borderRadius: '4px',
                         cursor: 'pointer',
@@ -289,7 +289,7 @@ export default function GoogleSheetsConfig({
                   style={{
                     background: '#3b82f6',
                     border: 'none',
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                     padding: '0.5rem',
                     borderRadius: '6px',
                     cursor: 'pointer',
@@ -315,7 +315,7 @@ export default function GoogleSheetsConfig({
                 marginBottom: '0.5rem',
                 fontSize: '0.875rem',
                 fontWeight: 600,
-                color: 'white',
+                color: 'hsl(var(--foreground))',
               }}
             >
               Document
@@ -332,11 +332,11 @@ export default function GoogleSheetsConfig({
                 style={{
                   flex: 1,
                   padding: '0.75rem',
-                  border: '1px solid #333',
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                   fontSize: '0.875rem',
                   background: '#2a2a2a',
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 <option value="">Select document...</option>
@@ -358,7 +358,7 @@ export default function GoogleSheetsConfig({
                 style={{
                   background: '#3b82f6',
                   border: 'none',
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                   padding: '0.5rem 1rem',
                   borderRadius: '8px',
                   cursor: 'pointer',
@@ -378,7 +378,7 @@ export default function GoogleSheetsConfig({
                 marginBottom: '0.5rem',
                 fontSize: '0.875rem',
                 fontWeight: 600,
-                color: 'white',
+                color: 'hsl(var(--foreground))',
               }}
             >
               Sheet
@@ -390,11 +390,11 @@ export default function GoogleSheetsConfig({
                 style={{
                   flex: 1,
                   padding: '0.75rem',
-                  border: '1px solid #333',
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                   fontSize: '0.875rem',
                   background: '#2a2a2a',
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 <option value="">Select sheet...</option>
@@ -422,7 +422,7 @@ export default function GoogleSheetsConfig({
                 style={{
                   background: localData.spreadsheetId ? '#3b82f6' : '#4a5568',
                   border: 'none',
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                   padding: '0.5rem 1rem',
                   borderRadius: '8px',
                   cursor: localData.spreadsheetId ? 'pointer' : 'not-allowed',
@@ -444,7 +444,7 @@ export default function GoogleSheetsConfig({
                     marginBottom: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   Unique Column
@@ -455,11 +455,11 @@ export default function GoogleSheetsConfig({
                   style={{
                     width: '100%',
                     padding: '0.75rem',
-                    border: '1px solid #333',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
                     background: '#2a2a2a',
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   <option value="">Select column...</option>
@@ -481,7 +481,7 @@ export default function GoogleSheetsConfig({
                     marginBottom: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   Unique Value
@@ -500,7 +500,7 @@ export default function GoogleSheetsConfig({
                     marginBottom: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   Values to Set by Column
@@ -508,7 +508,7 @@ export default function GoogleSheetsConfig({
                 <div
                   style={{
                     background: '#2a2a2a',
-                    border: '1px solid #333',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     padding: '0.75rem',
                   }}
@@ -582,7 +582,7 @@ export default function GoogleSheetsConfig({
                     alignItems: 'center',
                     gap: '0.5rem',
                     fontSize: '0.875rem',
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   <input
@@ -607,7 +607,7 @@ export default function GoogleSheetsConfig({
                   marginBottom: '0.5rem',
                   fontSize: '0.875rem',
                   fontWeight: 600,
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 Values by Column
@@ -615,7 +615,7 @@ export default function GoogleSheetsConfig({
               <div
                 style={{
                   background: '#2a2a2a',
-                  border: '1px solid #333',
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
                   padding: '0.75rem',
                 }}
@@ -692,7 +692,7 @@ export default function GoogleSheetsConfig({
                     marginBottom: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   Row Index (1-based)
@@ -711,7 +711,7 @@ export default function GoogleSheetsConfig({
                     marginBottom: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   Values by Column
@@ -719,7 +719,7 @@ export default function GoogleSheetsConfig({
                 <div
                   style={{
                     background: '#2a2a2a',
-                    border: '1px solid #333',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     padding: '0.75rem',
                   }}
@@ -798,7 +798,7 @@ export default function GoogleSheetsConfig({
                     marginBottom: '0.5rem',
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: 'white',
+                    color: 'hsl(var(--foreground))',
                   }}
                 >
                   Filters
@@ -806,7 +806,7 @@ export default function GoogleSheetsConfig({
                 <div
                   style={{
                     background: '#2a2a2a',
-                    border: '1px solid #333',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     padding: '0.75rem',
                   }}
@@ -834,11 +834,11 @@ export default function GoogleSheetsConfig({
                         style={{
                           flex: 1,
                           padding: '0.75rem',
-                          border: '1px solid #333',
+                          border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                           fontSize: '0.875rem',
                           background: '#2a2a2a',
-                          color: 'white',
+                          color: 'hsl(var(--foreground))',
                         }}
                       >
                         <option value="">Select column...</option>
@@ -876,7 +876,7 @@ export default function GoogleSheetsConfig({
                         style={{
                           background: '#ef4444',
                           border: 'none',
-                          color: 'white',
+                          color: 'hsl(var(--foreground))',
                           padding: '0.25rem 0.5rem',
                           borderRadius: '4px',
                           cursor: 'pointer',
@@ -898,7 +898,7 @@ export default function GoogleSheetsConfig({
                     style={{
                       background: '#3b82f6',
                       border: 'none',
-                      color: 'white',
+                      color: 'hsl(var(--foreground))',
                       padding: '0.5rem',
                       borderRadius: '6px',
                       cursor: 'pointer',
@@ -918,7 +918,7 @@ export default function GoogleSheetsConfig({
                       marginBottom: '0.5rem',
                       fontSize: '0.875rem',
                       fontWeight: 600,
-                      color: 'white',
+                      color: 'hsl(var(--foreground))',
                     }}
                   >
                     Combine Filters
@@ -931,11 +931,11 @@ export default function GoogleSheetsConfig({
                     style={{
                       width: '100%',
                       padding: '0.75rem',
-                      border: '1px solid #333',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                       fontSize: '0.875rem',
                       background: '#2a2a2a',
-                      color: 'white',
+                      color: 'hsl(var(--foreground))',
                     }}
                   >
                     <option value="AND">AND</option>
@@ -955,7 +955,7 @@ export default function GoogleSheetsConfig({
                   marginBottom: '0.5rem',
                   fontSize: '0.875rem',
                   fontWeight: 600,
-                  color: 'white',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
                 Row Indices (JSON Array, 1-based)

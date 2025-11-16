@@ -1,4 +1,14 @@
 import VariableAutocomplete from '../VariableAutocomplete.jsx';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * FormField Component
@@ -16,50 +26,34 @@ export default function FormField({
   availableVariables = [],
   onDrop,
   onDragOver,
-  style = {},
+  className = '',
 }) {
-  const baseInputStyle = {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #333',
-    borderRadius: '8px',
-    fontSize: '0.875rem',
-    background: '#2a2a2a',
-    color: 'white',
-    ...style,
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '0.5rem',
-    fontSize: '0.875rem',
-    fontWeight: 600,
-    color: 'white',
-  };
-
   if (type === 'select') {
     return (
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={labelStyle}>{label}</label>
-        <select
-          value={value || ''}
-          onChange={e => onChange(e.target.value)}
-          style={baseInputStyle}
-        >
-          {options.map(opt => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+      <div className={`space-y-2 ${className}`} data-field-name={name}>
+        <Label>{label}</Label>
+        <Select value={value || ''} onValueChange={onChange}>
+          <SelectTrigger>
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {options
+              .filter(opt => opt.value !== '' && opt.value != null)
+              .map(opt => (
+                <SelectItem key={opt.value} value={String(opt.value)}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
       </div>
     );
   }
 
   if (availableVariables.length > 0 || multiline) {
     return (
-      <div style={{ marginBottom: '1rem' }} data-field-name={name}>
-        <label style={labelStyle}>{label}</label>
+      <div className={`space-y-2 ${className}`} data-field-name={name}>
+        <Label>{label}</Label>
         <VariableAutocomplete
           value={value || ''}
           onChange={e => onChange(e.target.value)}
@@ -73,17 +67,31 @@ export default function FormField({
     );
   }
 
+  if (multiline) {
+    return (
+      <div className={`space-y-2 ${className}`} data-field-name={name}>
+        <Label>{label}</Label>
+        <Textarea
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div style={{ marginBottom: '1rem' }} data-field-name={name}>
-      <label style={labelStyle}>{label}</label>
-      <input
+    <div className={`space-y-2 ${className}`} data-field-name={name}>
+      <Label>{label}</Label>
+      <Input
         type={type}
         value={value || ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         onDrop={onDrop}
         onDragOver={onDragOver}
-        style={baseInputStyle}
       />
     </div>
   );

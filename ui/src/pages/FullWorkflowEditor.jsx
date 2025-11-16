@@ -33,6 +33,33 @@ import WorkflowImportModal from '../components/full-workflow/WorkflowImportModal
 import { workflowExportImportService } from '../services/workflowExportImport.service.js';
 import { workflowPerformanceService } from '../services/workflowPerformance.service.js';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
+import {
+  Database,
+  Download,
+  Upload,
+  Save,
+  Play,
+  BarChart3,
+  Zap,
+  ArrowLeft,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+  FileEdit,
+  Clipboard,
+  Rocket,
+  Sheet,
+  Link as LinkIcon,
+  Clock,
+  Globe,
+  Phone,
+  Mail,
+  GitBranch,
+  GitMerge,
+  Flag,
+  Bot,
+  Timer,
+} from 'lucide-react';
 
 const nodeTypes = {
   start: StartNode,
@@ -1232,12 +1259,17 @@ function FullWorkflowEditor() {
       {/* Header */}
       <div
         style={{
-          background: 'white',
+          background: 'hsl(var(--card))',
           padding: '1rem 2rem',
-          borderBottom: '1px solid #e0e0e0',
+          borderBottom: '1px solid hsl(var(--border))',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          color: 'hsl(var(--foreground))',
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
         <div
@@ -1252,13 +1284,22 @@ function FullWorkflowEditor() {
             onClick={() => navigate('/fullWorkflows')}
             style={{
               padding: '0.5rem 1rem',
-              border: '1px solid #e0e0e0',
+              border: '1px solid hsl(var(--border))',
               borderRadius: '8px',
-              background: 'white',
+              background: 'hsl(var(--secondary))',
+              color: 'hsl(var(--secondary-foreground))',
               cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'hsl(var(--accent))';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'hsl(var(--secondary))';
             }}
           >
-            ← Back
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back
           </button>
           <input
             type="text"
@@ -1267,10 +1308,12 @@ function FullWorkflowEditor() {
             placeholder="Workflow Name"
             style={{
               padding: '0.5rem 1rem',
-              border: '1px solid #e0e0e0',
+              border: '1px solid hsl(var(--input))',
               borderRadius: '8px',
               fontSize: '1rem',
               minWidth: '200px',
+              background: 'hsl(var(--background))',
+              color: 'hsl(var(--foreground))',
             }}
           />
           <select
@@ -1278,9 +1321,11 @@ function FullWorkflowEditor() {
             onChange={e => setType(e.target.value)}
             style={{
               padding: '0.5rem 1rem',
-              border: '1px solid #e0e0e0',
+              border: '1px solid hsl(var(--input))',
               borderRadius: '8px',
               fontSize: '1rem',
+              background: 'hsl(var(--background))',
+              color: 'hsl(var(--foreground))',
             }}
           >
             <option value="automation">Automation</option>
@@ -1293,20 +1338,36 @@ function FullWorkflowEditor() {
             style={{
               padding: '0.5rem 1rem',
               background: showKnowledgeBase
-                ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
-                : 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
+                ? 'hsl(var(--primary))'
+                : 'hsl(var(--secondary))',
+              color: showKnowledgeBase
+                ? 'hsl(var(--primary-foreground))'
+                : 'hsl(var(--secondary-foreground))',
+              border: `1px solid ${showKnowledgeBase ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+              borderRadius: '0.5rem',
               fontSize: '0.875rem',
-              fontWeight: 600,
+              fontWeight: 500,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              if (!showKnowledgeBase) {
+                e.currentTarget.style.background = 'hsl(var(--accent))';
+                e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+              }
+            }}
+            onMouseLeave={e => {
+              if (!showKnowledgeBase) {
+                e.currentTarget.style.background = 'hsl(var(--secondary))';
+                e.currentTarget.style.borderColor = 'hsl(var(--border))';
+              }
             }}
           >
-            📚 Knowledge Base
+            <Database className="w-4 h-4" />
+            Knowledge Base
           </button>
           {!isNew && (
             <button
@@ -1314,14 +1375,14 @@ function FullWorkflowEditor() {
               disabled={exporting || saving}
               style={{
                 padding: '0.5rem 1rem',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
+                background: 'hsl(var(--secondary))',
+                color: 'hsl(var(--secondary-foreground))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '0.5rem',
                 fontSize: '0.875rem',
-                fontWeight: 600,
+                fontWeight: 500,
                 cursor: exporting || saving ? 'not-allowed' : 'pointer',
-                opacity: exporting || saving ? 0.6 : 1,
+                opacity: exporting || saving ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
@@ -1329,19 +1390,28 @@ function FullWorkflowEditor() {
               }}
               onMouseEnter={e => {
                 if (!exporting && !saving) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow =
-                    '0 4px 12px rgba(245, 158, 11, 0.3)';
+                  e.currentTarget.style.background = 'hsl(var(--accent))';
+                  e.currentTarget.style.borderColor = 'hsl(var(--primary))';
                 }
               }}
               onMouseLeave={e => {
                 if (!exporting && !saving) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.background = 'hsl(var(--secondary))';
+                  e.currentTarget.style.borderColor = 'hsl(var(--border))';
                 }
               }}
             >
-              {exporting ? '⏳ Exporting...' : '📤 Export'}
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Export
+                </>
+              )}
             </button>
           )}
           <button
@@ -1349,14 +1419,14 @@ function FullWorkflowEditor() {
             disabled={saving}
             style={{
               padding: '0.5rem 1rem',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
+              background: 'hsl(var(--secondary))',
+              color: 'hsl(var(--secondary-foreground))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '0.5rem',
               fontSize: '0.875rem',
-              fontWeight: 600,
+              fontWeight: 500,
               cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.6 : 1,
+              opacity: saving ? 0.5 : 1,
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -1364,36 +1434,57 @@ function FullWorkflowEditor() {
             }}
             onMouseEnter={e => {
               if (!saving) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow =
-                  '0 4px 12px rgba(16, 185, 129, 0.3)';
+                e.currentTarget.style.background = 'hsl(var(--accent))';
+                e.currentTarget.style.borderColor = 'hsl(var(--primary))';
               }
             }}
             onMouseLeave={e => {
               if (!saving) {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.background = 'hsl(var(--secondary))';
+                e.currentTarget.style.borderColor = 'hsl(var(--border))';
               }
             }}
           >
-            📥 Import
+            <Upload className="w-4 h-4" />
+            Import
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
               padding: '0.5rem 1.5rem',
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              fontWeight: 600,
+              background: 'hsl(var(--primary))',
+              color: 'hsl(var(--primary-foreground))',
+              border: '1px solid hsl(var(--primary))',
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 500,
               cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.6 : 1,
+              opacity: saving ? 0.5 : 1,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              if (!saving) {
+                e.currentTarget.style.background = 'hsl(var(--primary) / 0.9)';
+              }
+            }}
+            onMouseLeave={e => {
+              if (!saving) {
+                e.currentTarget.style.background = 'hsl(var(--primary))';
+              }
             }}
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-1" />
+                Save
+              </>
+            )}
           </button>
           {!isNew && (
             <button
@@ -1403,27 +1494,38 @@ function FullWorkflowEditor() {
                 padding: '0.5rem 1.5rem',
                 background: executing
                   ? '#10b981'
-                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontWeight: 600,
+                  : 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+                border: '1px solid hsl(var(--primary))',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 500,
                 cursor: executing || saving ? 'not-allowed' : 'pointer',
-                opacity: executing || saving ? 0.6 : 1,
+                opacity: executing || saving ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => {
+                if (!executing && !saving) {
+                  e.currentTarget.style.background = 'hsl(var(--primary) / 0.9)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!executing && !saving) {
+                  e.currentTarget.style.background = 'hsl(var(--primary))';
+                }
               }}
             >
               {executing ? (
                 <>
-                  <span>⏳</span>
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                   <span>Executing...</span>
                 </>
               ) : (
                 <>
-                  <span>▶️</span>
+                  <Play className="w-4 h-4 mr-1" />
                   <span>Execute</span>
                 </>
               )}
@@ -1442,10 +1544,10 @@ function FullWorkflowEditor() {
             transform: 'translateX(-50%)',
             zIndex: 10000,
             padding: '1rem 1.5rem',
-            background: '#fee2e2',
-            border: '2px solid #ef4444',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+            background: 'hsl(var(--destructive) / 0.1)',
+            border: '1px solid hsl(var(--destructive))',
+            borderRadius: '0.5rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             maxWidth: '500px',
             display: 'flex',
             alignItems: 'center',
@@ -1457,13 +1559,13 @@ function FullWorkflowEditor() {
             <div
               style={{
                 fontWeight: 600,
-                color: '#dc2626',
+                color: 'hsl(var(--destructive))',
                 marginBottom: '0.25rem',
               }}
             >
               Error
             </div>
-            <div style={{ fontSize: '0.875rem', color: '#991b1b' }}>
+            <div style={{ fontSize: '0.875rem', color: 'hsl(var(--destructive))' }}>
               {generalError}
             </div>
           </div>
@@ -1489,10 +1591,11 @@ function FullWorkflowEditor() {
         <div
           style={{
             width: '250px',
-            background: 'white',
-            borderRight: '1px solid #e0e0e0',
+            background: 'hsl(var(--card))',
+            borderRight: '1px solid hsl(var(--border))',
             padding: '1rem',
             overflowY: 'auto',
+            color: 'hsl(var(--foreground))',
           }}
         >
           {/* Statistics Section */}
@@ -1502,8 +1605,10 @@ function FullWorkflowEditor() {
                 marginBottom: '1.5rem',
                 padding: '0.75rem',
                 background:
-                  statistics?.totalExecutions > 0 ? '#f0fdf4' : '#f8f9fa',
-                border: `1px solid ${statistics?.totalExecutions > 0 ? '#10b981' : '#e0e0e0'}`,
+                  statistics?.totalExecutions > 0
+                    ? 'hsl(var(--muted))'
+                    : 'hsl(var(--card))',
+                border: `1px solid ${statistics?.totalExecutions > 0 ? '#10b981' : 'hsl(var(--border))'}`,
                 borderRadius: '8px',
               }}
             >
@@ -1520,11 +1625,14 @@ function FullWorkflowEditor() {
                     fontSize: '0.875rem',
                     fontWeight: 600,
                     color:
-                      statistics?.totalExecutions > 0 ? '#059669' : '#64748b',
+                      statistics?.totalExecutions > 0
+                        ? '#10b981'
+                        : 'hsl(var(--muted-foreground))',
                     margin: 0,
                   }}
                 >
-                  📊 Statistics
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Statistics
                 </h3>
                 <button
                   onClick={() => setShowStatistics(!showStatistics)}
@@ -1537,7 +1645,11 @@ function FullWorkflowEditor() {
                     fontSize: '0.75rem',
                   }}
                 >
-                  {showStatistics ? '▼' : '▶'}
+                  {showStatistics ? (
+                    <ChevronDown className="w-3 h-3" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3" />
+                  )}
                 </button>
               </div>
               {showStatistics && (
@@ -1552,11 +1664,11 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.5rem',
-                        background: '#fee2e2',
-                        border: '1px solid #ef4444',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#dc2626',
+                        color: 'hsl(var(--destructive))',
                       }}
                     >
                       Error: {statisticsError}
@@ -1566,12 +1678,12 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#64748b',
+                        color: 'hsl(var(--muted-foreground))',
                         textAlign: 'center',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
                       }}
                     >
                       Loading statistics...
@@ -1581,10 +1693,11 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
+                        color: 'hsl(var(--foreground))',
                       }}
                     >
                       {/* Total Executions */}
@@ -1595,16 +1708,16 @@ function FullWorkflowEditor() {
                           alignItems: 'center',
                           marginBottom: '0.5rem',
                           paddingBottom: '0.5rem',
-                          borderBottom: '1px solid #e5e7eb',
+                          borderBottom: '1px solid hsl(var(--border))',
                         }}
                       >
-                        <span style={{ color: '#64748b' }}>
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>
                           Total Executions
                         </span>
                         <span
                           style={{
                             fontWeight: 700,
-                            color: '#1f2937',
+                            color: 'hsl(var(--foreground))',
                             fontSize: '0.875rem',
                           }}
                         >
@@ -1620,10 +1733,10 @@ function FullWorkflowEditor() {
                           alignItems: 'center',
                           marginBottom: '0.5rem',
                           paddingBottom: '0.5rem',
-                          borderBottom: '1px solid #e5e7eb',
+                          borderBottom: '1px solid hsl(var(--border))',
                         }}
                       >
-                        <span style={{ color: '#64748b' }}>Success Rate</span>
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Success Rate</span>
                         <span
                           style={{
                             fontWeight: 700,
@@ -1647,13 +1760,13 @@ function FullWorkflowEditor() {
                           gap: '0.5rem',
                           marginBottom: '0.5rem',
                           paddingBottom: '0.5rem',
-                          borderBottom: '1px solid #e5e7eb',
+                          borderBottom: '1px solid hsl(var(--border))',
                         }}
                       >
                         <div style={{ flex: 1 }}>
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.65rem',
                               marginBottom: '0.25rem',
                             }}
@@ -1673,7 +1786,7 @@ function FullWorkflowEditor() {
                         <div style={{ flex: 1 }}>
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.65rem',
                               marginBottom: '0.25rem',
                             }}
@@ -1698,19 +1811,19 @@ function FullWorkflowEditor() {
                           style={{
                             marginBottom: '0.5rem',
                             paddingBottom: '0.5rem',
-                            borderBottom: '1px solid #e5e7eb',
+                            borderBottom: '1px solid hsl(var(--border))',
                           }}
                         >
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.65rem',
                               marginBottom: '0.25rem',
                             }}
                           >
                             Last Execution
                           </div>
-                          <div style={{ fontSize: '0.7rem', color: '#1f2937' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'hsl(var(--foreground))' }}>
                             {new Date(
                               statistics.lastExecution
                             ).toLocaleString()}
@@ -1724,7 +1837,7 @@ function FullWorkflowEditor() {
                           <div style={{ flex: 1 }}>
                             <div
                               style={{
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 fontSize: '0.65rem',
                                 marginBottom: '0.25rem',
                               }}
@@ -1744,7 +1857,7 @@ function FullWorkflowEditor() {
                           <div style={{ flex: 1 }}>
                             <div
                               style={{
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 fontSize: '0.65rem',
                                 marginBottom: '0.25rem',
                               }}
@@ -1768,12 +1881,12 @@ function FullWorkflowEditor() {
                           style={{
                             marginTop: '0.5rem',
                             paddingTop: '0.5rem',
-                            borderTop: '1px solid #e5e7eb',
+                            borderTop: '1px solid hsl(var(--border))',
                           }}
                         >
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.65rem',
                               marginBottom: '0.25rem',
                             }}
@@ -1785,7 +1898,7 @@ function FullWorkflowEditor() {
                               maxHeight: '100px',
                               overflowY: 'auto',
                               fontSize: '0.65rem',
-                              color: '#dc2626',
+                              color: 'hsl(var(--destructive))',
                             }}
                           >
                             {statistics.errors.slice(-3).map((err, idx) => (
@@ -1807,7 +1920,7 @@ function FullWorkflowEditor() {
                           style={{
                             marginTop: '0.75rem',
                             paddingTop: '0.75rem',
-                            borderTop: '2px solid #e5e7eb',
+                            borderTop: '2px solid hsl(var(--border))',
                           }}
                         >
                           <button
@@ -1824,19 +1937,19 @@ function FullWorkflowEditor() {
                               width: '100%',
                               padding: '0.5rem',
                               background: 'transparent',
-                              border: '1px solid #e5e7eb',
+                              border: '1px solid hsl(var(--border))',
                               borderRadius: '6px',
                               cursor: 'pointer',
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
                               fontSize: '0.75rem',
-                              color: '#1f2937',
+                              color: 'hsl(var(--foreground))',
                               fontWeight: 600,
                             }}
                           >
                             <span>
-                              📋 Execution History (
+                              <Clipboard className="w-4 h-4 mr-1" /> Execution History (
                               {executionHistory.length || 0})
                             </span>
                             <span>{showExecutionHistory ? '▼' : '▶'}</span>
@@ -1849,12 +1962,12 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#64748b',
+                        color: 'hsl(var(--muted-foreground))',
                         textAlign: 'center',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
                       }}
                     >
                       No statistics available yet. Execute the workflow to see
@@ -1870,9 +1983,10 @@ function FullWorkflowEditor() {
                         style={{
                           marginTop: '0.5rem',
                           padding: '0.75rem',
-                          background: 'white',
+                          background: 'hsl(var(--muted))',
                           borderRadius: '6px',
-                          border: '1px solid #e0e0e0',
+                          border: '1px solid hsl(var(--border))',
+                          color: 'hsl(var(--foreground))',
                           maxHeight: '400px',
                           overflowY: 'auto',
                         }}
@@ -1885,7 +1999,7 @@ function FullWorkflowEditor() {
                               border: '1px solid #ef4444',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
-                              color: '#dc2626',
+                              color: 'hsl(var(--destructive))',
                               marginBottom: '0.5rem',
                             }}
                           >
@@ -1897,7 +2011,7 @@ function FullWorkflowEditor() {
                             style={{
                               padding: '0.75rem',
                               fontSize: '0.75rem',
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               textAlign: 'center',
                             }}
                           >
@@ -1911,7 +2025,7 @@ function FullWorkflowEditor() {
                               style={{
                                 padding: '0.75rem',
                                 fontSize: '0.75rem',
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 textAlign: 'center',
                               }}
                             >
@@ -1992,7 +2106,7 @@ function FullWorkflowEditor() {
                                           <div
                                             style={{
                                               fontSize: '0.65rem',
-                                              color: '#64748b',
+                                              color: 'hsl(var(--muted-foreground))',
                                               marginTop: '0.125rem',
                                             }}
                                           >
@@ -2006,7 +2120,7 @@ function FullWorkflowEditor() {
                                         <span
                                           style={{
                                             fontSize: '0.7rem',
-                                            color: '#64748b',
+                                            color: 'hsl(var(--muted-foreground))',
                                             pointerEvents: 'none',
                                           }}
                                         >
@@ -2032,7 +2146,7 @@ function FullWorkflowEditor() {
                                           <div
                                             style={{
                                               fontWeight: 600,
-                                              color: '#dc2626',
+                                              color: 'hsl(var(--destructive))',
                                               marginBottom: '0.5rem',
                                             }}
                                           >
@@ -2057,7 +2171,7 @@ function FullWorkflowEditor() {
                                               <summary
                                                 style={{
                                                   cursor: 'pointer',
-                                                  color: '#dc2626',
+                                                  color: 'hsl(var(--destructive))',
                                                   fontSize: '0.65rem',
                                                   fontWeight: 600,
                                                 }}
@@ -2068,7 +2182,7 @@ function FullWorkflowEditor() {
                                                 style={{
                                                   marginTop: '0.5rem',
                                                   padding: '0.5rem',
-                                                  background: '#fef2f2',
+                                                  background: 'hsl(var(--destructive) / 0.1)',
                                                   borderRadius: '4px',
                                                   fontSize: '0.6rem',
                                                   color: '#991b1b',
@@ -2090,7 +2204,7 @@ function FullWorkflowEditor() {
                                         style={{
                                           marginTop: '0.5rem',
                                           padding: '0.5rem',
-                                          background: '#fef3c7',
+                                          background: 'hsl(var(--muted))',
                                           border: '1px solid #f59e0b',
                                           borderRadius: '6px',
                                           fontSize: '0.7rem',
@@ -2118,9 +2232,9 @@ function FullWorkflowEditor() {
               style={{
                 marginBottom: '1rem',
                 padding: '0.75rem',
-                background: '#f8fafc',
+                background: 'hsl(var(--card))',
                 borderRadius: '8px',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
               }}
             >
               <div
@@ -2135,23 +2249,28 @@ function FullWorkflowEditor() {
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: performance?.workflow ? '#059669' : '#64748b',
+                    color: performance?.workflow ? '#10b981' : 'hsl(var(--muted-foreground))',
                     margin: 0,
                   }}
                 >
-                  ⚡ Performance
+                  <Zap className="w-4 h-4 mr-1" />
+                  Performance
                 </h3>
                 <button
                   onClick={() => setShowPerformance(!showPerformance)}
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: performance?.workflow ? '#10b981' : '#64748b',
+                    color: performance?.workflow ? '#10b981' : 'hsl(var(--muted-foreground))',
                     cursor: 'pointer',
                     fontSize: '0.75rem',
                   }}
                 >
-                  {showPerformance ? '▼' : '▶'}
+                  {showPerformance ? (
+                    <ChevronDown className="w-3 h-3" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3" />
+                  )}
                 </button>
               </div>
               {showPerformance && (
@@ -2166,11 +2285,11 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.5rem',
-                        background: '#fee2e2',
-                        border: '1px solid #ef4444',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#dc2626',
+                        color: 'hsl(var(--destructive))',
                       }}
                     >
                       Error: {performanceError}
@@ -2180,12 +2299,12 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#64748b',
+                        color: 'hsl(var(--muted-foreground))',
                         textAlign: 'center',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
                       }}
                     >
                       Loading performance data...
@@ -2195,10 +2314,11 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
+                        color: 'hsl(var(--foreground))',
                       }}
                     >
                       {/* Workflow-Level Performance */}
@@ -2208,7 +2328,7 @@ function FullWorkflowEditor() {
                             style={{
                               fontSize: '0.7rem',
                               fontWeight: 600,
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               marginBottom: '0.5rem',
                               textTransform: 'uppercase',
                             }}
@@ -2222,7 +2342,7 @@ function FullWorkflowEditor() {
                               marginBottom: '0.25rem',
                             }}
                           >
-                            <span style={{ color: '#64748b' }}>Avg Time</span>
+                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>Avg Time</span>
                             <span style={{ fontWeight: 600, color: '#1f2937' }}>
                               {performance.workflow.avgExecutionTime.toFixed(2)}
                               ms
@@ -2235,7 +2355,7 @@ function FullWorkflowEditor() {
                               marginBottom: '0.25rem',
                             }}
                           >
-                            <span style={{ color: '#64748b' }}>Min Time</span>
+                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>Min Time</span>
                             <span style={{ fontWeight: 600, color: '#10b981' }}>
                               {performance.workflow.minExecutionTime.toFixed(2)}
                               ms
@@ -2248,7 +2368,7 @@ function FullWorkflowEditor() {
                               marginBottom: '0.25rem',
                             }}
                           >
-                            <span style={{ color: '#64748b' }}>Max Time</span>
+                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>Max Time</span>
                             <span style={{ fontWeight: 600, color: '#ef4444' }}>
                               {performance.workflow.maxExecutionTime.toFixed(2)}
                               ms
@@ -2260,7 +2380,7 @@ function FullWorkflowEditor() {
                               justifyContent: 'space-between',
                             }}
                           >
-                            <span style={{ color: '#64748b' }}>
+                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>
                               Total Executions
                             </span>
                             <span style={{ fontWeight: 600, color: '#1f2937' }}>
@@ -2277,10 +2397,10 @@ function FullWorkflowEditor() {
                             style={{
                               fontSize: '0.7rem',
                               fontWeight: 600,
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               marginBottom: '0.5rem',
                               textTransform: 'uppercase',
-                              borderTop: '1px solid #e5e7eb',
+                              borderTop: '1px solid hsl(var(--border))',
                               paddingTop: '0.75rem',
                             }}
                           >
@@ -2294,7 +2414,9 @@ function FullWorkflowEditor() {
                                 key={node.nodeId}
                                 style={{
                                   padding: '0.5rem',
-                                  background: idx === 0 ? '#fef3c7' : '#f8fafc',
+                                  background: idx === 0
+                                    ? 'hsl(var(--muted))'
+                                    : 'hsl(var(--card))',
                                   borderRadius: '6px',
                                   marginBottom: '0.5rem',
                                   border:
@@ -2314,7 +2436,7 @@ function FullWorkflowEditor() {
                                   <span
                                     style={{
                                       fontWeight: 600,
-                                      color: '#1f2937',
+                                      color: 'hsl(var(--foreground))',
                                       fontSize: '0.7rem',
                                     }}
                                   >
@@ -2337,7 +2459,7 @@ function FullWorkflowEditor() {
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     fontSize: '0.65rem',
-                                    color: '#64748b',
+                                    color: 'hsl(var(--muted-foreground))',
                                   }}
                                 >
                                   <span>Avg: {node.avg.toFixed(2)}ms</span>
@@ -2358,11 +2480,11 @@ function FullWorkflowEditor() {
                                     marginTop: '0.5rem',
                                     padding: '0.25rem',
                                     background: 'transparent',
-                                    border: '1px solid #e0e0e0',
+                                    border: '1px solid hsl(var(--border))',
                                     borderRadius: '4px',
                                     cursor: 'pointer',
                                     fontSize: '0.65rem',
-                                    color: '#64748b',
+                                    color: 'hsl(var(--muted-foreground))',
                                   }}
                                 >
                                   {selectedNodeForGraph === node.nodeId
@@ -2377,13 +2499,13 @@ function FullWorkflowEditor() {
                                         padding: '0.5rem',
                                         background: 'white',
                                         borderRadius: '4px',
-                                        border: '1px solid #e0e0e0',
+                                        border: '1px solid hsl(var(--border))',
                                       }}
                                     >
                                       <div
                                         style={{
                                           fontSize: '0.65rem',
-                                          color: '#64748b',
+                                          color: 'hsl(var(--muted-foreground))',
                                           marginBottom: '0.25rem',
                                         }}
                                       >
@@ -2442,7 +2564,7 @@ function FullWorkflowEditor() {
                           style={{
                             padding: '0.75rem',
                             textAlign: 'center',
-                            color: '#64748b',
+                            color: 'hsl(var(--muted-foreground))',
                             fontSize: '0.75rem',
                           }}
                         >
@@ -2495,12 +2617,12 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#64748b',
+                        color: 'hsl(var(--muted-foreground))',
                         textAlign: 'center',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
                       }}
                     >
                       No performance data available yet.
@@ -2531,8 +2653,10 @@ function FullWorkflowEditor() {
               style={{
                 marginBottom: '1.5rem',
                 padding: '0.75rem',
-                background: activeTriggers.length > 0 ? '#f0f9ff' : '#f8f9fa',
-                border: `1px solid ${activeTriggers.length > 0 ? '#3b82f6' : '#e0e0e0'}`,
+                background: activeTriggers.length > 0
+                  ? 'hsl(var(--muted))'
+                  : 'hsl(var(--card))',
+                border: `1px solid ${activeTriggers.length > 0 ? '#3b82f6' : 'hsl(var(--border))'}`,
                 borderRadius: '8px',
               }}
             >
@@ -2593,11 +2717,11 @@ function FullWorkflowEditor() {
                     <div
                       style={{
                         padding: '0.5rem',
-                        background: '#fee2e2',
-                        border: '1px solid #ef4444',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: '#dc2626',
+                        color: 'hsl(var(--destructive))',
                       }}
                     >
                       Error: {triggersError}
@@ -2612,9 +2736,9 @@ function FullWorkflowEditor() {
                           background: 'white',
                           borderRadius: '6px',
                           fontSize: '0.75rem',
-                          color: '#64748b',
+                          color: 'hsl(var(--muted-foreground))',
                           textAlign: 'center',
-                          border: '1px solid #e0e0e0',
+                          border: '1px solid hsl(var(--border))',
                         }}
                       >
                         No active triggers. Add a Trigger node (Google Sheets,
@@ -2626,10 +2750,11 @@ function FullWorkflowEditor() {
                       key={trigger.id || index}
                       style={{
                         padding: '0.75rem',
-                        background: 'white',
+                        background: 'hsl(var(--muted))',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid hsl(var(--border))',
+                        color: 'hsl(var(--foreground))',
                       }}
                     >
                       <div
@@ -2641,13 +2766,29 @@ function FullWorkflowEditor() {
                           gap: '0.5rem',
                         }}
                       >
-                        {trigger.triggerConfig?.type === 'google-sheets-trigger'
-                          ? '📊 Google Sheets Trigger'
-                          : trigger.triggerConfig?.type === 'schedule-trigger'
-                            ? '⏰ Schedule Trigger'
-                            : trigger.triggerConfig?.type === 'webhook-trigger'
-                              ? '🔗 Webhook Trigger'
-                              : '🚀 Manual Trigger'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {trigger.triggerConfig?.type === 'google-sheets-trigger' ? (
+                            <>
+                              <Sheet className="w-4 h-4" style={{ color: '#34d399' }} />
+                              <span>Google Sheets Trigger</span>
+                            </>
+                          ) : trigger.triggerConfig?.type === 'schedule-trigger' ? (
+                            <>
+                              <Clock className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+                              <span>Schedule Trigger</span>
+                            </>
+                          ) : trigger.triggerConfig?.type === 'webhook-trigger' ? (
+                            <>
+                              <LinkIcon className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+                              <span>Webhook Trigger</span>
+                            </>
+                          ) : (
+                            <>
+                              <Rocket className="w-4 h-4" style={{ color: '#10b981' }} />
+                              <span>Manual Trigger</span>
+                            </>
+                          )}
+                        </div>
                         {trigger.state && (
                           <span
                             style={{
@@ -2670,7 +2811,7 @@ function FullWorkflowEditor() {
                         <>
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.7rem',
                               marginBottom: '0.25rem',
                             }}
@@ -2679,7 +2820,7 @@ function FullWorkflowEditor() {
                           </div>
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.7rem',
                               marginBottom: '0.25rem',
                               wordBreak: 'break-all',
@@ -2688,7 +2829,7 @@ function FullWorkflowEditor() {
                             URL:{' '}
                             <code
                               style={{
-                                background: '#f1f5f9',
+                                background: 'hsl(var(--muted))',
                                 padding: '0.125rem 0.25rem',
                                 borderRadius: '4px',
                                 fontSize: '0.65rem',
@@ -2708,7 +2849,7 @@ function FullWorkflowEditor() {
                           {trigger.triggerConfig?.spreadsheetId && (
                             <div
                               style={{
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 fontSize: '0.7rem',
                                 marginBottom: '0.25rem',
                               }}
@@ -2718,7 +2859,7 @@ function FullWorkflowEditor() {
                           )}
                           <div
                             style={{
-                              color: '#64748b',
+                              color: 'hsl(var(--muted-foreground))',
                               fontSize: '0.7rem',
                               marginBottom: '0.25rem',
                             }}
@@ -2729,7 +2870,7 @@ function FullWorkflowEditor() {
                           {trigger.triggerConfig?.triggerOn && (
                             <div
                               style={{
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 fontSize: '0.7rem',
                                 marginBottom: '0.25rem',
                               }}
@@ -2745,7 +2886,7 @@ function FullWorkflowEditor() {
                           {trigger.triggerConfig?.cronExpression && (
                             <div
                               style={{
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 fontSize: '0.7rem',
                                 marginBottom: '0.25rem',
                               }}
@@ -2756,7 +2897,7 @@ function FullWorkflowEditor() {
                           {trigger.triggerConfig?.preset && (
                             <div
                               style={{
-                                color: '#64748b',
+                                color: 'hsl(var(--muted-foreground))',
                                 fontSize: '0.7rem',
                                 marginBottom: '0.25rem',
                               }}
@@ -2769,7 +2910,7 @@ function FullWorkflowEditor() {
                       {trigger.nextRun && (
                         <div
                           style={{
-                            color: '#64748b',
+                            color: 'hsl(var(--muted-foreground))',
                             fontSize: '0.7rem',
                             marginBottom: '0.25rem',
                           }}
@@ -2780,7 +2921,7 @@ function FullWorkflowEditor() {
                       {trigger.id && (
                         <div
                           style={{
-                            color: '#94a3b8',
+                            color: 'hsl(var(--muted-foreground))',
                             fontSize: '0.65rem',
                             marginTop: '0.25rem',
                           }}
@@ -2800,7 +2941,7 @@ function FullWorkflowEditor() {
             style={{
               fontSize: '0.875rem',
               fontWeight: 600,
-              color: '#64748b',
+              color: 'hsl(var(--muted-foreground))',
               marginBottom: '0.5rem',
               marginTop: '0',
               textTransform: 'uppercase',
@@ -2821,68 +2962,79 @@ function FullWorkflowEditor() {
               onClick={() => addNode('start')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🚀</span>
+              <Rocket className="w-4 h-4" style={{ color: '#10b981' }} />
               <span>Manual Trigger</span>
             </button>
             <button
               onClick={() => addNode('google-sheets-trigger')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
             >
-              <span>📊</span>
+              <Sheet className="w-4 h-4" style={{ color: '#34d399' }} />
               <span>Google Sheets Trigger</span>
             </button>
             <button
               onClick={() => addNode('webhook-trigger')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🔗</span>
+              <LinkIcon className="w-4 h-4" style={{ color: '#8b5cf6' }} />
               <span>Webhook Trigger</span>
             </button>
             <button
               onClick={() => addNode('schedule-trigger')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>⏰</span>
+              <Clock className="w-4 h-4" style={{ color: '#8b5cf6' }} />
               <span>Schedule Trigger</span>
             </button>
           </div>
@@ -2892,7 +3044,7 @@ function FullWorkflowEditor() {
             style={{
               fontSize: '0.875rem',
               fontWeight: 600,
-              color: '#64748b',
+              color: 'hsl(var(--muted-foreground))',
               marginBottom: '0.5rem',
               textTransform: 'uppercase',
               letterSpacing: '1px',
@@ -2907,119 +3059,139 @@ function FullWorkflowEditor() {
               onClick={() => addNode('http-request')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🌐</span>
+              <Globe className="w-4 h-4" style={{ color: '#3b82f6' }} />
               <span>HTTP Request</span>
             </button>
             <button
               onClick={() => addNode('call-agent')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>📞</span>
+              <Phone className="w-4 h-4" style={{ color: '#10b981' }} />
               <span>Call Agent</span>
             </button>
             <button
               onClick={() => addNode('database-query')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🗄️</span>
+              <Database className="w-4 h-4" style={{ color: '#06b6d4' }} />
               <span>Database Query</span>
             </button>
             <button
               onClick={() => addNode('google-sheets')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
             >
-              <span>📊</span>
+              <Sheet className="w-4 h-4" style={{ color: '#34d399' }} />
               <span>Google Sheets</span>
             </button>
             <button
               onClick={() => addNode('knowledge-base-query')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>📚</span>
+              <Database className="w-4 h-4" style={{ color: '#a78bfa' }} />
               <span>Knowledge Base</span>
             </button>
             <button
               onClick={() => addNode('ai-agent')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🤖</span>
+              <Bot className="w-4 h-4" style={{ color: '#3b82f6' }} />
               <span>AI Agent</span>
             </button>
             <button
               onClick={() => addNode('email')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>📧</span>
+              <Mail className="w-4 h-4" style={{ color: '#8b5cf6' }} />
               <span>Email</span>
             </button>
           </div>
@@ -3029,7 +3201,7 @@ function FullWorkflowEditor() {
             style={{
               fontSize: '0.875rem',
               fontWeight: 600,
-              color: '#64748b',
+              color: 'hsl(var(--muted-foreground))',
               marginTop: '1.5rem',
               marginBottom: '0.5rem',
               textTransform: 'uppercase',
@@ -3045,85 +3217,99 @@ function FullWorkflowEditor() {
               onClick={() => addNode('if')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🔀</span>
+              <GitBranch className="w-4 h-4" style={{ color: '#f59e0b' }} />
               <span>If (Condition)</span>
             </button>
             <button
               onClick={() => addNode('merge')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🔀</span>
+              <GitMerge className="w-4 h-4" style={{ color: '#8b5cf6' }} />
               <span>Merge</span>
             </button>
             <button
               onClick={() => addNode('wait')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
             >
-              <span>⏳</span>
+              <Timer className="w-4 h-4" style={{ color: '#6366f1' }} />
               <span>Wait</span>
             </button>
             <button
               onClick={() => addNode('variable-set')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>📝</span>
+              <FileEdit className="w-4 h-4" style={{ color: '#f59e0b' }} />
               <span>Variable Set</span>
             </button>
             <button
               onClick={() => addNode('end')}
               style={{
                 padding: '0.75rem',
-                border: '1px solid #e0e0e0',
+                border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                background: 'white',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
                 cursor: 'pointer',
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                transition: 'all 0.2s ease',
               }}
+              className="node-palette-button"
             >
-              <span>🏁</span>
+              <Flag className="w-4 h-4" style={{ color: '#ef4444' }} />
               <span>End</span>
             </button>
           </div>
@@ -3134,10 +3320,11 @@ function FullWorkflowEditor() {
           style={{
             flex: 1,
             position: 'relative',
-            background: '#f5f5f5',
-            paddingRight: selectedNode ? '350px' : '0',
-            transition: 'padding-right 0.3s',
+            background: 'transparent',
             boxSizing: 'border-box',
+            width: '100%',
+            minWidth: 0,
+            overflow: 'hidden',
           }}
         >
           <ReactFlow
@@ -3177,7 +3364,7 @@ function FullWorkflowEditor() {
             nodeTypes={nodeTypes}
             fitView
           >
-            <Background variant="grid" gap={20} size={1} color="#e2e8f0" />
+            <Background variant="grid" gap={24} size={1} color="hsl(var(--border))" />
             <Controls />
             <MiniMap
               nodeColor={node => {
@@ -3206,36 +3393,23 @@ function FullWorkflowEditor() {
             />
           </ReactFlow>
 
-          {/* Node Sidebar - n8n style - positioned absolutely */}
+          {/* Node Sidebar - n8n style - 3-column layout */}
           {selectedNode && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: showKnowledgeBase ? '400px' : 0,
-                bottom: 0,
-                width: '100%',
-                maxWidth: '1200px',
-                zIndex: 10,
-                transition: 'right 0.3s',
+            <NodeSidebarN8N
+              selectedNode={selectedNode}
+              nodes={nodes}
+              edges={edges}
+              onNodeUpdate={onNodeUpdate}
+              onClose={() => setSelectedNode(null)}
+              onDeleteNode={nodeId => {
+                setNodes(nds => nds.filter(n => n.id !== nodeId));
+                setEdges(eds =>
+                  eds.filter(e => e.source !== nodeId && e.target !== nodeId)
+                );
+                setSelectedNode(null);
               }}
-            >
-              <NodeSidebarN8N
-                selectedNode={selectedNode}
-                nodes={nodes}
-                edges={edges}
-                onNodeUpdate={onNodeUpdate}
-                onClose={() => setSelectedNode(null)}
-                onDeleteNode={nodeId => {
-                  setNodes(nds => nds.filter(n => n.id !== nodeId));
-                  setEdges(eds =>
-                    eds.filter(e => e.source !== nodeId && e.target !== nodeId)
-                  );
-                  setSelectedNode(null);
-                }}
-                workflowId={id ? parseInt(id, 10) : null}
-              />
-            </div>
+              workflowId={id ? parseInt(id, 10) : null}
+            />
           )}
 
           {/* Knowledge Base Manager - positioned absolutely */}

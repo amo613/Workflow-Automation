@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { toCamelCase } from '../utils/variable-utils.js';
+import { Rocket, Sparkles, GitBranch, Flag, Lightbulb } from 'lucide-react';
 
 function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
   const [localData, setLocalData] = useState({});
@@ -23,8 +24,8 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
         next: data.next ?? '',
         ifTrue: data.ifTrue ?? { next: '' },
         ifFalse: data.ifFalse ?? { next: '' },
-        trueLabel: data.trueLabel ?? 'True',
-        falseLabel: data.falseLabel ?? 'False',
+        trueLabel: data.trueLabel || 'True',
+        falseLabel: data.falseLabel || 'False',
       });
       // Store previous values for each field
       previousValueRef.current = {
@@ -199,526 +200,646 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
     }
   };
 
+  // Normalize variables in text
+  const normalizeVariablesInText = (text, availableVariables) => {
+    if (!text || typeof text !== 'string') return text;
+
+    // Find all {variable} patterns
+    const variablePattern = /\{([^}]+)\}/g;
+    let normalizedText = text;
+    let match;
+
+    while ((match = variablePattern.exec(text)) !== null) {
+      const originalVariable = match[1];
+      const normalizedVariable = toCamelCase(originalVariable);
+
+      if (originalVariable !== normalizedVariable) {
+        normalizedText = normalizedText.replace(
+          `{${originalVariable}}`,
+          `{${normalizedVariable}}`
+        );
+      }
+    }
+
+    return normalizedText;
+  };
+
   return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        width: '400px',
-        height: '100%',
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(20px)',
-        boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.1)',
-        borderLeft: '1px solid rgba(102, 126, 234, 0.1)',
-        padding: '2rem',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        zIndex: 50,
-        boxSizing: 'border-box',
-      }}
-    >
+    <>
+      {/* Sidebar - Centered Overlay (no backdrop to avoid conflicts with modals) */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90vw',
+          maxWidth: '600px',
+          maxHeight: '85vh',
+          zIndex: 100,
+          background: 'hsl(var(--card))',
+          borderRadius: '0.75rem',
+          border: '1px solid hsl(var(--border))',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          padding: '2rem',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        <h2
+        <div
           style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            color: '#1f2937',
-            margin: 0,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1.5rem',
           }}
         >
-          {selectedNode.type === 'start' && '🚀 Start Node'}
-          {selectedNode.type === 'step' && '✨ Step Node'}
-          {selectedNode.type === 'if' && '🔀 If Node'}
-          {selectedNode.type === 'end' && '🏁 End Node'}
-        </h2>
-        {onClose && (
-          <button
-            onClick={onClose}
+          <h2
             style={{
-              background: 'transparent',
-              border: 'none',
               fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: '#6b7280',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '8px',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)';
-              e.currentTarget.style.color = '#1f2937';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = '#6b7280';
+              fontWeight: 700,
+              color: 'hsl(var(--foreground))',
+              margin: 0,
             }}
           >
-            ×
-          </button>
+            {selectedNode.type === 'start' && (
+              <>
+                <Rocket className="w-5 h-5 mr-2" />
+                Start Node
+              </>
+            )}
+            {selectedNode.type === 'step' && (
+              <>
+                <Sparkles className="w-5 h-5 mr-2" />
+                Step Node
+              </>
+            )}
+            {selectedNode.type === 'if' && (
+              <>
+                <GitBranch className="w-5 h-5 mr-2" />
+                If Node
+              </>
+            )}
+            {selectedNode.type === 'end' && (
+              <>
+                <Flag className="w-5 h-5 mr-2" />
+                End Node
+              </>
+            )}
+          </h2>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                color: 'hsl(var(--muted-foreground))',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.5rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'hsl(var(--accent))';
+                e.currentTarget.style.color = 'hsl(var(--foreground))';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'hsl(var(--muted-foreground))';
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* Start Node */}
+        {selectedNode.type === 'start' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Action
+              </label>
+              <textarea
+                value={localData.action ?? ''}
+                onChange={e => handleTextareaChange('action', e)}
+                onBlur={e => handleBlur('action', e)}
+                placeholder="Start message... Use {variableName} for variables"
+                className="bubble-input"
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  resize: 'vertical',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+              {showVariables && variableField === 'action' && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '0.5rem',
+                    border: '1px solid hsl(var(--border))',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    Available Variables:
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    {getAvailableVariables().length > 0 ? (
+                      getAvailableVariables().map(variable => (
+                        <button
+                          key={variable}
+                          onClick={() => insertVariable(variable, 'action')}
+                          style={{
+                            padding: '0.5rem',
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            textAlign: 'left',
+                            transition: 'all 0.2s',
+                            color: 'hsl(var(--foreground))',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'hsl(var(--card))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                          }}
+                        >
+                          {'{'}
+                          {variable}
+                          {'}'}
+                        </button>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                        No variables available. Add entries in Knowledge Base.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!showVariables && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Lightbulb className="w-3 h-3" />
+                    <span>Tip: Type {'{'} to see available variables</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step Node */}
+        {selectedNode.type === 'step' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Name
+              </label>
+              <input
+                type="text"
+                value={localData.name || ''}
+                onChange={e => handleUpdate('name', e.target.value)}
+                onBlur={e => handleBlur('name', e)}
+                placeholder="Node name..."
+                className="bubble-input"
+                style={{
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Action
+              </label>
+              <textarea
+                value={localData.action ?? ''}
+                onChange={e => handleTextareaChange('action', e)}
+                onBlur={e => handleBlur('action', e)}
+                placeholder="Step message... Use {variableName} for variables"
+                className="bubble-input"
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  resize: 'vertical',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+              {showVariables && variableField === 'action' && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '0.5rem',
+                    border: '1px solid hsl(var(--border))',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    Available Variables:
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    {getAvailableVariables().length > 0 ? (
+                      getAvailableVariables().map(variable => (
+                        <button
+                          key={variable}
+                          onClick={() => insertVariable(variable, 'action')}
+                          style={{
+                            padding: '0.5rem',
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            textAlign: 'left',
+                            transition: 'all 0.2s',
+                            color: 'hsl(var(--foreground))',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'hsl(var(--card))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                          }}
+                        >
+                          {'{'}
+                          {variable}
+                          {'}'}
+                        </button>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                        No variables available. Add entries in Knowledge Base.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!showVariables && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Lightbulb className="w-3 h-3" />
+                    <span>Tip: Type {'{'} to see available variables</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* If Node */}
+        {selectedNode.type === 'if' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Condition
+              </label>
+              <input
+                type="text"
+                value={localData.condition || ''}
+                onChange={e => handleInputChange('condition', e)}
+                onBlur={e => handleBlur('condition', e)}
+                placeholder="e.g., {userAge} > 18"
+                className="bubble-input"
+                style={{
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+              {showVariables && variableField === 'condition' && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '0.5rem',
+                    border: '1px solid hsl(var(--border))',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    Available Variables:
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    {getAvailableVariables().length > 0 ? (
+                      getAvailableVariables().map(variable => (
+                        <button
+                          key={variable}
+                          onClick={() => insertVariable(variable, 'condition')}
+                          style={{
+                            padding: '0.5rem',
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            textAlign: 'left',
+                            transition: 'all 0.2s',
+                            color: 'hsl(var(--foreground))',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'hsl(var(--card))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                          }}
+                        >
+                          {'{'}
+                          {variable}
+                          {'}'}
+                        </button>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                        No variables available. Add entries in Knowledge Base.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!showVariables && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Lightbulb className="w-3 h-3" />
+                    <span>Tip: Type {'{'} to see available variables</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                True Label
+              </label>
+              <input
+                type="text"
+                value={localData.trueLabel || 'True'}
+                onChange={e => handleUpdate('trueLabel', e.target.value)}
+                className="bubble-input"
+                style={{
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                False Label
+              </label>
+              <input
+                type="text"
+                value={localData.falseLabel || 'False'}
+                onChange={e => handleUpdate('falseLabel', e.target.value)}
+                className="bubble-input"
+                style={{
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* End Node */}
+        {selectedNode.type === 'end' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Action
+              </label>
+              <textarea
+                value={localData.action ?? ''}
+                onChange={e => handleTextareaChange('action', e)}
+                onBlur={e => handleBlur('action', e)}
+                placeholder="End message... Use {variableName} for variables"
+                className="bubble-input"
+                style={{
+                  width: '100%',
+                  minHeight: '100px',
+                  resize: 'vertical',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--input))',
+                }}
+              />
+              {showVariables && variableField === 'action' && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '0.5rem',
+                    border: '1px solid hsl(var(--border))',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'hsl(var(--foreground))',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    Available Variables:
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    {getAvailableVariables().length > 0 ? (
+                      getAvailableVariables().map(variable => (
+                        <button
+                          key={variable}
+                          onClick={() => insertVariable(variable, 'action')}
+                          style={{
+                            padding: '0.5rem',
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '0.375rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            textAlign: 'left',
+                            transition: 'all 0.2s',
+                            color: 'hsl(var(--foreground))',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.background = 'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.background = 'hsl(var(--card))';
+                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                          }}
+                        >
+                          {'{'}
+                          {variable}
+                          {'}'}
+                        </button>
+                      ))
+                    ) : (
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                        No variables available. Add entries in Knowledge Base.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!showVariables && (
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Lightbulb className="w-3 h-3" />
+                    <span>Tip: Type {'{'} to see available variables</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
-
-      {/* Start Node */}
-      {selectedNode.type === 'start' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 600,
-                color: '#374151',
-                fontSize: '0.875rem',
-              }}
-            >
-              Action
-            </label>
-            <textarea
-              value={localData.action ?? ''}
-              onChange={e => handleTextareaChange('action', e)}
-              onBlur={e => handleBlur('action', e)}
-              placeholder="Start message... Use {variableName} for variables"
-              className="bubble-input"
-              style={{
-                width: '100%',
-                minHeight: '100px',
-                resize: 'vertical',
-              }}
-            />
-            {showVariables && variableField === 'action' && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.75rem',
-                  background: 'rgba(102, 126, 234, 0.05)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(102, 126, 234, 0.2)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#374151',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  Available Variables:
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.25rem',
-                  }}
-                >
-                  {getAvailableVariables().length > 0 ? (
-                    getAvailableVariables().map(variable => (
-                      <button
-                        key={variable}
-                        onClick={() => insertVariable(variable, 'action')}
-                        style={{
-                          padding: '0.5rem',
-                          background: 'white',
-                          border: '1px solid rgba(102, 126, 234, 0.2)',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          textAlign: 'left',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background =
-                            'rgba(102, 126, 234, 0.1)';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.4)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'white';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.2)';
-                        }}
-                      >
-                        {'{'}
-                        {variable}
-                        {'}'}
-                      </button>
-                    ))
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                      No variables available. Add entries in Knowledge Base.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {!showVariables && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#6b7280',
-                }}
-              >
-                💡 Tip: Type {'{'} to see available variables
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Step Node */}
-      {selectedNode.type === 'step' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 600,
-                color: '#374151',
-                fontSize: '0.875rem',
-              }}
-            >
-              Name
-            </label>
-            <input
-              type="text"
-              value={localData.name || ''}
-              onChange={e => handleUpdate('name', e.target.value)}
-              onBlur={e => handleBlur('name', e)}
-              placeholder="Node name..."
-              className="bubble-input"
-            />
-          </div>
-          <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 600,
-                color: '#374151',
-                fontSize: '0.875rem',
-              }}
-            >
-              Action
-            </label>
-            <textarea
-              value={localData.action ?? ''}
-              onChange={e => handleTextareaChange('action', e)}
-              onBlur={e => handleBlur('action', e)}
-              placeholder="Step message... Use {variableName} for variables"
-              className="bubble-input"
-              style={{
-                width: '100%',
-                minHeight: '100px',
-                resize: 'vertical',
-              }}
-            />
-            {showVariables && variableField === 'action' && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.75rem',
-                  background: 'rgba(102, 126, 234, 0.05)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(102, 126, 234, 0.2)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#374151',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  Available Variables:
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.25rem',
-                  }}
-                >
-                  {getAvailableVariables().length > 0 ? (
-                    getAvailableVariables().map(variable => (
-                      <button
-                        key={variable}
-                        onClick={() => insertVariable(variable, 'action')}
-                        style={{
-                          padding: '0.5rem',
-                          background: 'white',
-                          border: '1px solid rgba(102, 126, 234, 0.2)',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          textAlign: 'left',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background =
-                            'rgba(102, 126, 234, 0.1)';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.4)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'white';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.2)';
-                        }}
-                      >
-                        {'{'}
-                        {variable}
-                        {'}'}
-                      </button>
-                    ))
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                      No variables available. Add entries in Knowledge Base.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {!showVariables && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#6b7280',
-                }}
-              >
-                💡 Tip: Type {'{'} to see available variables
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* If Node */}
-      {selectedNode.type === 'if' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 600,
-                color: '#374151',
-                fontSize: '0.875rem',
-              }}
-            >
-              Condition
-            </label>
-            <input
-              type="text"
-              value={localData.condition || ''}
-              onChange={e => handleInputChange('condition', e)}
-              onBlur={e => handleBlur('condition', e)}
-              placeholder="Condition... Use {variableName} for variables"
-              className="bubble-input"
-            />
-            {showVariables && variableField === 'condition' && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.75rem',
-                  background: 'rgba(102, 126, 234, 0.05)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(102, 126, 234, 0.2)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#374151',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  Available Variables:
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.25rem',
-                  }}
-                >
-                  {getAvailableVariables().length > 0 ? (
-                    getAvailableVariables().map(variable => (
-                      <button
-                        key={variable}
-                        onClick={() => insertVariable(variable, 'condition')}
-                        style={{
-                          padding: '0.5rem',
-                          background: 'white',
-                          border: '1px solid rgba(102, 126, 234, 0.2)',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          textAlign: 'left',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background =
-                            'rgba(102, 126, 234, 0.1)';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.4)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'white';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.2)';
-                        }}
-                      >
-                        {'{'}
-                        {variable}
-                        {'}'}
-                      </button>
-                    ))
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                      No variables available. Add entries in Knowledge Base.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {!showVariables && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#6b7280',
-                }}
-              >
-                💡 Tip: Type {'{'} to see available variables
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* End Node */}
-      {selectedNode.type === 'end' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 600,
-                color: '#374151',
-                fontSize: '0.875rem',
-              }}
-            >
-              Action
-            </label>
-            <textarea
-              value={localData.action ?? ''}
-              onChange={e => handleTextareaChange('action', e)}
-              onBlur={e => handleBlur('action', e)}
-              placeholder="End message... Use {variableName} for variables"
-              className="bubble-input"
-              style={{
-                width: '100%',
-                minHeight: '100px',
-                resize: 'vertical',
-              }}
-            />
-            {showVariables && variableField === 'action' && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  padding: '0.75rem',
-                  background: 'rgba(102, 126, 234, 0.05)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(102, 126, 234, 0.2)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#374151',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  Available Variables:
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.25rem',
-                  }}
-                >
-                  {getAvailableVariables().length > 0 ? (
-                    getAvailableVariables().map(variable => (
-                      <button
-                        key={variable}
-                        onClick={() => insertVariable(variable, 'action')}
-                        style={{
-                          padding: '0.5rem',
-                          background: 'white',
-                          border: '1px solid rgba(102, 126, 234, 0.2)',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          textAlign: 'left',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background =
-                            'rgba(102, 126, 234, 0.1)';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.4)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'white';
-                          e.currentTarget.style.borderColor =
-                            'rgba(102, 126, 234, 0.2)';
-                        }}
-                      >
-                        {'{'}
-                        {variable}
-                        {'}'}
-                      </button>
-                    ))
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                      No variables available. Add entries in Knowledge Base.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {!showVariables && (
-              <div
-                style={{
-                  marginTop: '0.5rem',
-                  fontSize: '0.75rem',
-                  color: '#6b7280',
-                }}
-              >
-                💡 Tip: Type {'{'} to see available variables
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 

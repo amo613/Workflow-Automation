@@ -1,4 +1,5 @@
 import BaseNode from './BaseNode';
+import { Database } from 'lucide-react';
 
 export default function KnowledgeBaseQueryNode({ data, selected }) {
   return (
@@ -6,7 +7,7 @@ export default function KnowledgeBaseQueryNode({ data, selected }) {
       data={data}
       selected={selected}
       type="knowledge-base-query"
-      icon="📚"
+      icon={<Database className="w-5 h-5" />}
       color="#a78bfa"
       label="Knowledge Base"
     />

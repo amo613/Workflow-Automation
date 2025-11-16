@@ -7,6 +7,7 @@ import { WebSocketClient } from '../utils/openai-test/websocket-client.js';
 import { ConfigManager } from '../utils/openai-test/config.js';
 import { CallManager } from '../utils/openai-test/call.js';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
+import { Settings, Lightbulb, MessageSquare } from 'lucide-react';
 import './OpenAITestPage.css';
 
 function OpenAITestPage() {
@@ -367,7 +368,7 @@ function OpenAITestPage() {
   return (
     <div className="openai-test-container">
       <div className="openai-test-content">
-        <h1>🎤 OpenAI Realtime Voice Assistant</h1>
+        <h1>OpenAI Realtime Voice Assistant</h1>
         <div className={`status ${status.className}`}>{status.text}</div>
         <button
           className="btn-connect"
@@ -384,23 +385,31 @@ function OpenAITestPage() {
           Disconnect
         </button>
 
-        <div className="call-section" style={{ marginTop: '20px' }}>
+        <div className="call-section">
           <Link
             to="/choose"
             style={{
               display: 'block',
-              padding: '15px 30px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
+              padding: '0.75rem 1.5rem',
+              background: 'hsl(var(--secondary))',
+              color: 'hsl(var(--secondary-foreground))',
               textDecoration: 'none',
-              borderRadius: '10px',
+              borderRadius: '0.5rem',
               textAlign: 'center',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
+              fontWeight: 500,
+              border: '1px solid hsl(var(--border))',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'hsl(var(--accent))';
+              e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'hsl(var(--secondary))';
+              e.currentTarget.style.borderColor = 'hsl(var(--border))';
             }}
           >
-            🔧 Workflow Builder
+            <Settings className="w-4 h-4 mr-1" /> Workflow Builder
           </Link>
         </div>
 
@@ -459,9 +468,9 @@ function OpenAITestPage() {
                   placeholder="No active workflow. Create and activate a workflow in the Workflow Builder."
                   value={workflowPrompt}
                   style={{
-                    backgroundColor: '#e9ecef',
+                    backgroundColor: 'hsl(var(--muted))',
                     cursor: 'not-allowed',
-                    color: '#495057',
+                    color: 'hsl(var(--muted-foreground))',
                   }}
                 />
               </div>
@@ -503,7 +512,7 @@ function OpenAITestPage() {
                 />
                 <small
                   style={{
-                    color: '#666',
+                    color: 'hsl(var(--muted-foreground))',
                     fontSize: '0.85em',
                     marginTop: '4px',
                     display: 'block',
@@ -588,7 +597,7 @@ function OpenAITestPage() {
                   style={{
                     display: 'block',
                     marginBottom: '5px',
-                    color: '#333',
+                    color: 'hsl(var(--foreground))',
                     fontWeight: 500,
                   }}
                 >
@@ -615,7 +624,7 @@ function OpenAITestPage() {
                     </label>
                   </div>
                   <div>
-                    <small style={{ color: '#666', fontSize: '0.85em' }}>
+                    <small style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.85em' }}>
                       Note: Tools must be configured server-side
                     </small>
                   </div>
@@ -674,7 +683,7 @@ function OpenAITestPage() {
 
         {showTranscript && (
           <div className="transcript-section">
-            <h2>💬 Conversation</h2>
+            <h2><MessageSquare className="w-4 h-4 mr-1" /> Conversation</h2>
             <div className="transcript-content">
               {transcriptEntries.map(entry => (
                 <div
@@ -709,13 +718,13 @@ function OpenAITestPage() {
             />
             <small
               style={{
-                color: '#666',
+                color: 'hsl(var(--muted-foreground))',
                 fontSize: '0.85em',
                 marginTop: '4px',
                 display: 'block',
               }}
             >
-              💡 Tip: Separate multiple numbers with commas (e.g., +49123456789,
+              <Lightbulb className="w-3 h-3 mr-1" /> Tip: Separate multiple numbers with commas (e.g., +49123456789,
               +49987654321) for bulk calls
             </small>
           </div>
@@ -743,7 +752,7 @@ function OpenAITestPage() {
                 width: '10px',
                 height: '10px',
                 borderRadius: '50%',
-                background: gcalConnected ? '#16a34a' : '#c53030',
+                background: gcalConnected ? '#10b981' : 'hsl(var(--destructive))',
               }}
             />
             <span>{gcalConnected ? 'Connected' : 'Disconnected'}</span>

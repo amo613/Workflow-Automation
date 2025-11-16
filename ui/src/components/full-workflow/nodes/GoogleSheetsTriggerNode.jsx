@@ -1,34 +1,35 @@
-import BaseNode from './BaseNode';
 import { Handle, Position } from 'reactflow';
+import { Sheet, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function GoogleSheetsTriggerNode({ data, selected }) {
+  const status = data.status || 'idle';
+  const statusColor = {
+    running: '#3b82f6',
+    success: '#10b981',
+    failed: '#ef4444',
+    idle: null,
+  };
+
   return (
     <div
       style={{
-        background: selected ? '#f0f4ff' : 'white',
+        background: selected
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--card))',
         border: `2px solid ${
-          data.status === 'running'
-            ? '#3b82f6'
-            : data.status === 'success'
-              ? '#10b981'
-              : data.status === 'failed'
-                ? '#ef4444'
-                : selected
-                  ? '#34d399'
-                  : '#e2e8f0'
+          status !== 'idle' ? statusColor[status] : selected ? '#34d399' : 'hsl(var(--border))'
         }`,
-        borderRadius: '12px',
+        borderRadius: '0.75rem',
         padding: '1rem',
         minWidth: '200px',
         boxShadow: selected
-          ? '0 4px 12px rgba(52, 211, 153, 0.4)'
-          : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          ? '0 4px 12px rgba(52, 211, 153, 0.3)'
+          : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         position: 'relative',
       }}
     >
-      {/* Status Badge */}
-      {data.status && data.status !== 'idle' && (
+      {status !== 'idle' && (
         <div
           style={{
             position: 'absolute',
@@ -37,31 +38,25 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
             width: '24px',
             height: '24px',
             borderRadius: '50%',
-            background:
-              data.status === 'running'
-                ? '#3b82f6'
-                : data.status === 'success'
-                  ? '#10b981'
-                  : '#ef4444',
+            background: statusColor[status],
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
             zIndex: 10,
           }}
         >
-          {data.status === 'running'
-            ? '⏳'
-            : data.status === 'success'
-              ? '✅'
-              : '❌'}
+          {status === 'running' ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : status === 'success' ? (
+            <CheckCircle2 className="w-4 h-4" />
+          ) : (
+            <XCircle className="w-4 h-4" />
+          )}
         </div>
       )}
 
-      {/* No Input Handle - Triggers don't have inputs */}
-
-      {/* Node Header */}
       <div
         style={{
           display: 'flex',
@@ -78,19 +73,19 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
             justifyContent: 'center',
             width: '32px',
             height: '32px',
-            borderRadius: '8px',
-            background: '#34d39920',
+            borderRadius: '0.5rem',
+            background: 'rgba(52, 211, 153, 0.2)',
             color: '#34d399',
           }}
         >
-          📊
+          <Sheet className="w-5 h-5" />
         </div>
         <div>
           <div
             style={{
               fontWeight: 600,
               fontSize: '0.875rem',
-              color: '#1a202c',
+              color: 'hsl(var(--foreground))',
             }}
           >
             Google Sheets Trigger
@@ -99,7 +94,7 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
             <div
               style={{
                 fontSize: '0.75rem',
-                color: '#64748b',
+                color: 'hsl(var(--muted-foreground))',
                 marginTop: '0.25rem',
               }}
             >
@@ -109,23 +104,21 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
         </div>
       </div>
 
-      {/* Node Content */}
       {data.description && (
         <div
           style={{
             fontSize: '0.75rem',
-            color: '#64748b',
+            color: 'hsl(var(--muted-foreground))',
             marginTop: '0.5rem',
             padding: '0.5rem',
-            background: '#f8fafc',
-            borderRadius: '6px',
+            background: 'hsl(var(--muted))',
+            borderRadius: '0.375rem',
           }}
         >
           {data.description}
         </div>
       )}
 
-      {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Bottom}
@@ -133,7 +126,7 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
           background: '#34d399',
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
     </div>

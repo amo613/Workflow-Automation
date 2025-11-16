@@ -93,13 +93,10 @@ export default function AiAgentConfig({
           modelsLoading
             ? [{ value: 'gpt-4o', label: 'Loading...' }]
             : models.length > 0
-              ? [
-                  { value: '', label: 'Select a model...' },
-                  ...models.map(m => ({
-                    value: m.id,
-                    label: `${m.name}${m.description ? ` - ${m.description}` : ''}`,
-                  })),
-                ]
+              ? models.map(m => ({
+                  value: m.id,
+                  label: `${m.name}${m.description ? ` - ${m.description}` : ''}`,
+                }))
               : [
                   { value: 'gpt-4o', label: 'GPT-4o' },
                   { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
@@ -107,6 +104,7 @@ export default function AiAgentConfig({
                   { value: 'o1-mini', label: 'O1 Mini' },
                 ]
         }
+        placeholder="Select a model..."
       />
 
       <ErrorConfig

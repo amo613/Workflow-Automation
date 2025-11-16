@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -68,185 +73,78 @@ export default function RegisterPage() {
   };
 
   return (
-    <div
-      style={{
-        fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-        background: '#0b0f14',
-        color: '#e6edf3',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        margin: 0,
-      }}
-    >
-      <div
-        style={{
-          background: '#11161d',
-          border: '1px solid #1f2a35',
-          borderRadius: '12px',
-          padding: '24px',
-          width: '100%',
-          maxWidth: '380px',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25)',
-        }}
-      >
-        <h1 style={{ fontSize: '18px', margin: '0 0 16px' }}>Sign up</h1>
-        <form onSubmit={handleSubmit}>
-          <label
-            htmlFor="name"
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              margin: '10px 0 6px',
-              color: '#cbd5e1',
-            }}
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            minLength={2}
-            maxLength={255}
-            placeholder="Your name"
-            autoComplete="name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid #2b3a48',
-              background: '#0e1318',
-              color: '#e6edf3',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-          <label
-            htmlFor="email"
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              margin: '10px 0 6px',
-              color: '#cbd5e1',
-            }}
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            placeholder="you@example.com"
-            autoComplete="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid #2b3a48',
-              background: '#0e1318',
-              color: '#e6edf3',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-          <label
-            htmlFor="password"
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              margin: '10px 0 6px',
-              color: '#cbd5e1',
-            }}
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={6}
-            maxLength={128}
-            placeholder="••••••••"
-            autoComplete="new-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid #2b3a48',
-              background: '#0e1318',
-              color: '#e6edf3',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: '16px',
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: 'none',
-              background: loading ? '#475569' : '#3b82f6',
-              color: '#fff',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading ? 'Registering...' : 'Register'}
-          </button>
-          {error && (
-            <div
-              style={{
-                marginTop: '10px',
-                fontSize: '12px',
-                color: '#f87171',
-                textAlign: 'center',
-              }}
-            >
-              {error}
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Sign up</CardTitle>
+          <CardDescription>
+            Create a new account to get started
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Your name"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                required
+                minLength={2}
+                maxLength={255}
+                autoComplete="name"
+                disabled={loading}
+              />
             </div>
-          )}
-          <div
-            style={{
-              marginTop: '10px',
-              fontSize: '12px',
-              color: '#94a3b8',
-              textAlign: 'center',
-            }}
-          >
-            After registration you'll be redirected to the OpenAI test page.
-          </div>
-          <div
-            style={{
-              marginTop: '16px',
-              fontSize: '12px',
-              color: '#94a3b8',
-              textAlign: 'center',
-            }}
-          >
-            Already have an account?{' '}
-            <Link
-              to="/login"
-              style={{ color: '#3b82f6', textDecoration: 'none' }}
-            >
-              Go to Login
-            </Link>
-          </div>
-        </form>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={6}
+                maxLength={128}
+                autoComplete="new-password"
+                disabled={loading}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Registering...' : 'Register'}
+            </Button>
+            <div className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="text-primary hover:underline font-medium"
+              >
+                Sign in
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

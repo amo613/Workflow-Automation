@@ -1,21 +1,41 @@
 import { Handle, Position } from 'reactflow';
+import { Flag } from 'lucide-react';
 
 export default function EndNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected ? '#fef2f2' : 'white',
+        background: selected
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--card))',
         border: `2px solid ${selected ? '#ef4444' : '#ef4444'}`,
-        borderRadius: '12px',
+        borderRadius: '0.75rem',
         padding: '1.5rem',
         minWidth: '150px',
         boxShadow: selected
-          ? '0 4px 12px #ef444440'
-          : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          ? '0 4px 12px rgba(239, 68, 68, 0.3)'
+          : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         textAlign: 'center',
       }}
     >
+      <div
+        style={{
+          fontSize: '2rem',
+          marginBottom: '0.5rem',
+        }}
+      >
+        <Flag className="w-8 h-8" />
+      </div>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: '1rem',
+          color: 'hsl(var(--foreground))',
+        }}
+      >
+        End
+      </div>
       <Handle
         type="target"
         position={Position.Top}
@@ -23,26 +43,9 @@ export default function EndNode({ data, selected }) {
           background: '#ef4444',
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
-      <div
-        style={{
-          fontSize: '2rem',
-          marginBottom: '0.5rem',
-        }}
-      >
-        🏁
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: '1rem',
-          color: '#1a202c',
-        }}
-      >
-        End
-      </div>
     </div>
   );
 }

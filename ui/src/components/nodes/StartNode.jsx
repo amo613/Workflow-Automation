@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { Rocket } from 'lucide-react';
 
 function StartNode({ data, id }) {
   // Support both old format (text) and new format (action)
@@ -40,7 +41,10 @@ function StartNode({ data, id }) {
           opacity: 0.95,
         }}
       >
-        🚀 START
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Rocket className="w-4 h-4" />
+          <span>START</span>
+        </div>
       </div>
       <div
         style={{

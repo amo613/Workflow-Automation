@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toCamelCase } from '../utils/variable-utils.js';
+import { Database, Plus, Trash2 } from 'lucide-react';
 
 function KnowledgeBaseSidebar({ knowledgeBase, onUpdate, onClose }) {
   const [localKB, setLocalKB] = useState([]);
@@ -77,7 +78,8 @@ function KnowledgeBaseSidebar({ knowledgeBase, onUpdate, onClose }) {
             margin: 0,
           }}
         >
-          📚 Knowledge Base
+          <Database className="w-5 h-5 mr-2" />
+          Knowledge Base
         </h2>
         {onClose && (
           <button
@@ -117,7 +119,8 @@ function KnowledgeBaseSidebar({ knowledgeBase, onUpdate, onClose }) {
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
           }}
         >
-          ➕ Add Knowledge Entry
+          <Plus className="w-4 h-4 mr-1" />
+          Add Knowledge Entry
         </button>
       </div>
 
@@ -181,7 +184,7 @@ function KnowledgeBaseSidebar({ knowledgeBase, onUpdate, onClose }) {
                     e.currentTarget.style.background = 'transparent';
                   }}
                 >
-                  🗑️
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
 

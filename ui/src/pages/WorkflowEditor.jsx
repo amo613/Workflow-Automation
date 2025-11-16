@@ -1,5 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Plus,
+  GitBranch,
+  Flag,
+  Save,
+  FileText,
+  ArrowLeft,
+  Sparkles,
+  Loader2,
+  Clipboard,
+} from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -316,12 +327,17 @@ function WorkflowEditor() {
         <div
           style={{
             padding: '24px 48px',
-            background: 'white',
-            borderRadius: '24px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            background: 'hsl(var(--card))',
+            color: 'hsl(var(--foreground))',
+            borderRadius: '0.75rem',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            border: '1px solid hsl(var(--border))',
           }}
         >
-          ✨ Loading workflow...
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Loading workflow...</span>
+          </div>
         </div>
       </div>
     );
@@ -333,10 +349,13 @@ function WorkflowEditor() {
         id="workflow-header"
         style={{
           padding: '0.75rem 1.5rem',
-          background: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(102, 126, 234, 0.1)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+          background: 'hsl(var(--card))',
+          borderBottom: '1px solid hsl(var(--border))',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
         <div
@@ -349,7 +368,7 @@ function WorkflowEditor() {
         >
           <input
             type="text"
-            placeholder="✨ Workflow Name"
+            placeholder="Workflow Name"
             value={name}
             onChange={e => setName(e.target.value)}
             className="bubble-input"
@@ -362,7 +381,7 @@ function WorkflowEditor() {
           />
           <input
             type="text"
-            placeholder="📝 Description"
+            placeholder="Description"
             value={description}
             onChange={e => setDescription(e.target.value)}
             className="bubble-input"
@@ -389,7 +408,8 @@ function WorkflowEditor() {
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               }}
             >
-              ➕ Step
+              <Plus className="w-3 h-3 mr-1" />
+              Step
             </button>
             <button
               onClick={() => addNode('if')}
@@ -400,7 +420,8 @@ function WorkflowEditor() {
                 background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
               }}
             >
-              🔀 If
+              <GitBranch className="w-3 h-3 mr-1" />
+              If
             </button>
             <button
               onClick={() => addNode('end')}
@@ -411,7 +432,8 @@ function WorkflowEditor() {
                 background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
               }}
             >
-              🏁 End
+              <Flag className="w-3 h-3 mr-1" />
+              End
             </button>
           </div>
           <div
@@ -435,7 +457,17 @@ function WorkflowEditor() {
                 cursor: saving ? 'not-allowed' : 'pointer',
               }}
             >
-              {saving ? '💾...' : '💾 Save'}
+              {saving ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-3 h-3 mr-1" />
+                  Save
+                </>
+              )}
             </button>
             <button
               onClick={handleShowPrompt}
@@ -446,10 +478,11 @@ function WorkflowEditor() {
                 background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
               }}
             >
-              📄 Prompt
+              <FileText className="w-3 h-3 mr-1" />
+              Prompt
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/workflows')}
               className="bubble-btn"
               style={{
                 padding: '0.4rem 0.9rem',
@@ -457,19 +490,19 @@ function WorkflowEditor() {
                 background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
               }}
             >
-              ← Back
+              <ArrowLeft className="w-3 h-3 mr-1" />
+              Back
             </button>
           </div>
         </div>
       </div>
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', width: '100%', minWidth: 0 }}>
         <div
           style={{
             width: '100%',
             height: '100%',
-            paddingRight: selectedNode ? '400px' : '0',
-            transition: 'padding-right 0.3s',
             boxSizing: 'border-box',
+            background: 'transparent',
           }}
         >
           <ReactFlow
@@ -491,7 +524,7 @@ function WorkflowEditor() {
             nodeTypes={nodeTypes}
             fitView
           >
-            <Background variant="dots" gap={32} size={4} color="#6b7280" />
+            <Background variant="grid" gap={24} size={1} color="hsl(var(--border))" />
             <Controls />
             <MiniMap
               nodeColor={node => {
@@ -546,14 +579,16 @@ function WorkflowEditor() {
         >
           <div
             style={{
-              background: 'white',
-              borderRadius: '8px',
+              background: 'hsl(var(--card))',
+              color: 'hsl(var(--foreground))',
+              borderRadius: '0.75rem',
               padding: '2rem',
               maxWidth: '800px',
               maxHeight: '80vh',
               width: '90%',
               overflow: 'auto',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              border: '1px solid hsl(var(--border))',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -565,17 +600,27 @@ function WorkflowEditor() {
                 marginBottom: '1.5rem',
               }}
             >
-              <h2 style={{ margin: 0, color: '#333' }}>Compiled Prompt</h2>
+              <h2 style={{ margin: 0, color: 'hsl(var(--foreground))' }}>Compiled Prompt</h2>
               <button
                 onClick={() => setShowPromptModal(false)}
                 style={{
-                  background: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
+                  background: 'hsl(var(--secondary))',
+                  color: 'hsl(var(--secondary-foreground))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '0.5rem',
                   padding: '0.5rem 1rem',
                   cursor: 'pointer',
-                  fontSize: '1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'hsl(var(--accent))';
+                  e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'hsl(var(--secondary))';
+                  e.currentTarget.style.borderColor = 'hsl(var(--border))';
                 }}
               >
                 × Close
@@ -583,15 +628,15 @@ function WorkflowEditor() {
             </div>
             <div
               style={{
-                background: '#f8f9fa',
-                border: '1px solid #e0e0e0',
-                borderRadius: '4px',
+                background: 'hsl(var(--muted))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '0.5rem',
                 padding: '1rem',
                 fontFamily: 'monospace',
                 whiteSpace: 'pre-wrap',
                 fontSize: '0.875rem',
                 lineHeight: '1.6',
-                color: '#333',
+                color: 'hsl(var(--foreground))',
                 minHeight: '200px',
               }}
             >
@@ -606,14 +651,17 @@ function WorkflowEditor() {
                 }}
                 style={{
                   padding: '0.5rem 1rem',
-                  background: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
+                  background: 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                  border: '1px solid hsl(var(--primary))',
+                  borderRadius: '0.5rem',
                   cursor: 'pointer',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease',
                 }}
               >
-                📋 Copy to Clipboard
+                <Clipboard className="w-4 h-4 mr-1" />
+                Copy to Clipboard
               </button>
             </div>
           </div>

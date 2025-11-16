@@ -30,13 +30,11 @@ export default function CallAgentConfig({
           type="select"
           value={localData.workflow_id || ''}
           onChange={value => handleUpdate('workflow_id', parseInt(value, 10))}
-          options={[
-            { value: '', label: 'Select a workflow...' },
-            ...(workflows || []).map(wf => ({
-              value: wf.id,
-              label: `${wf.name} (ID: ${wf.id})`,
-            })),
-          ]}
+          options={(workflows || []).map(wf => ({
+            value: wf.id,
+            label: `${wf.name} (ID: ${wf.id})`,
+          }))}
+          placeholder="Select a workflow..."
         />
       ) : (
         <div style={{ marginBottom: '1rem' }}>

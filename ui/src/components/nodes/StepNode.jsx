@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { Sparkles } from 'lucide-react';
 
 function StepNode({ data, id }) {
   // Support both old format (text) and new format (action)
@@ -41,7 +42,10 @@ function StepNode({ data, id }) {
           opacity: 0.95,
         }}
       >
-        ✨ STEP
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Sparkles className="w-4 h-4" />
+          <span>STEP</span>
+        </div>
       </div>
       {displayName && (
         <div

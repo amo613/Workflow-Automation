@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 
+// Dark Theme als Standard setzen
+document.documentElement.classList.add('dark');
+document.body.classList.add('dark');
+
 // Ensure CSRF token is available by making a GET request to trigger token generation
 fetch('/api', {
   method: 'GET',

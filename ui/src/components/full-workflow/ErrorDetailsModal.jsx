@@ -1,9 +1,16 @@
 import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-/**
- * Error Details Modal
- * Displays detailed error information for a failed node
- */
 export default function ErrorDetailsModal({
   isOpen,
   onClose,
@@ -17,261 +24,112 @@ export default function ErrorDetailsModal({
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          padding: '1.5rem',
-          maxWidth: '600px',
-          width: '90%',
-          maxHeight: '80vh',
-          overflowY: 'auto',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1rem',
-          }}
-        >
-          <h2
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 600,
-              color: '#dc2626',
-              margin: 0,
-            }}
-          >
-            Error Details
-          </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: '#6b7280',
-            }}
-          >
-            ×
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle className="text-destructive">Error Details</DialogTitle>
+          <DialogDescription>
+            Detailed information about the error that occurred
+          </DialogDescription>
+        </DialogHeader>
 
-        {nodeName && (
-          <div style={{ marginBottom: '1rem' }}>
-            <div
-              style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Node
-            </div>
-            <div style={{ fontSize: '1rem', fontWeight: 500 }}>{nodeName}</div>
-          </div>
-        )}
-
-        <div style={{ marginBottom: '1rem' }}>
-          <div
-            style={{
-              fontSize: '0.875rem',
-              color: '#6b7280',
-              marginBottom: '0.25rem',
-            }}
-          >
-            Error Message
-          </div>
-          <div
-            style={{
-              fontSize: '0.875rem',
-              color: '#dc2626',
-              padding: '0.75rem',
-              backgroundColor: '#fef2f2',
-              borderRadius: '4px',
-              wordBreak: 'break-word',
-            }}
-          >
-            {errorLogEntry.error || 'Unknown error'}
-          </div>
-        </div>
-
-        {errorLogEntry.errorType && (
-          <div style={{ marginBottom: '1rem' }}>
-            <div
-              style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Error Type
-            </div>
-            <div
-              style={{
-                fontSize: '0.875rem',
-                padding: '0.5rem',
-                backgroundColor:
-                  errorLogEntry.errorType === 'transient'
-                    ? '#fef3c7'
-                    : errorLogEntry.errorType === 'user'
-                      ? '#fee2e2'
-                      : errorLogEntry.errorType === 'system'
-                        ? '#dbeafe'
-                        : '#f3f4f6',
-                borderRadius: '4px',
-                display: 'inline-block',
-                textTransform: 'capitalize',
-              }}
-            >
-              {errorLogEntry.errorType}
-            </div>
-          </div>
-        )}
-
-        {errorLogEntry.retryAttempts !== undefined &&
-          errorLogEntry.retryAttempts > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <div
-                style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280',
-                  marginBottom: '0.25rem',
-                }}
-              >
-                Retry Attempts
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="space-y-4">
+            {nodeName && (
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Node</div>
+                <div className="font-medium">{nodeName}</div>
               </div>
-              <div style={{ fontSize: '0.875rem' }}>
-                {errorLogEntry.retryAttempts} attempt(s) made
+            )}
+
+            <div>
+              <div className="text-sm text-muted-foreground mb-2">Error Message</div>
+              <Alert variant="destructive">
+                <AlertDescription className="break-words">
+                  {errorLogEntry.error || 'Unknown error'}
+                </AlertDescription>
+              </Alert>
+            </div>
+
+            {errorLogEntry.errorType && (
+              <div>
+                <div className="text-sm text-muted-foreground mb-2">Error Type</div>
+                <Badge
+                  variant={
+                    errorLogEntry.errorType === 'transient'
+                      ? 'default'
+                      : errorLogEntry.errorType === 'user'
+                        ? 'destructive'
+                        : 'secondary'
+                  }
+                >
+                  {errorLogEntry.errorType}
+                </Badge>
               </div>
-            </div>
-          )}
+            )}
 
-        {errorLogEntry.timestamp && (
-          <div style={{ marginBottom: '1rem' }}>
-            <div
-              style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Timestamp
-            </div>
-            <div style={{ fontSize: '0.875rem' }}>
-              {new Date(errorLogEntry.timestamp).toLocaleString()}
-            </div>
-          </div>
-        )}
+            {errorLogEntry.retryAttempts !== undefined &&
+              errorLogEntry.retryAttempts > 0 && (
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    Retry Attempts
+                  </div>
+                  <div className="text-sm">
+                    {errorLogEntry.retryAttempts} attempt(s) made
+                  </div>
+                </div>
+              )}
 
-        {errorLogEntry.errorStack && (
-          <div style={{ marginBottom: '1rem' }}>
-            <button
-              onClick={() => setShowStack(!showStack)}
-              style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-                marginBottom: '0.5rem',
-              }}
-            >
-              {showStack ? 'Hide' : 'Show'} Stack Trace
-            </button>
-            {showStack && (
-              <pre
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '0.75rem',
-                  backgroundColor: '#f3f4f6',
-                  borderRadius: '4px',
-                  overflowX: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  maxHeight: '300px',
-                  overflowY: 'auto',
-                }}
-              >
-                {errorLogEntry.errorStack}
-              </pre>
+            {errorLogEntry.timestamp && (
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Timestamp</div>
+                <div className="text-sm">
+                  {new Date(errorLogEntry.timestamp).toLocaleString()}
+                </div>
+              </div>
+            )}
+
+            {errorLogEntry.errorStack && (
+              <div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowStack(!showStack)}
+                  className="mb-2"
+                >
+                  {showStack ? 'Hide' : 'Show'} Stack Trace
+                </Button>
+                {showStack && (
+                  <ScrollArea className="h-[200px] rounded-md border p-4 bg-muted">
+                    <pre className="text-xs whitespace-pre-wrap break-words">
+                      {errorLogEntry.errorStack}
+                    </pre>
+                  </ScrollArea>
+                )}
+              </div>
+            )}
+
+            {errorLogEntry.errorContext && (
+              <div>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Error Context
+                </div>
+                <ScrollArea className="h-[200px] rounded-md border p-4 bg-muted">
+                  <pre className="text-xs whitespace-pre-wrap break-words">
+                    {JSON.stringify(errorLogEntry.errorContext, null, 2)}
+                  </pre>
+                </ScrollArea>
+              </div>
             )}
           </div>
-        )}
+        </ScrollArea>
 
-        {errorLogEntry.errorContext && (
-          <div style={{ marginBottom: '1rem' }}>
-            <div
-              style={{
-                fontSize: '0.875rem',
-                color: '#6b7280',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Error Context
-            </div>
-            <pre
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.75rem',
-                backgroundColor: '#f3f4f6',
-                borderRadius: '4px',
-                overflowX: 'auto',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                maxHeight: '200px',
-                overflowY: 'auto',
-              }}
-            >
-              {JSON.stringify(errorLogEntry.errorContext, null, 2)}
-            </pre>
-          </div>
-        )}
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            marginTop: '1.5rem',
-            gap: '0.5rem',
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#f3f4f6',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-            }}
-          >
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -238,13 +238,13 @@ export default function EmailCredentialsManager({ localData, handleUpdate }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 2000,
           }}
           onClick={() => setShowModal(false)}
         >
           <div
             style={{
-              background: '#1a1a1a',
+              background: 'hsl(var(--card))',
               borderRadius: '12px',
               padding: '2rem',
               maxWidth: '500px',

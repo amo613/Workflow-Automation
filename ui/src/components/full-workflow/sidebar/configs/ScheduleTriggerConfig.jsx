@@ -66,7 +66,7 @@ export default function ScheduleTriggerConfig({ localData, handleUpdate }) {
         style={{
           marginBottom: '1rem',
           padding: '1rem',
-          background: '#1a1a1a',
+          background: 'hsl(var(--muted))',
           borderRadius: '8px',
           border: '1px solid #333',
         }}
@@ -212,7 +212,7 @@ export default function ScheduleTriggerConfig({ localData, handleUpdate }) {
         style={{
           marginBottom: '1rem',
           padding: '1rem',
-          background: '#1a1a1a',
+          background: 'hsl(var(--muted))',
           borderRadius: '8px',
           border: '1px solid #333',
         }}

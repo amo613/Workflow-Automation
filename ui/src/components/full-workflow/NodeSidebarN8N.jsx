@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNodeSidebarViewModel } from '../../viewmodels/useNodeSidebarViewModel.js';
 import InputPanel from './sidebar/InputPanel.jsx';
 import OutputPanel from './sidebar/OutputPanel.jsx';
@@ -7,10 +8,26 @@ import DocsTab from './sidebar/DocsTab.jsx';
 import { nodeExecutionService } from '../../services/nodeExecution.service.js';
 import { googleSheetsService } from '../../services/googleSheets.service.js';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { Play, Trash2, X, Loader2, Sheet, Rocket } from 'lucide-react';
 
 /**
  * n8n-style Node Sidebar with INPUT/OUTPUT Panels
- * Refactored version using ViewModel architecture
+ * 3-Column Layout: Input (left) | Config (center) | Output (right)
+ * Centered overlay
  */
 export default function NodeSidebarN8N({
   selectedNode,
@@ -51,6 +68,8 @@ export default function NodeSidebarN8N({
     outputData,
   } = viewModel;
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   // Handle drop on input field
   const handleDrop = (e, variableExpression) => {
     e.preventDefault();
@@ -71,7 +90,6 @@ export default function NodeSidebarN8N({
   // Handle Google Sheets authentication
   const handleGoogleSheetsAuth = async () => {
     try {
-      // Build return URL for redirect after OAuth
       const returnUrl = workflowId
         ? `/fullWorkflows/${workflowId}`
         : '/fullWorkflows';
@@ -86,16 +104,13 @@ export default function NodeSidebarN8N({
       }
       const data = await response.json();
       if (data.authUrl) {
-        // Redirect directly to OAuth (no popup)
         window.location.href = data.authUrl;
       } else {
         throw new Error('No auth URL received');
       }
     } catch (error) {
       console.error('Error initiating Google Sheets auth:', error);
-      alert(
-        `Failed to initiate Google Sheets authentication: ${error.message || 'Unknown error'}`
-      );
+      toast.error(`Failed to initiate Google Sheets authentication: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -103,11 +118,11 @@ export default function NodeSidebarN8N({
   const handleGoogleSheetsDisconnect = async () => {
     try {
       await googleSheets.disconnect();
-      googleSheets.fetchStatus(); // Refresh status
-      alert('Google Sheets disconnected successfully');
+      googleSheets.fetchStatus();
+      toast.success('Google Sheets disconnected successfully');
     } catch (error) {
       console.error('Error disconnecting Google Sheets:', error);
-      alert('Failed to disconnect Google Sheets: ' + error.message);
+      toast.error('Failed to disconnect Google Sheets: ' + error.message);
     }
   };
 
@@ -136,14 +151,15 @@ export default function NodeSidebarN8N({
             status: 'success',
           });
         }
+        toast.success('Node executed successfully');
       } else {
         setLocalData(prev => ({ ...prev, status: 'failed' }));
         handleUpdate('status', 'failed');
-        alert(result.error || 'Failed to execute node');
+        toast.error(result.error || 'Failed to execute node');
       }
     } catch (error) {
       handleUpdate('status', 'failed');
-      alert('Error executing node: ' + error.message);
+      toast.error('Error executing node: ' + error.message);
     } finally {
       setExecutingSingleNode(false);
     }
@@ -153,13 +169,13 @@ export default function NodeSidebarN8N({
   const getNodeTypeDisplay = () => {
     const type = selectedNode?.type;
     if (type === 'google-sheets') {
-      return { icon: '📊', label: 'Google Sheets' };
+      return { icon: <Sheet className="w-5 h-5" />, label: 'Google Sheets' };
     } else if (type === 'google-sheets-trigger') {
-      return { icon: '📊', label: 'Google Sheets Trigger' };
+      return { icon: <Sheet className="w-5 h-5" />, label: 'Google Sheets Trigger' };
     } else if (type === 'start') {
-      return { icon: '🚀', label: 'Manual Trigger' };
+      return { icon: <Rocket className="w-5 h-5" />, label: 'Manual Trigger' };
     }
-    return { icon: '✏️', label: type || 'Node' };
+    return { icon: null, label: type || 'Node' };
   };
 
   if (!selectedNode) {
@@ -169,425 +185,241 @@ export default function NodeSidebarN8N({
   const nodeDisplay = getNodeTypeDisplay();
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#1a1a1a',
-        color: 'white',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Header */}
+    <>
+      {/* 3-Column Sidebar Layout - Centered Overlay (no backdrop to avoid conflicts with modals) */}
       <div
         style={{
-          padding: '1rem',
-          borderBottom: '1px solid #333',
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90vw',
+          maxWidth: '1000px',
+          height: '85vh',
+          maxHeight: '800px',
+          zIndex: 100,
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          background: 'hsl(var(--card))',
+          borderRadius: '0.75rem',
+          border: '1px solid hsl(var(--border))',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>{nodeDisplay.icon}</span>
-          <span style={{ fontWeight: 600 }}>{nodeDisplay.label}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <button
-            onClick={handleExecuteNode}
-            disabled={executingSingleNode}
-            style={{
-              background: executingSingleNode ? '#4a5568' : '#10b981',
-              border: 'none',
-              color: 'white',
-              cursor: executingSingleNode ? 'not-allowed' : 'pointer',
-              fontSize: '0.75rem',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
-          >
-            {executingSingleNode ? '⏳' : '▶️'} Execute
-          </button>
-          <button
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this node?')) {
-                if (onDeleteNode) {
-                  onDeleteNode(selectedNode.id);
-                }
-              }
-            }}
-            style={{
-              background: '#ef4444',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              fontWeight: 600,
-            }}
-          >
-            🗑️ Delete
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '1.25rem',
-              padding: '0.25rem',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #333' }}>
-        {['parameters', 'settings', 'docs'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              padding: '0.75rem 1rem',
-              background: activeTab === tab ? '#2a2a2a' : 'transparent',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-              borderBottom: activeTab === tab ? '2px solid #3b82f6' : 'none',
-            }}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Content Area - 3 Panels */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* INPUT Panel (Left) */}
+        {/* INPUT Panel (Left - 250px) */}
         <div
           style={{
-            width: '300px',
-            borderRight: '1px solid #333',
+            width: '250px',
+            borderRight: '1px solid hsl(var(--border))',
             display: 'flex',
             flexDirection: 'column',
+            background: 'hsl(var(--muted))',
           }}
         >
           <div
             style={{
-              padding: '0.75rem',
-              background: '#2a2a2a',
-              borderBottom: '1px solid #333',
+              padding: '0.75rem 1rem',
+              background: 'hsl(var(--card))',
+              borderBottom: '1px solid hsl(var(--border))',
               fontWeight: 600,
+              fontSize: '0.875rem',
+              color: 'hsl(var(--foreground))',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
             }}
           >
             INPUT
           </div>
-          <InputPanel
-            inputData={inputData}
-            availableVariables={availableVariables}
-            selectedNode={selectedNode}
-            edges={edges}
-            onDragStart={(e, variableExpression) => {
-              setDraggedVariable(variableExpression);
-              e.dataTransfer.setData('text/plain', variableExpression);
-            }}
-          />
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            <InputPanel
+              inputData={inputData}
+              availableVariables={availableVariables}
+              selectedNode={selectedNode}
+              edges={edges}
+              onDragStart={(e, variableExpression) => {
+                setDraggedVariable(variableExpression);
+                e.dataTransfer.setData('text/plain', variableExpression);
+              }}
+            />
+          </div>
         </div>
 
-        {/* CENTER Panel - Node Configuration */}
+        {/* CENTER Panel - Node Configuration (flex: 1) */}
         <div
           style={{
             flex: 1,
-            overflow: 'auto',
-            padding: '1rem',
-            background: '#1a1a1a',
-          }}
-        >
-          {activeTab === 'parameters' && (
-            <NodeConfigFactory
-              nodeType={selectedNode.type}
-              localData={localData}
-              handleUpdate={handleUpdate}
-              availableVariables={availableVariables}
-              knowledgeBaseEntries={knowledgeBaseEntries}
-              workflows={workflows}
-              workflowId={workflowId}
-              spreadsheets={googleSheets.spreadsheets || []}
-              sheets={googleSheets.sheets || []}
-              columns={googleSheets.columns || []}
-              fetchSheets={googleSheets.fetchSheets}
-              fetchSpreadsheets={googleSheets.fetchSpreadsheets}
-              fetchColumns={googleSheets.fetchColumns}
-              setShowSpreadsheetModal={viewModel.setShowSpreadsheetModal}
-              setShowSheetModal={viewModel.setShowSheetModal}
-              handleDrop={handleDrop}
-              nodes={nodes}
-              currentNodeId={selectedNode?.id}
-            />
-          )}
-          {activeTab === 'settings' && (
-            <SettingsTab
-              nodeType={selectedNode.type}
-              localData={localData}
-              handleUpdate={handleUpdate}
-              googleSheets={googleSheets}
-              knowledgeBaseEntries={knowledgeBaseEntries}
-              onGoogleSheetsAuth={handleGoogleSheetsAuth}
-              onGoogleSheetsDisconnect={handleGoogleSheetsDisconnect}
-            />
-          )}
-          {activeTab === 'docs' && <DocsTab nodeType={selectedNode.type} />}
-        </div>
-
-        {/* OUTPUT Panel (Right) */}
-        <div
-          style={{
-            width: '300px',
-            borderLeft: '1px solid #333',
             display: 'flex',
             flexDirection: 'column',
+            overflow: 'hidden',
+            background: 'hsl(var(--card))',
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              padding: '1rem',
+              borderBottom: '1px solid hsl(var(--border))',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {nodeDisplay.icon}
+              <span style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}>
+                {nodeDisplay.label}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <Button
+                size="sm"
+                onClick={handleExecuteNode}
+                disabled={executingSingleNode}
+                variant="default"
+              >
+                {executingSingleNode ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    Execute
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3 h-3 mr-1" />
+                    Execute
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Delete
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onClose}
+                style={{ padding: '0.25rem 0.5rem' }}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+            <div style={{ padding: '0 1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+              <TabsList className="grid w-full grid-cols-3 bg-transparent">
+                <TabsTrigger value="parameters">Parameters</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+                <TabsTrigger value="docs">Docs</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
+              <TabsContent value="parameters" className="mt-0">
+                <NodeConfigFactory
+                  nodeType={selectedNode.type}
+                  localData={localData}
+                  handleUpdate={handleUpdate}
+                  availableVariables={availableVariables}
+                  onDrop={handleDrop}
+                  knowledgeBaseEntries={knowledgeBaseEntries}
+                  workflows={workflows}
+                  workflowId={workflowId}
+                  spreadsheets={googleSheets.spreadsheets || []}
+                  sheets={googleSheets.sheets || []}
+                  columns={googleSheets.columns || []}
+                  fetchSheets={googleSheets.fetchSheets}
+                  fetchSpreadsheets={googleSheets.fetchSpreadsheets}
+                  fetchColumns={googleSheets.fetchColumns}
+                  setShowSpreadsheetModal={viewModel.setShowSpreadsheetModal}
+                  setShowSheetModal={viewModel.setShowSheetModal}
+                  nodes={nodes}
+                  currentNodeId={selectedNode?.id}
+                />
+              </TabsContent>
+
+              <TabsContent value="settings" className="mt-0">
+                <SettingsTab
+                  nodeType={selectedNode.type}
+                  localData={localData}
+                  handleUpdate={handleUpdate}
+                  googleSheets={googleSheets}
+                  knowledgeBaseEntries={knowledgeBaseEntries}
+                  onGoogleSheetsAuth={handleGoogleSheetsAuth}
+                  onGoogleSheetsDisconnect={handleGoogleSheetsDisconnect}
+                />
+              </TabsContent>
+
+              <TabsContent value="docs" className="mt-0">
+                <DocsTab nodeType={selectedNode.type} />
+              </TabsContent>
+            </div>
+          </Tabs>
+        </div>
+
+        {/* OUTPUT Panel (Right - 250px) */}
+        <div
+          style={{
+            width: '250px',
+            borderLeft: '1px solid hsl(var(--border))',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'hsl(var(--muted))',
           }}
         >
           <div
             style={{
-              padding: '0.75rem',
-              background: '#2a2a2a',
-              borderBottom: '1px solid #333',
+              padding: '0.75rem 1rem',
+              background: 'hsl(var(--card))',
+              borderBottom: '1px solid hsl(var(--border))',
               fontWeight: 600,
+              fontSize: '0.875rem',
+              color: 'hsl(var(--foreground))',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
             }}
           >
             OUTPUT
           </div>
-          <OutputPanel outputData={outputData} />
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            <OutputPanel
+              outputData={outputData}
+              outputView={outputView}
+              setOutputView={setOutputView}
+              nodeStatus={localData.status}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Spreadsheet Selection Modal */}
-      {viewModel.showSpreadsheetModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => viewModel.setShowSpreadsheetModal(false)}
-        >
-          <div
-            style={{
-              background: '#1a1a1a',
-              border: '1px solid #333',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              width: '90%',
-              maxWidth: '600px',
-              maxHeight: '80vh',
-              overflow: 'auto',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem',
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Node?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this node? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (onDeleteNode) {
+                  onDeleteNode(selectedNode.id);
+                }
+                setDeleteDialogOpen(false);
               }}
+              className="bg-destructive text-destructive-foreground"
             >
-              <h3 style={{ color: 'white', margin: 0 }}>Select Spreadsheet</h3>
-              <button
-                onClick={() => viewModel.setShowSpreadsheetModal(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '1.5rem',
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-              }}
-            >
-              {(googleSheets.spreadsheets || []).map(spreadsheet => (
-                <button
-                  key={spreadsheet.id}
-                  onClick={() => {
-                    handleUpdate('spreadsheetId', spreadsheet.id);
-                    googleSheets.fetchSheets(spreadsheet.id);
-                    viewModel.setShowSpreadsheetModal(false);
-                  }}
-                  style={{
-                    background: '#2a2a2a',
-                    border: '1px solid #333',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    color: 'white',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={e => {
-                    e.target.style.background = '#333';
-                  }}
-                  onMouseLeave={e => {
-                    e.target.style.background = '#2a2a2a';
-                  }}
-                >
-                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                    {spreadsheet.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: '#94a3b8',
-                    }}
-                  >
-                    ID: {spreadsheet.id}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sheet Selection Modal */}
-      {viewModel.showSheetModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => viewModel.setShowSheetModal(false)}
-        >
-          <div
-            style={{
-              background: '#1a1a1a',
-              border: '1px solid #333',
-              borderRadius: '12px',
-              padding: '1.5rem',
-              width: '90%',
-              maxWidth: '600px',
-              maxHeight: '80vh',
-              overflow: 'auto',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem',
-              }}
-            >
-              <h3 style={{ color: 'white', margin: 0 }}>Select Sheet</h3>
-              <button
-                onClick={() => viewModel.setShowSheetModal(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '1.5rem',
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-              }}
-            >
-              {(googleSheets.sheets || []).length > 0 ? (
-                (googleSheets.sheets || []).map(sheet => (
-                  <button
-                    key={sheet.sheetId || sheet.id}
-                    onClick={() => {
-                      handleUpdate('sheetName', sheet.title || sheet.name);
-                      viewModel.setShowSheetModal(false);
-                    }}
-                    style={{
-                      background: '#2a2a2a',
-                      border: '1px solid #333',
-                      borderRadius: '8px',
-                      padding: '1rem',
-                      color: 'white',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={e => {
-                      e.target.style.background = '#333';
-                    }}
-                    onMouseLeave={e => {
-                      e.target.style.background = '#2a2a2a';
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                      {sheet.title || sheet.name}
-                    </div>
-                    {sheet.hidden && (
-                      <div
-                        style={{
-                          fontSize: '0.75rem',
-                          color: '#94a3b8',
-                        }}
-                      >
-                        Hidden
-                      </div>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <div
-                  style={{
-                    padding: '1rem',
-                    color: '#999',
-                    textAlign: 'center',
-                  }}
-                >
-                  No sheets available
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

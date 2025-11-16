@@ -112,8 +112,8 @@ export default function KnowledgeBaseManager({ onClose }) {
     <div
       style={{
         width: '400px',
-        background: 'white',
-        borderLeft: '1px solid #e0e0e0',
+        background: 'hsl(var(--card))',
+        borderLeft: '1px solid hsl(var(--border))',
         padding: '1.5rem',
         overflowY: 'auto',
         height: '100%',
@@ -321,8 +321,8 @@ export default function KnowledgeBaseManager({ onClose }) {
                 key={entry.id}
                 style={{
                   padding: '1rem',
-                  background: editingId === entry.id ? '#f0f9ff' : 'white',
-                  border: `1px solid ${editingId === entry.id ? '#3b82f6' : '#e2e8f0'}`,
+                  background: editingId === entry.id ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+                  border: `1px solid ${editingId === entry.id ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                   borderRadius: '8px',
                   transition: 'all 0.2s',
                 }}

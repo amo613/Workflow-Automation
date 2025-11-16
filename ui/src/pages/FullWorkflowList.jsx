@@ -1,12 +1,38 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import PageContainer from '@/components/layout/PageContainer';
+import { toast } from 'sonner';
 
 function FullWorkflowList() {
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filterType, setFilterType] = useState('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,19 +58,23 @@ function FullWorkflowList() {
     } catch (err) {
       setError(err.message);
       console.error('Error fetching workflows:', err);
+      toast.error('Failed to load workflows');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id, e) => {
+  const handleDeleteClick = (id, e) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this workflow?')) {
-      return;
-    }
+    setWorkflowToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!workflowToDelete) return;
 
     try {
-      const response = await fetchWithCSRF(`/api/full-workflows/${id}`, {
+      const response = await fetchWithCSRF(`/api/full-workflows/${workflowToDelete}`, {
         method: 'DELETE',
       });
 
@@ -52,10 +82,14 @@ function FullWorkflowList() {
         throw new Error('Failed to delete workflow');
       }
 
+      toast.success('Workflow deleted successfully');
       fetchWorkflows();
     } catch (err) {
-      alert('Failed to delete workflow: ' + err.message);
+      toast.error('Failed to delete workflow: ' + err.message);
       console.error('Error deleting workflow:', err);
+    } finally {
+      setDeleteDialogOpen(false);
+      setWorkflowToDelete(null);
     }
   };
 
@@ -79,328 +113,152 @@ function FullWorkflowList() {
         throw new Error('Failed to update workflow');
       }
 
+      toast.success(`Workflow ${!workflow.is_active ? 'activated' : 'deactivated'}`);
       fetchWorkflows();
     } catch (err) {
-      alert('Failed to update workflow: ' + err.message);
+      toast.error('Failed to update workflow: ' + err.message);
       console.error('Error updating workflow:', err);
     }
   };
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          fontSize: '18px',
-          color: '#667eea',
-          fontWeight: 600,
-        }}
-      >
-        <div
-          style={{
-            padding: '24px 48px',
-            background: 'white',
-            borderRadius: '24px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          ✨ Loading workflows...
+      <PageContainer>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-lg text-muted-foreground">Loading workflows...</div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        style={{
-          padding: '2rem',
-          textAlign: 'center',
-          color: '#ef4444',
-          fontSize: '18px',
-        }}
-      >
-        ❌ Error: {error}
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div
-      style={{
-        padding: '2rem',
-        maxWidth: '1400px',
-        margin: '0 auto',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: '2rem',
-            fontWeight: 800,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            margin: 0,
-          }}
-        >
-          ⚙️ Full Workflows
-        </h1>
-        <Link
-          to="/fullWorkflows/new"
-          className="bubble-btn"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            textDecoration: 'none',
-            padding: '0.75rem 1.25rem',
-            fontSize: '0.9rem',
-          }}
-        >
-          <span style={{ fontSize: '18px' }}>✨</span>
-          Create New
-        </Link>
-      </div>
-
-      {/* Filter */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          marginBottom: '2rem',
-          padding: '1rem',
-          background: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        }}
-      >
-        <button
-          onClick={() => setFilterType('all')}
-          style={{
-            padding: '0.5rem 1rem',
-            border: 'none',
-            borderRadius: '8px',
-            background: filterType === 'all' ? '#667eea' : '#f3f4f6',
-            color: filterType === 'all' ? 'white' : '#333',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          All
-        </button>
-        <button
-          onClick={() => setFilterType('automation')}
-          style={{
-            padding: '0.5rem 1rem',
-            border: 'none',
-            borderRadius: '8px',
-            background: filterType === 'automation' ? '#667eea' : '#f3f4f6',
-            color: filterType === 'automation' ? 'white' : '#333',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          Automation
-        </button>
-        <button
-          onClick={() => setFilterType('call-workflow')}
-          style={{
-            padding: '0.5rem 1rem',
-            border: 'none',
-            borderRadius: '8px',
-            background: filterType === 'call-workflow' ? '#667eea' : '#f3f4f6',
-            color: filterType === 'call-workflow' ? 'white' : '#333',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          Call Workflow
-        </button>
-      </div>
-
-      {workflows.length === 0 ? (
-        <div
-          className="skeu-card"
-          style={{
-            padding: '3rem',
-            textAlign: 'center',
-          }}
-        >
-          <h2
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 600,
-              marginBottom: '1rem',
-              color: '#333',
-            }}
-          >
-            No workflows yet
-          </h2>
-          <p
-            style={{
-              color: '#666',
-              marginBottom: '1.5rem',
-              fontSize: '1rem',
-            }}
-          >
-            Create your first full workflow to get started on your automation
-            journey!
-          </p>
-          <Link
-            to="/fullWorkflows/new"
-            className="bubble-btn"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              textDecoration: 'none',
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <span style={{ fontSize: '18px' }}>🚀</span>
-            Create New Workflow
-          </Link>
+    <PageContainer>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Workflows</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your automation workflows
+            </p>
+          </div>
+          <Button onClick={() => navigate('/fullWorkflows/new')}>
+            Create Workflow
+          </Button>
         </div>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-            gap: '1.25rem',
-          }}
-        >
-          {workflows.map(workflow => (
-            <div
-              key={workflow.id}
-              onClick={() => navigate(`/fullWorkflows/edit/${workflow.id}`)}
-              className="skeu-card"
-              style={{
-                padding: '1.5rem',
-                cursor: 'pointer',
-                position: 'relative',
-              }}
-            >
-              {/* Active Badge */}
-              {workflow.is_active && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '1rem',
-                    right: '1rem',
-                    padding: '0.25rem 0.75rem',
-                    background: '#10b981',
-                    color: 'white',
-                    borderRadius: '12px',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  Active
-                </div>
-              )}
 
-              {/* Type Badge */}
-              <div
-                style={{
-                  display: 'inline-block',
-                  padding: '0.25rem 0.75rem',
-                  background:
-                    workflow.type === 'automation' ? '#667eea' : '#764ba2',
-                  color: 'white',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  marginBottom: '1rem',
-                }}
-              >
-                {workflow.type === 'automation'
-                  ? '⚙️ Automation'
-                  : '📞 Call Workflow'}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>All Workflows</CardTitle>
+                <CardDescription>
+                  {workflows.length} workflow{workflows.length !== 1 ? 's' : ''} found
+                </CardDescription>
               </div>
-
-              <h3
-                style={{
-                  fontSize: '1.25rem',
-                  fontWeight: 700,
-                  marginBottom: '0.5rem',
-                  color: '#1a202c',
-                }}
-              >
-                {workflow.name}
-              </h3>
-
-              {workflow.description && (
-                <p
-                  style={{
-                    color: '#4a5568',
-                    marginBottom: '1rem',
-                    fontSize: '0.9rem',
-                    lineHeight: '1.5',
-                  }}
-                >
-                  {workflow.description}
-                </p>
-              )}
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: '1rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid #e2e8f0',
-                }}
-              >
-                <button
-                  onClick={e => handleToggleActive(workflow, e)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: workflow.is_active ? '#ef4444' : '#10b981',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  {workflow.is_active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button
-                  onClick={e => handleDelete(workflow.id, e)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: '#ef4444',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="automation">Automation</SelectItem>
+                  <SelectItem value="integration">Integration</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+          </CardHeader>
+          <CardContent>
+            {error ? (
+              <div className="text-destructive text-center py-8">{error}</div>
+            ) : workflows.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-lg mb-2">No workflows found</p>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/fullWorkflows/new')}
+                  className="mt-4"
+                >
+                  Create your first workflow
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {workflows.map(workflow => (
+                    <TableRow
+                      key={workflow.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/fullWorkflows/edit/${workflow.id}`)}
+                    >
+                      <TableCell className="font-medium">
+                        {workflow.name || 'Unnamed Workflow'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{workflow.type || 'automation'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={workflow.is_active ? 'default' : 'secondary'}>
+                          {workflow.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {workflow.created_at
+                          ? new Date(workflow.created_at).toLocaleDateString()
+                          : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={e => handleToggleActive(workflow, e)}
+                          >
+                            {workflow.is_active ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={e => handleDeleteClick(workflow.id, e)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the workflow.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageContainer>
   );
 }
 

@@ -160,9 +160,9 @@ export default function EmailConfig({
         style={{
           marginTop: '1.5rem',
           padding: '1rem',
-          background: '#1a1a1a',
+          background: 'hsl(var(--muted))',
           borderRadius: '8px',
-          border: '1px solid #333',
+          border: '1px solid hsl(var(--border))',
         }}
       >
         <div

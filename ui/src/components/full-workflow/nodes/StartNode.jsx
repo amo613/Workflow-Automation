@@ -1,17 +1,20 @@
 import { Handle, Position } from 'reactflow';
+import { Rocket } from 'lucide-react';
 
 export default function StartNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected ? '#f0fdf4' : 'white',
+        background: selected
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--card))',
         border: `2px solid ${selected ? '#10b981' : '#10b981'}`,
-        borderRadius: '12px',
+        borderRadius: '0.75rem',
         padding: '1.5rem',
         minWidth: '150px',
         boxShadow: selected
-          ? '0 4px 12px #10b98140'
-          : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+          : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         textAlign: 'center',
       }}
@@ -22,13 +25,13 @@ export default function StartNode({ data, selected }) {
           marginBottom: '0.5rem',
         }}
       >
-        🚀
+        <Rocket className="w-8 h-8" />
       </div>
       <div
         style={{
           fontWeight: 700,
           fontSize: '1rem',
-          color: '#1a202c',
+          color: 'hsl(var(--foreground))',
         }}
       >
         Start
@@ -40,7 +43,7 @@ export default function StartNode({ data, selected }) {
           background: '#10b981',
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
     </div>

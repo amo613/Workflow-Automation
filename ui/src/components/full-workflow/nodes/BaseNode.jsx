@@ -3,6 +3,7 @@ import { Handle, Position } from 'reactflow';
 /**
  * Base Node Component for Full Workflows
  * Provides common structure and styling for all node types
+ * Dark Theme optimized
  */
 export default function BaseNode({ data, selected, type, icon, color, label }) {
   // Status: 'idle' | 'running' | 'success' | 'failed'
@@ -25,16 +26,18 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
   return (
     <div
       style={{
-        background: selected ? '#f0f4ff' : 'white',
+        background: selected
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--card))',
         border: `2px solid ${
-          status !== 'idle' ? statusColor[status] : selected ? color : '#e2e8f0'
+          status !== 'idle' ? statusColor[status] : selected ? color : 'hsl(var(--border))'
         }`,
-        borderRadius: '12px',
+        borderRadius: '0.75rem',
         padding: '1rem',
         minWidth: '200px',
         boxShadow: selected
           ? `0 4px 12px ${color}40`
-          : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         position: 'relative',
       }}
@@ -54,7 +57,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
             zIndex: 10,
           }}
         >
@@ -69,7 +72,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
           background: color,
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
 
@@ -90,7 +93,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
             justifyContent: 'center',
             width: '32px',
             height: '32px',
-            borderRadius: '8px',
+            borderRadius: '0.5rem',
             background: `${color}20`,
             color: color,
           }}
@@ -102,7 +105,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
             style={{
               fontWeight: 600,
               fontSize: '0.875rem',
-              color: '#1a202c',
+              color: 'hsl(var(--foreground))',
             }}
           >
             {label || type}
@@ -111,7 +114,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
             <div
               style={{
                 fontSize: '0.75rem',
-                color: '#64748b',
+                color: 'hsl(var(--muted-foreground))',
                 marginTop: '0.25rem',
               }}
             >
@@ -126,11 +129,11 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
         <div
           style={{
             fontSize: '0.75rem',
-            color: '#64748b',
+            color: 'hsl(var(--muted-foreground))',
             marginTop: '0.5rem',
             padding: '0.5rem',
-            background: '#f8fafc',
-            borderRadius: '6px',
+            background: 'hsl(var(--muted))',
+            borderRadius: '0.375rem',
           }}
         >
           {data.description}
@@ -145,7 +148,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
           background: color,
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
     </div>

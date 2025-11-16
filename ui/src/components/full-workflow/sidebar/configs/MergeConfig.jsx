@@ -1,4 +1,5 @@
 import FormField from '../FormField.jsx';
+import { Lightbulb } from 'lucide-react';
 
 export default function MergeConfig({ localData, handleUpdate }) {
   const mergeStrategies = [
@@ -29,7 +30,10 @@ export default function MergeConfig({ localData, handleUpdate }) {
           color: '#0369a1',
         }}
       >
-        <strong>💡 How it works:</strong>
+        <strong style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Lightbulb className="w-4 h-4" />
+          How it works:
+        </strong>
         <ul style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.25rem' }}>
           <li>
             <strong>Array:</strong> Returns all branch results as an array

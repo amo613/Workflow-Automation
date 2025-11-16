@@ -1,21 +1,115 @@
+@import "tailwindcss";
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* Shadcn UI CSS Variables - Dark Theme (Standard) */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+
+    /* Node Colors - React Flow */
+    --node-start: #10b981;
+    --node-end: #ef4444;
+    --node-ai-agent: #3b82f6;
+    --node-call-agent: #10b981;
+    --node-if: #f59e0b;
+    --node-email: #8b5cf6;
+    --node-webhook: #8b5cf6;
+    --node-webhook-trigger: #8b5cf6;
+    --node-wait: #6366f1;
+    --node-variable-set: #f59e0b;
+    --node-knowledge-base: #a78bfa;
+    --node-google-sheets: #34d399;
+    --node-google-sheets-trigger: #34d399;
+    --node-database-query: #06b6d4;
+    --node-http-request: #3b82f6;
+    --node-merge: #8b5cf6;
+    --node-schedule-trigger: #8b5cf6;
+  }
+
+  .dark {
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 20%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+/* Dark Theme als Standard */
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
 body {
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
     Cantarell, sans-serif;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 50%, #f5f9ff 100%);
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
-/* Bubble Background Animation */
-body::before {
+/* Dark Theme Klasse auf html setzen */
+.dark {
+  color-scheme: dark;
+}
+
+/* Bubble Background Animation - Nur für bestimmte Pages */
+body.light-theme::before {
   content: '';
   position: fixed;
   top: -50%;
@@ -101,6 +195,7 @@ body::before {
 }
 
 /* Bubble Button Style */
+/* Bubble Button - Dark Theme */
 .bubble-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
@@ -152,109 +247,136 @@ body::before {
 }
 
 /* Bubble Input Style */
+/* Bubble Input - Dark Theme */
 .bubble-input {
-  background: rgba(255, 255, 255, 0.9);
-  border: 2px solid rgba(102, 126, 234, 0.2);
-  border-radius: 16px;
-  padding: 14px 18px;
-  font-size: 15px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.05),
-    inset 0 2px 4px rgba(0, 0, 0, 0.02);
-  backdrop-filter: blur(10px);
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--input));
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .bubble-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow:
-    0 8px 24px rgba(102, 126, 234, 0.2),
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    inset 0 2px 4px rgba(0, 0, 0, 0.02);
-  transform: translateY(-2px);
-  background: #ffffff;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+  background: hsl(var(--background));
 }
 
-/* React Flow - Enhanced Styles */
+/* React Flow - Enhanced Styles with Golden Ratio & Dark Theme */
 .react-flow__edge-path {
-  stroke-width: 4px !important;
-  filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.2));
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke-width: 5px !important;
-  filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.4));
+  stroke-width: 4px !important;
+  filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.4));
 }
 
 .react-flow__handle {
-  width: 18px !important;
-  height: 18px !important;
-  border-width: 4px !important;
-  background: white !important;
-  box-shadow:
-    0 4px 12px rgba(102, 126, 234, 0.3),
-    inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-/* If Node specific handles - override global styles */
-/* React Flow uses id attribute on Handle, which becomes data-id on the DOM element */
-.react-flow__handle[data-id='true'] {
   width: 16px !important;
   height: 16px !important;
   border-width: 3px !important;
-  background: #10b981 !important;
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
   box-shadow:
-    0 0 0 2px #10b981,
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    inset 0 1px 2px rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* If Node specific handles - override global styles */
+.react-flow__handle[data-id='true'] {
+  width: 14px !important;
+  height: 14px !important;
+  border-width: 2px !important;
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.2),
     0 2px 8px rgba(16, 185, 129, 0.4) !important;
 }
 
 .react-flow__handle[data-id='false'] {
-  width: 16px !important;
-  height: 16px !important;
-  border-width: 3px !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-width: 2px !important;
   background: #ef4444 !important;
+  border-color: #ef4444 !important;
   box-shadow:
-    0 0 0 2px #ef4444,
+    0 0 0 2px rgba(239, 68, 68, 0.2),
     0 2px 8px rgba(239, 68, 68, 0.4) !important;
 }
 
 .react-flow__handle:hover {
-  transform: scale(1.3);
+  transform: scale(1.25);
   box-shadow:
-    0 6px 16px rgba(102, 126, 234, 0.5),
-    inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    0 4px 12px rgba(59, 130, 246, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.1) !important;
 }
 
 .react-flow__node {
-  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.12));
-  transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .react-flow__node:hover {
-  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.25));
+  transform: translateY(-1px);
+}
+
+.react-flow__node.selected {
+  filter: drop-shadow(0 8px 24px rgba(59, 130, 246, 0.3));
 }
 
 .react-flow__background {
-  opacity: 0.8;
+  opacity: 0.4;
 }
 
 .react-flow__background-pattern {
-  opacity: 0.9;
+  opacity: 0.5;
 }
 
-/* React Flow Controls - Position higher */
+/* React Flow Controls - Better positioning with golden ratio spacing */
 .react-flow__controls {
-  bottom: 120px !important;
+  bottom: 1.618rem !important;
+  right: 1.618rem !important;
   top: auto !important;
+  left: auto !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
 }
 
-/* React Flow MiniMap - Position higher */
+.react-flow__controls-button {
+  background: hsl(var(--card)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  transition: all 0.2s ease !important;
+}
+
+.react-flow__controls-button:hover {
+  background: hsl(var(--accent)) !important;
+}
+
+/* React Flow MiniMap - Better positioning */
 .react-flow__minimap {
-  bottom: 150px !important;
+  bottom: 1.618rem !important;
+  left: 1.618rem !important;
   top: auto !important;
-  pointer-events: none !important;
+  right: auto !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  background: hsl(var(--card)) !important;
 }
 
 /* MiniMap nodes should not be draggable */
@@ -276,4 +398,15 @@ body::before {
 
 .glow-effect {
   animation: glow 2s ease-in-out infinite;
+}
+
+/* Node Palette Button Hover Effects */
+.node-palette-button {
+  transition: all 0.2s ease !important;
+}
+
+.node-palette-button:hover {
+  background: hsl(var(--accent)) !important;
+  border-color: hsl(var(--primary)) !important;
+  transform: translateX(2px);
 }

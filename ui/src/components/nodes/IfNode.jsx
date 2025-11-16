@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Handle, Position } from 'reactflow';
+import { GitBranch } from 'lucide-react';
 
 function IfNode({ data, id }) {
   const onNodeUpdate = data?.onNodeUpdate;
@@ -76,7 +77,10 @@ function IfNode({ data, id }) {
           color: '#1f2937',
         }}
       >
-        🔀 IF
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <GitBranch className="w-4 h-4" />
+          <span>IF</span>
+        </div>
       </div>
       <input
         type="text"

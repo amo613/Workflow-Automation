@@ -1,34 +1,34 @@
-import BaseNode from './BaseNode';
 import { Handle, Position } from 'reactflow';
 
 export default function WebhookTriggerNode({ data, selected }) {
+  const status = data.status || 'idle';
+  const statusColor = {
+    running: '#3b82f6',
+    success: '#10b981',
+    failed: '#ef4444',
+    idle: null,
+  };
+
   return (
     <div
       style={{
-        background: selected ? '#f0f4ff' : 'white',
+        background: selected
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--card))',
         border: `2px solid ${
-          data.status === 'running'
-            ? '#3b82f6'
-            : data.status === 'success'
-              ? '#10b981'
-              : data.status === 'failed'
-                ? '#ef4444'
-                : selected
-                  ? '#8b5cf6'
-                  : '#e2e8f0'
+          status !== 'idle' ? statusColor[status] : selected ? '#8b5cf6' : 'hsl(var(--border))'
         }`,
-        borderRadius: '12px',
+        borderRadius: '0.75rem',
         padding: '1rem',
         minWidth: '200px',
         boxShadow: selected
-          ? '0 4px 12px rgba(139, 92, 246, 0.4)'
-          : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          ? '0 4px 12px rgba(139, 92, 246, 0.3)'
+          : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         position: 'relative',
       }}
     >
-      {/* Status Badge */}
-      {data.status && data.status !== 'idle' && (
+      {status !== 'idle' && (
         <div
           style={{
             position: 'absolute',
@@ -37,31 +37,19 @@ export default function WebhookTriggerNode({ data, selected }) {
             width: '24px',
             height: '24px',
             borderRadius: '50%',
-            background:
-              data.status === 'running'
-                ? '#3b82f6'
-                : data.status === 'success'
-                  ? '#10b981'
-                  : '#ef4444',
+            background: statusColor[status],
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
             zIndex: 10,
           }}
         >
-          {data.status === 'running'
-            ? '⏳'
-            : data.status === 'success'
-              ? '✅'
-              : '❌'}
+          {status === 'running' ? '⏳' : status === 'success' ? '✅' : '❌'}
         </div>
       )}
 
-      {/* No Input Handle - Triggers don't have inputs */}
-
-      {/* Node Header */}
       <div
         style={{
           display: 'flex',
@@ -78,8 +66,8 @@ export default function WebhookTriggerNode({ data, selected }) {
             justifyContent: 'center',
             width: '32px',
             height: '32px',
-            borderRadius: '8px',
-            background: '#8b5cf620',
+            borderRadius: '0.5rem',
+            background: 'rgba(139, 92, 246, 0.2)',
             color: '#8b5cf6',
           }}
         >
@@ -90,7 +78,7 @@ export default function WebhookTriggerNode({ data, selected }) {
             style={{
               fontWeight: 600,
               fontSize: '0.875rem',
-              color: '#1a202c',
+              color: 'hsl(var(--foreground))',
             }}
           >
             Webhook Trigger
@@ -99,7 +87,7 @@ export default function WebhookTriggerNode({ data, selected }) {
             <div
               style={{
                 fontSize: '0.75rem',
-                color: '#64748b',
+                color: 'hsl(var(--muted-foreground))',
                 marginTop: '0.25rem',
               }}
             >
@@ -109,23 +97,21 @@ export default function WebhookTriggerNode({ data, selected }) {
         </div>
       </div>
 
-      {/* Node Content */}
       {data.description && (
         <div
           style={{
             fontSize: '0.75rem',
-            color: '#64748b',
+            color: 'hsl(var(--muted-foreground))',
             marginTop: '0.5rem',
             padding: '0.5rem',
-            background: '#f8fafc',
-            borderRadius: '6px',
+            background: 'hsl(var(--muted))',
+            borderRadius: '0.375rem',
           }}
         >
           {data.description}
         </div>
       )}
 
-      {/* Output Handle */}
       <Handle
         type="source"
         position={Position.Bottom}
@@ -133,7 +119,7 @@ export default function WebhookTriggerNode({ data, selected }) {
           background: '#8b5cf6',
           width: '12px',
           height: '12px',
-          border: '2px solid white',
+          border: '2px solid hsl(var(--card))',
         }}
       />
     </div>

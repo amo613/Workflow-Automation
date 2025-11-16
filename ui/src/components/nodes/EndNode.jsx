@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import { Flag } from 'lucide-react';
 
 function EndNode({ data, id }) {
   // Support both old format (text) and new format (action)
@@ -40,7 +41,10 @@ function EndNode({ data, id }) {
           opacity: 0.95,
         }}
       >
-        🏁 END
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Flag className="w-4 h-4" />
+          <span>END</span>
+        </div>
       </div>
       <div
         style={{

@@ -1,4 +1,5 @@
 import BaseNode from './BaseNode';
+import { Sheet } from 'lucide-react';
 
 export default function GoogleSheetsNode({ data, selected }) {
   return (
@@ -6,7 +7,7 @@ export default function GoogleSheetsNode({ data, selected }) {
       data={data}
       selected={selected}
       type="google-sheets"
-      icon="📊"
+      icon={<Sheet className="w-5 h-5" />}
       color="#34d399"
       label="Google Sheets"
     />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import VariableAutocomplete from './VariableAutocomplete';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
+import { Lightbulb } from 'lucide-react';
 
 /**
  * Node Sidebar for Full Workflows
@@ -619,20 +620,20 @@ export default function NodeSidebar({
                           style={{
                             padding: '0.75rem',
                             marginBottom: '0.5rem',
-                            background: isSelected ? '#e0e7ff' : 'white',
-                            border: `1px solid ${isSelected ? '#667eea' : '#e2e8f0'}`,
+                            background: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+                            border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                             borderRadius: '6px',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
                           }}
                           onMouseEnter={e => {
                             if (!isSelected) {
-                              e.currentTarget.style.background = '#f8fafc';
+                              e.currentTarget.style.background = 'hsl(var(--muted))';
                             }
                           }}
                           onMouseLeave={e => {
                             if (!isSelected) {
-                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.background = 'hsl(var(--card))';
                             }
                           }}
                         >
@@ -1024,8 +1025,8 @@ export default function NodeSidebar({
     <div
       style={{
         width: '350px',
-        background: 'white',
-        borderLeft: '1px solid #e0e0e0',
+        background: 'hsl(var(--card))',
+        borderLeft: '1px solid hsl(var(--border))',
         padding: '1.5rem',
         overflowY: 'auto',
         height: '100%',
@@ -1137,7 +1138,7 @@ export default function NodeSidebar({
               marginBottom: '0.5rem',
             }}
           >
-            💡 Available Variables
+            <Lightbulb className="w-4 h-4 mr-1" /> Available Variables
           </div>
           <div
             style={{

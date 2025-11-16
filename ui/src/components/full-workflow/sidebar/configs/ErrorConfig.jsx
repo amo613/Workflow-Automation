@@ -266,13 +266,11 @@ export default function ErrorConfig({
                 fallbackNodeId: value || null,
               });
             }}
-            options={[
-              { value: '', label: 'Select a node...' },
-              ...availableNodes.map(node => ({
-                value: node.id,
-                label: `${node.data?.name || node.type} (${node.id})`,
-              })),
-            ]}
+            options={availableNodes.map(node => ({
+              value: node.id,
+              label: `${node.data?.name || node.type} (${node.id})`,
+            }))}
+            placeholder="Select a node..."
           />
           <div
             style={{

@@ -176,8 +176,8 @@ export default function SettingsTab({
                         alignItems: 'center',
                         gap: '0.75rem',
                         padding: '0.75rem',
-                        background: isSelected ? '#2a2a2a' : '#1a1a1a',
-                        border: `1px solid ${isSelected ? '#3b82f6' : '#333'}`,
+                        background: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
+                        border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                         borderRadius: '8px',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
@@ -830,13 +830,13 @@ function ApiKeyManager({ localData, handleUpdate }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 2000,
           }}
           onClick={() => !saving && setShowModal(false)}
         >
           <div
             style={{
-              background: '#1a1a1a',
+              background: 'hsl(var(--card))',
               padding: '2rem',
               borderRadius: '12px',
               maxWidth: '500px',

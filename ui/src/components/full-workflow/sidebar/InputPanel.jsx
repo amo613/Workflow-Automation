@@ -74,7 +74,7 @@ export default function InputPanel({
             <div
               style={{
                 fontSize: '0.75rem',
-                color: '#94a3b8',
+                color: 'hsl(var(--muted-foreground))',
                 marginTop: '0.5rem',
                 marginBottom: '0.25rem',
               }}
@@ -123,9 +123,9 @@ export default function InputPanel({
           onClick={() => setView('table')}
           style={{
             padding: '0.25rem 0.5rem',
-            background: view === 'table' ? '#3b82f6' : 'transparent',
-            border: 'none',
-            color: 'white',
+            background: view === 'table' ? 'hsl(var(--primary))' : 'transparent',
+            border: '1px solid hsl(var(--border))',
+            color: view === 'table' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
             cursor: 'pointer',
             fontSize: '0.75rem',
             borderRadius: '4px',
@@ -155,13 +155,13 @@ export default function InputPanel({
             style={{
               marginTop: '1rem',
               paddingTop: '1rem',
-              borderTop: '1px solid #333',
+              borderTop: '1px solid hsl(var(--border))',
             }}
           >
             <div
               style={{
                 fontSize: '0.75rem',
-                color: '#94a3b8',
+                color: 'hsl(var(--muted-foreground))',
                 marginBottom: '0.5rem',
               }}
             >
@@ -174,7 +174,7 @@ export default function InputPanel({
           </div>
         </>
       ) : (
-        <pre style={{ fontSize: '0.75rem', overflow: 'auto', color: 'white' }}>
+        <pre style={{ fontSize: '0.75rem', overflow: 'auto', color: 'hsl(var(--foreground))', background: 'hsl(var(--muted))', padding: '0.5rem', borderRadius: '4px' }}>
           {JSON.stringify(inputData, null, 2)}
         </pre>
       )}
