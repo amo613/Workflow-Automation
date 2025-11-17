@@ -39,9 +39,9 @@ describe('API ENDPOINTS', () => {
   });
 
   describe('GET /nonexistent', () => {
-    it('should return 404 for non-existing routes', async () => {
+    it('should return 404 for non-existing API routes', async () => {
       const response = await request(fastifyApp.server)
-        .get('/nonexisting')
+        .get('/api/nonexisting')
         .expect(404);
 
       expect(response.body).toHaveProperty('error', 'Route not found');
