@@ -51,6 +51,8 @@ async function webhookRoutes(fastify) {
         'connection',
         'content-length',
         'content-type',
+        'x-workflow-secret',
+        'x-webhook-secret',
       ];
       for (const [key, value] of Object.entries(request.headers || {})) {
         if (!excludeHeaders.includes(key.toLowerCase())) {
@@ -137,10 +139,12 @@ async function webhookRoutes(fastify) {
       );
 
       let triggerNodeId = null;
+      let selectedWebhookNode = null;
       if (webhookTriggerNodes.length > 0) {
         // If there's only one webhook trigger, use it
         if (webhookTriggerNodes.length === 1) {
-          triggerNodeId = webhookTriggerNodes[0].id;
+          selectedWebhookNode = webhookTriggerNodes[0];
+          triggerNodeId = selectedWebhookNode.id;
         } else {
           // Multiple webhook triggers: find the one matching webhookId
           // First, try to find a node with matching webhookId
@@ -148,6 +152,7 @@ async function webhookRoutes(fastify) {
             node => node.data?.webhookId === webhookId
           );
           if (matchingNode) {
+            selectedWebhookNode = matchingNode;
             triggerNodeId = matchingNode.id;
           } else {
             // If no matching webhookId, check if any node has no webhookId (defaults to workflowId)
@@ -155,10 +160,12 @@ async function webhookRoutes(fastify) {
               node => !node.data?.webhookId || node.data?.webhookId === workflowId.toString()
             );
             if (defaultNode) {
+              selectedWebhookNode = defaultNode;
               triggerNodeId = defaultNode.id;
             } else {
               // Fallback: use first webhook trigger node
-              triggerNodeId = webhookTriggerNodes[0].id;
+              selectedWebhookNode = webhookTriggerNodes[0];
+              triggerNodeId = selectedWebhookNode.id;
               logger.warn('Multiple webhook triggers found, using first one', {
                 workflowId,
                 webhookId,
@@ -166,6 +173,47 @@ async function webhookRoutes(fastify) {
               });
             }
           }
+        }
+      }
+
+      // Enforce webhook secret if configured on the trigger node
+      if (selectedWebhookNode?.data?.requireSecret) {
+        const configuredSecret = selectedWebhookNode.data?.webhookSecret;
+        if (!configuredSecret) {
+          logger.error('Webhook secret required but not configured', {
+            workflowId,
+            triggerNodeId: selectedWebhookNode.id,
+          });
+          return reply.code(500).send({
+            success: false,
+            error: 'Webhook secret is misconfigured for this workflow',
+          });
+        }
+
+        const providedSecretHeader =
+          request.headers['x-workflow-secret'] ||
+          request.headers['x-webhook-secret'];
+        const providedSecret = Array.isArray(providedSecretHeader)
+          ? providedSecretHeader[0]
+          : providedSecretHeader;
+
+        if (!providedSecret) {
+          return reply.code(401).send({
+            success: false,
+            error:
+              'Missing webhook secret. Include X-Workflow-Secret header in the request.',
+          });
+        }
+
+        if (providedSecret !== configuredSecret) {
+          logger.warn('Invalid webhook secret provided', {
+            workflowId,
+            triggerNodeId: selectedWebhookNode.id,
+          });
+          return reply.code(401).send({
+            success: false,
+            error: 'Invalid webhook secret provided.',
+          });
         }
       }
 

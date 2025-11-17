@@ -97,6 +97,26 @@ export default function WebhookTriggerNode({ data, selected }) {
         </div>
       </div>
 
+      {data.requireSecret && (
+        <div
+          style={{
+            marginTop: '0.5rem',
+            fontSize: '0.7rem',
+            color: '#facc15',
+            background: 'rgba(250, 204, 21, 0.12)',
+            border: '1px solid rgba(250, 204, 21, 0.35)',
+            borderRadius: '0.375rem',
+            padding: '0.35rem 0.5rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+          }}
+        >
+          <span style={{ fontSize: '0.85rem' }}>🔒</span>
+          Secret required
+        </div>
+      )}
+
       {data.description && (
         <div
           style={{
