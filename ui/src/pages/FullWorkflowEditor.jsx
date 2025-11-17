@@ -102,6 +102,9 @@ function FullWorkflowEditor() {
   const [activeTriggers, setActiveTriggers] = useState([]);
   const pollingIntervalRef = useRef(null);
   const pollingTimeoutRef = useRef(null);
+  // Track multiple active executions simultaneously
+  const activeExecutionsRef = useRef(new Map()); // Map<eventId, { status, executedEdges, nodeOutputs, executionLog }>
+  const activeExecutionsPollingRef = useRef(new Map()); // Map<eventId, intervalId>
   const [showActiveTriggers, setShowActiveTriggers] = useState(true); // Default: open
   const [triggersLoading, setTriggersLoading] = useState(false);
   const [triggersError, setTriggersError] = useState(null);
@@ -269,6 +272,176 @@ function FullWorkflowEditor() {
   // Track last seen execution timestamp to detect new executions
   const lastExecutionTimestampRef = useRef(null);
 
+  // Helper function to update visualization from all active executions
+  const updateVisualizationFromActiveExecutions = () => {
+    const activeExecutions = activeExecutionsRef.current;
+    if (activeExecutions.size === 0) return;
+
+    // Combine all executed edges from all active executions
+    const allExecutedEdges = new Set();
+    const nodeStatusMap = new Map(); // Map<nodeId, { status, output, timestamp }>
+    const nodeOutputsMap = new Map(); // Map<nodeId, output>
+
+    // Process all active executions
+    activeExecutions.forEach((executionData, eventId) => {
+      // Add executed edges
+      if (executionData.executedEdges) {
+        executionData.executedEdges.forEach(edge => {
+          allExecutedEdges.add(edge);
+        });
+      }
+
+      // Update node statuses (keep the latest status for each node)
+      if (executionData.executionLog) {
+        executionData.executionLog.forEach(logEntry => {
+          const existing = nodeStatusMap.get(logEntry.nodeId);
+          const logTimestamp = new Date(logEntry.timestamp || 0).getTime();
+          if (!existing || logTimestamp > existing.timestamp) {
+            nodeStatusMap.set(logEntry.nodeId, {
+              status: logEntry.status === 'failed' ? 'failed' : 'success',
+              timestamp: logTimestamp,
+            });
+          }
+        });
+      }
+
+      // Update node outputs (keep the latest output for each node)
+      if (executionData.nodeOutputs) {
+        Object.entries(executionData.nodeOutputs).forEach(([nodeId, output]) => {
+          const existing = nodeOutputsMap.get(nodeId);
+          const executionTimestamp = executionData.timestamp || 0;
+          if (!existing || executionTimestamp > existing.timestamp) {
+            nodeOutputsMap.set(nodeId, { output, timestamp: executionTimestamp });
+          }
+        });
+      }
+    });
+
+    // Update executed edges state
+    setExecutedEdges(Array.from(allExecutedEdges));
+
+    // Update nodes state
+    setNodes(nds =>
+      nds.map(node => {
+        const statusInfo = nodeStatusMap.get(node.id);
+        const outputInfo = nodeOutputsMap.get(node.id);
+        
+        // If node has been executed in any active execution, update it
+        if (statusInfo || outputInfo) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              status: statusInfo?.status || node.data.status || 'running',
+              output: outputInfo?.output !== undefined ? outputInfo.output : node.data.output,
+            },
+          };
+        }
+        // If no active execution has executed this node yet, keep it as running
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            status: node.data.status === 'success' || node.data.status === 'failed' 
+              ? node.data.status 
+              : 'running',
+          },
+        };
+      })
+    );
+  };
+
+  // Poll a single execution by eventId
+  const pollExecution = async (eventId) => {
+    try {
+      const resultsResponse = await fetchWithCSRF(
+        `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`
+      );
+
+      if (resultsResponse.ok) {
+        const resultsData = await resultsResponse.json();
+        const status = resultsData.data?.status;
+
+        // Update execution data in activeExecutionsRef
+        const executionData = {
+          status,
+          executedEdges: resultsData.data?.executedEdges || [],
+          nodeOutputs: resultsData.data?.nodeOutputs || {},
+          executionLog: resultsData.data?.executionLog || [],
+          timestamp: resultsData.data?.startedAt || Date.now(),
+        };
+        activeExecutionsRef.current.set(eventId, executionData);
+
+        // Update visualization
+        updateVisualizationFromActiveExecutions();
+
+        // If execution is still running, continue polling
+        if (status === 'pending' || status === 'running') {
+          return true; // Continue polling
+        } else {
+          // Execution completed - stop polling for this execution
+          console.log('✅ Execution completed', {
+            eventId,
+            status,
+            nodeOutputsCount: Object.keys(executionData.nodeOutputs || {}).length,
+            executedEdgesCount: executionData.executedEdges?.length || 0,
+          });
+          const intervalId = activeExecutionsPollingRef.current.get(eventId);
+          if (intervalId) {
+            clearInterval(intervalId);
+            activeExecutionsPollingRef.current.delete(eventId);
+          }
+          // Keep execution data for a bit longer, then remove it
+          setTimeout(() => {
+            activeExecutionsRef.current.delete(eventId);
+            updateVisualizationFromActiveExecutions();
+          }, 5000); // Keep for 5 seconds after completion
+          return false; // Stop polling
+        }
+      } else if (resultsResponse.status === 404) {
+        // Execution not found - might still be starting, continue polling
+        return true;
+      } else {
+        // Error - stop polling
+        console.warn('Error polling execution', { eventId, status: resultsResponse.status });
+        const intervalId = activeExecutionsPollingRef.current.get(eventId);
+        if (intervalId) {
+          clearInterval(intervalId);
+          activeExecutionsPollingRef.current.delete(eventId);
+        }
+        return false;
+      }
+    } catch (error) {
+      console.warn('Error polling execution', { eventId, error: error.message });
+      return false;
+    }
+  };
+
+  // Start polling for a specific execution
+  const startPollingExecution = (eventId) => {
+    // Don't start polling if already polling this execution
+    if (activeExecutionsPollingRef.current.has(eventId)) {
+      return;
+    }
+
+    console.log('🔄 Starting polling for execution', { eventId });
+
+    // Poll immediately
+    pollExecution(eventId).then(shouldContinue => {
+      if (shouldContinue) {
+        // Start interval polling (every 200ms for fast updates)
+        const intervalId = setInterval(async () => {
+          const shouldContinue = await pollExecution(eventId);
+          if (!shouldContinue) {
+            clearInterval(intervalId);
+            activeExecutionsPollingRef.current.delete(eventId);
+          }
+        }, 200);
+        activeExecutionsPollingRef.current.set(eventId, intervalId);
+      }
+    });
+  };
+
   // Fetch execution history
   const fetchExecutionHistory = async () => {
     if (!id || isNew) return;
@@ -288,17 +461,6 @@ function FullWorkflowEditor() {
         const latestExecution = history[0];
         const latestTimestamp = new Date(latestExecution.timestamp).getTime();
 
-        // Debug logging - expand the object to see full details
-        console.log('📊 Execution history fetched', {
-          historyLength: history.length,
-          latestExecution: latestExecution, // Show full object
-          lastSeenTimestamp: lastExecutionTimestampRef.current,
-          isNewExecution:
-            latestTimestamp > (lastExecutionTimestampRef.current || 0),
-          hasEventId: !!latestExecution.eventId,
-          isSuccess: latestExecution.success,
-        });
-
         // Initialize lastExecutionTimestampRef on first load (to avoid loading old executions)
         if (lastExecutionTimestampRef.current === null) {
           lastExecutionTimestampRef.current = latestTimestamp;
@@ -308,238 +470,65 @@ function FullWorkflowEditor() {
           return; // Don't load outputs on initial load
         }
 
-        // If this is a new execution (not seen before)
-        if (latestTimestamp > lastExecutionTimestampRef.current) {
-          console.log('🆕 New execution detected', {
-            timestamp: latestTimestamp,
+        // Check for new executions (not just the latest, but all recent ones)
+        // This allows multiple triggers to run simultaneously
+        const newExecutions = history.filter(execution => {
+          const execTimestamp = new Date(execution.timestamp).getTime();
+          return (
+            execution.eventId &&
+            execTimestamp > (lastExecutionTimestampRef.current || 0) &&
+            !activeExecutionsRef.current.has(execution.eventId) &&
+            !activeExecutionsPollingRef.current.has(execution.eventId)
+          );
+        });
+
+        // Process all new executions
+        if (newExecutions.length > 0) {
+          console.log('🆕 New execution(s) detected', {
+            count: newExecutions.length,
+            eventIds: newExecutions.map(e => e.eventId),
             lastSeen: lastExecutionTimestampRef.current,
-            hasEventId: !!latestExecution.eventId,
-            eventId: latestExecution.eventId,
-            success: latestExecution.success,
-            error: latestExecution.error,
           });
 
-          // Update last seen timestamp
-          lastExecutionTimestampRef.current = latestTimestamp;
-
-          // Reset all nodes to 'running' status and clear executed edges
-          // This gives visual feedback that a new execution has started (like manual execute button)
-          setNodes(nds =>
-            nds.map(node => ({
-              ...node,
-              data: { ...node.data, status: 'running' },
-            }))
+          // Update last seen timestamp to the latest
+          const latestNewTimestamp = Math.max(
+            ...newExecutions.map(e => new Date(e.timestamp).getTime())
           );
-          setExecutedEdges([]);
+          lastExecutionTimestampRef.current = latestNewTimestamp;
 
-          // Load outputs if execution has an eventId (try for both success and failure)
-          if (!latestExecution.eventId) {
-            console.warn('⚠️ Execution has no eventId - cannot load outputs', {
-              timestamp: latestExecution.timestamp,
-              success: latestExecution.success,
-              execution: latestExecution,
-            });
-            return; // Can't load outputs without eventId
-          }
-
-          console.log(
-            `🔄 Attempting to load outputs for ${latestExecution.success ? 'successful' : 'failed'} execution`,
-            {
-              eventId: latestExecution.eventId,
-              success: latestExecution.success,
-            }
-          );
-
-          // Load outputs for this execution (with retry logic for async executions)
-          const loadOutputs = async (retryCount = 0) => {
-            try {
-              const resultsResponse = await fetchWithCSRF(
-                `/api/full-workflows/execution-results?eventId=${encodeURIComponent(latestExecution.eventId)}`
-              );
-
-              if (resultsResponse.ok) {
-                const resultsData = await resultsResponse.json();
-
-                // Check if workflow is still running (pending/running status)
-                const status = resultsData.data?.status;
-                if (status === 'pending' || status === 'running') {
-                  // Workflow is still running - update nodes incrementally as they complete
-                  if (
-                    resultsData.data.executionLog &&
-                    resultsData.data.executionLog.length > 0
-                  ) {
-                    const executionLog = resultsData.data.executionLog || [];
-                    const nodeOutputs = resultsData.data.nodeOutputs || {};
-
-                    // Update nodes immediately as they appear in executionLog
-                    setNodes(nds =>
-                      nds.map(node => {
-                        const logEntry = executionLog.find(
-                          e => e.nodeId === node.id
-                        );
-                        if (logEntry) {
-                          const nodeOutput = nodeOutputs[node.id];
-                          return {
-                            ...node,
-                            data: {
-                              ...node.data,
-                              status:
-                                logEntry.status === 'failed'
-                                  ? 'failed'
-                                  : 'success',
-                              output: nodeOutput || node.data.output,
-                            },
-                          };
-                        }
-                        // Keep nodes that haven't executed yet as 'running'
-                        return node;
-                      })
-                    );
-
-                    // Update executed edges immediately
-                    if (resultsData.data.executedEdges) {
-                      setExecutedEdges(resultsData.data.executedEdges);
-                    }
-                  }
-                  // Continue polling - workflow still running
-                  // Retry after 1 second to get updates
-                  if (retryCount < 30) {
-                    // Max 30 retries = 30 seconds
-                    setTimeout(() => loadOutputs(retryCount + 1), 1000);
-                  }
-                  return;
-                }
-
-                // Workflow completed - update all nodes
-                if (resultsData.success && resultsData.data?.nodeOutputs) {
-                  // Update nodes with outputs from execution
-                  // Use executionLog to update nodes in order (with timestamps)
-                  const executionLog = resultsData.data.executionLog || [];
-                  const nodeOutputs = resultsData.data.nodeOutputs || {};
-
-                  // Sort execution log by timestamp to get correct order
-                  const sortedLog = [...executionLog].sort((a, b) => {
-                    const timeA = new Date(a.timestamp || 0).getTime();
-                    const timeB = new Date(b.timestamp || 0).getTime();
-                    return timeA - timeB;
-                  });
-
-                  // Update nodes one by one with a small delay for visual effect
-                  sortedLog.forEach((logEntry, index) => {
-                    setTimeout(() => {
-                      setNodes(nds =>
-                        nds.map(node => {
-                          if (node.id === logEntry.nodeId) {
-                            const nodeOutput = nodeOutputs[node.id];
-                            return {
-                              ...node,
-                              data: {
-                                ...node.data,
-                                status:
-                                  logEntry.status === 'failed'
-                                    ? 'failed'
-                                    : 'success',
-                                output: nodeOutput || node.data.output,
-                              },
-                            };
-                          }
-                          return node;
-                        })
-                      );
-                    }, index * 100); // 100ms delay between each node update
-                  });
-
-                  // Also update any nodes that have outputs but aren't in executionLog
-                  // (fallback for nodes that completed but weren't logged)
-                  setTimeout(() => {
-                    setNodes(nds =>
-                      nds.map(node => {
-                        const nodeOutput = nodeOutputs[node.id];
-                        if (
-                          nodeOutput !== undefined &&
-                          !sortedLog.find(e => e.nodeId === node.id)
-                        ) {
-                          return {
-                            ...node,
-                            data: {
-                              ...node.data,
-                              status: 'success',
-                              output: nodeOutput,
-                            },
-                          };
-                        }
-                        return node;
-                      })
-                    );
-                  }, sortedLog.length * 100);
-
-                  // Update executed edges if available
-                  if (resultsData.data.executedEdges) {
-                    setExecutedEdges(resultsData.data.executedEdges);
-                  }
-
-                  console.log(
-                    '✅ Automatically loaded outputs for new execution',
-                    {
-                      eventId: latestExecution.eventId,
-                      timestamp: latestExecution.timestamp,
-                      nodeOutputsCount: Object.keys(
-                        resultsData.data.nodeOutputs
-                      ).length,
-                    }
-                  );
-                } else {
-                  console.warn(
-                    '⚠️ Execution results found but no nodeOutputs',
-                    {
-                      eventId: latestExecution.eventId,
-                      hasData: !!resultsData.data,
-                      dataKeys: resultsData.data
-                        ? Object.keys(resultsData.data)
-                        : [],
-                    }
-                  );
-                }
-              } else if (resultsResponse.status === 404 && retryCount < 6) {
-                // Execution might still be running, retry after 2 seconds (max 6 retries = 12 seconds)
-                console.log('⏳ Execution results not ready yet, retrying...', {
-                  eventId: latestExecution.eventId,
-                  retryCount: retryCount + 1,
-                });
-                setTimeout(() => loadOutputs(retryCount + 1), 2000);
-              } else {
-                console.warn('⚠️ Failed to load execution results', {
-                  eventId: latestExecution.eventId,
-                  status: resultsResponse.status,
-                  retryCount,
-                });
+          // Start polling for each new execution
+          newExecutions.forEach(execution => {
+            if (execution.eventId) {
+              // Mark nodes as running when new execution starts (only if no other execution is running)
+              if (activeExecutionsRef.current.size === 0) {
+                setNodes(nds =>
+                  nds.map(node => ({
+                    ...node,
+                    data: { ...node.data, status: 'running' },
+                  }))
+                );
               }
-            } catch (outputError) {
-              console.warn('❌ Error loading outputs for new execution', {
-                eventId: latestExecution.eventId,
-                error: outputError.message,
-                retryCount,
-              });
+              startPollingExecution(execution.eventId);
             }
-          };
-
-          // Start loading outputs
-          loadOutputs();
-        } else {
-          // Execution already seen (same timestamp) - this is normal, no action needed
-          // Only log if there's something unusual (e.g., eventId changed)
-          if (
-            latestExecution.eventId &&
-            latestTimestamp === lastExecutionTimestampRef.current
-          ) {
-            // Already processed this execution, nothing to do
-            // This is expected behavior when polling
-          } else if (
-            !latestExecution.eventId &&
-            latestTimestamp === lastExecutionTimestampRef.current
-          ) {
-            // Execution already seen and still no eventId - might be an old execution
-            // Don't spam the console, this is expected for old executions
+          });
+        } else if (latestTimestamp > (lastExecutionTimestampRef.current || 0)) {
+          // Fallback: single execution detection (backward compatibility)
+          const latestExecution = history[0];
+          if (latestExecution.eventId && !activeExecutionsRef.current.has(latestExecution.eventId)) {
+            console.log('🆕 New execution detected (fallback)', {
+              eventId: latestExecution.eventId,
+              timestamp: latestTimestamp,
+            });
+            lastExecutionTimestampRef.current = latestTimestamp;
+            if (activeExecutionsRef.current.size === 0) {
+              setNodes(nds =>
+                nds.map(node => ({
+                  ...node,
+                  data: { ...node.data, status: 'running' },
+                }))
+              );
+            }
+            startPollingExecution(latestExecution.eventId);
           }
         }
       }
@@ -564,6 +553,7 @@ function FullWorkflowEditor() {
   // Cleanup polling intervals on unmount
   useEffect(() => {
     return () => {
+      // Cleanup legacy polling interval
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
@@ -572,6 +562,12 @@ function FullWorkflowEditor() {
         clearTimeout(pollingTimeoutRef.current);
         pollingTimeoutRef.current = null;
       }
+      // Cleanup all active execution polling intervals
+      activeExecutionsPollingRef.current.forEach((intervalId) => {
+        clearInterval(intervalId);
+      });
+      activeExecutionsPollingRef.current.clear();
+      activeExecutionsRef.current.clear();
     };
   }, []);
 

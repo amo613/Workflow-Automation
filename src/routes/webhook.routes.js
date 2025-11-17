@@ -128,11 +128,58 @@ async function webhookRoutes(fastify) {
         });
       }
 
+      // Find the correct webhook trigger node if multiple exist
+      // This allows multiple webhook triggers in the same workflow
+      const workflowJson = workflow.workflow_json || {};
+      const nodes = workflowJson.nodes || [];
+      const webhookTriggerNodes = nodes.filter(
+        node => node.type === 'webhook-trigger'
+      );
+
+      let triggerNodeId = null;
+      if (webhookTriggerNodes.length > 0) {
+        // If there's only one webhook trigger, use it
+        if (webhookTriggerNodes.length === 1) {
+          triggerNodeId = webhookTriggerNodes[0].id;
+        } else {
+          // Multiple webhook triggers: find the one matching webhookId
+          // First, try to find a node with matching webhookId
+          const matchingNode = webhookTriggerNodes.find(
+            node => node.data?.webhookId === webhookId
+          );
+          if (matchingNode) {
+            triggerNodeId = matchingNode.id;
+          } else {
+            // If no matching webhookId, check if any node has no webhookId (defaults to workflowId)
+            const defaultNode = webhookTriggerNodes.find(
+              node => !node.data?.webhookId || node.data?.webhookId === workflowId.toString()
+            );
+            if (defaultNode) {
+              triggerNodeId = defaultNode.id;
+            } else {
+              // Fallback: use first webhook trigger node
+              triggerNodeId = webhookTriggerNodes[0].id;
+              logger.warn('Multiple webhook triggers found, using first one', {
+                workflowId,
+                webhookId,
+                triggerNodeId,
+              });
+            }
+          }
+        }
+      }
+
+      // Add triggerNodeId to webhook data so executor knows which trigger to use
+      const triggerInput = {
+        ...webhookData,
+        ...(triggerNodeId && { triggerNodeId }),
+      };
+
       // Trigger workflow with webhook payload as input
       const result = await triggerWorkflow(
         workflowId,
         workflow.user_id,
-        webhookData
+        triggerInput
       );
 
       logger.info('Webhook triggered workflow', {

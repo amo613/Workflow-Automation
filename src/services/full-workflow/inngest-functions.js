@@ -14,6 +14,10 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     id: 'execute-full-workflow',
     name: 'Execute Full Workflow',
     retries: 3,
+    concurrency: {
+      limit: 10, // Allow up to 10 parallel executions
+      key: 'event.data.workflowId', // Concurrency per workflow ID (allows multiple workflows to run in parallel)
+    },
   },
   {
     event: 'workflow/triggered',

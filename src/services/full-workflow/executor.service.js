@@ -63,15 +63,48 @@ export async function executeWorkflow(
     }
 
     // Find start node or trigger node
-    // Priority: trigger nodes > start node
-    const triggerNodes = nodes.filter(
-      node =>
-        node.type === 'google-sheets-trigger' ||
-        node.type === 'webhook-trigger' ||
-        node.type === 'schedule-trigger' ||
-        node.type === 'start'
-    );
-    const startNode = triggerNodes.length > 0 ? triggerNodes[0] : null;
+    // Priority: specific triggerNodeId from input > trigger nodes > start node
+    let startNode = null;
+
+    // Check if a specific triggerNodeId was provided in input
+    // This allows multiple trigger nodes in the same workflow to work independently
+    if (input && typeof input === 'object' && input.triggerNodeId) {
+      startNode = nodes.find(node => node.id === input.triggerNodeId);
+      if (startNode && (
+        startNode.type === 'google-sheets-trigger' ||
+        startNode.type === 'webhook-trigger' ||
+        startNode.type === 'schedule-trigger' ||
+        startNode.type === 'start'
+      )) {
+        logger.info('Using specific trigger node from input', {
+          triggerNodeId: input.triggerNodeId,
+          nodeType: startNode.type,
+          workflowId:
+            typeof workflowIdOrWorkflow === 'object'
+              ? workflowIdOrWorkflow.id
+              : workflowIdOrWorkflow,
+        });
+      } else {
+        logger.warn('Specified triggerNodeId not found or invalid, falling back to default', {
+          triggerNodeId: input.triggerNodeId,
+          foundNode: !!startNode,
+          nodeType: startNode?.type,
+        });
+        startNode = null; // Fall back to default behavior
+      }
+    }
+
+    // Fallback: use first trigger node or start node
+    if (!startNode) {
+      const triggerNodes = nodes.filter(
+        node =>
+          node.type === 'google-sheets-trigger' ||
+          node.type === 'webhook-trigger' ||
+          node.type === 'schedule-trigger' ||
+          node.type === 'start'
+      );
+      startNode = triggerNodes.length > 0 ? triggerNodes[0] : null;
+    }
 
     if (!startNode) {
       throw new Error('Workflow has no start node or trigger node');
