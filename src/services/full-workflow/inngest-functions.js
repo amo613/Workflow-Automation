@@ -4,6 +4,7 @@ import { getFullWorkflow } from '#services/full-workflow.service.js';
 import { executeWorkflow } from './executor.service.js';
 import { memoryCache } from '#config/cache.js';
 import { trackWorkflowExecution } from './statistics.service.js';
+import { broadcastWorkflowEvent } from './workflow-events.service.js';
 
 /**
  * Inngest Function: Execute Full Workflow
@@ -93,6 +94,16 @@ export const executeFullWorkflowFunction = inngest.createFunction(
             // Ignore Redis errors for incremental updates
           }
         })();
+
+        broadcastWorkflowEvent({
+          type: 'workflow.running',
+          workflowId,
+          eventId: event.id,
+          status: 'running',
+          source: 'incremental-cache',
+          executedEdgesCount: cacheData.executedEdges.length,
+          nodeOutputsCount: Object.keys(cacheData.nodeOutputs || {}).length,
+        });
       } catch {
         // Ignore cache update errors - don't block execution
       }
@@ -171,6 +182,15 @@ export const executeFullWorkflowFunction = inngest.createFunction(
           });
         }
       }
+
+      broadcastWorkflowEvent({
+        type: 'workflow.failed',
+        workflowId,
+        eventId: event.id,
+        status: 'failed',
+        source: 'execute-workflow',
+        errorMessage: error.message,
+      });
 
       throw error;
     } finally {
@@ -257,6 +277,17 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       workflowId,
       eventId: event.id,
       cacheKey,
+    });
+
+    broadcastWorkflowEvent({
+      type: 'workflow.completed',
+      workflowId,
+      eventId: event.id,
+      status: 'completed',
+      source: 'execution-results',
+      executedEdgesCount: cacheData.executedEdges.length,
+      nodeOutputsCount: Object.keys(cacheData.nodeOutputs || {}).length,
+      success: executionSuccess,
     });
 
     return {

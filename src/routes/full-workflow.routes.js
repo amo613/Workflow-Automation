@@ -1,5 +1,6 @@
 import { authenticateTokenFastify } from '#middleware/auth.middleware.js';
 import { requestTimingHooks } from '#middleware/fastify-helpers.js';
+import { subscribeToWorkflowEvents } from '#services/full-workflow/workflow-events.service.js';
 import {
   createFullWorkflowHandler,
   getAllFullWorkflowsHandler,
@@ -27,6 +28,31 @@ async function fullWorkflowRoutes(fastify) {
 
   // All routes require authentication
   fastify.addHook('preHandler', authenticateTokenFastify);
+
+  fastify.get('/api/full-workflows/events', {
+    schema: {
+      querystring: {
+        type: 'object',
+        properties: {
+          workflowId: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: async (request, reply) => {
+      reply.raw.setHeader('Content-Type', 'text/event-stream');
+      reply.raw.setHeader('Cache-Control', 'no-cache, no-transform');
+      reply.raw.setHeader('Connection', 'keep-alive');
+      reply.raw.setHeader('X-Accel-Buffering', 'no');
+      reply.hijack();
+
+      subscribeToWorkflowEvents(reply, {
+        workflowId: request.query?.workflowId
+          ? parseInt(request.query.workflowId, 10)
+          : null,
+        userId: request.user?.id || null,
+      });
+    },
+  });
 
   // Get all full workflows
   fastify.get('/api/full-workflows', {

@@ -2,6 +2,34 @@
 
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
 
+const DEFAULT_ERROR_FALLBACK = 'Request failed. Please try again.';
+
+const buildResponseError = async (response, fallbackMessage) => {
+  let message = fallbackMessage || DEFAULT_ERROR_FALLBACK;
+
+  try {
+    const payload = await response.clone().json();
+    message =
+      payload?.error ||
+      payload?.message ||
+      payload?.data?.error ||
+      message;
+  } catch {
+    try {
+      const textPayload = await response.text();
+      if (textPayload) {
+        message = textPayload.slice(0, 200);
+      }
+    } catch {
+      // Ignore - keep fallback message
+    }
+  }
+
+  const error = new Error(message);
+  error.status = response.status;
+  return error;
+};
+
 /**
  * Service for workflow performance data
  */
@@ -23,10 +51,10 @@ export const workflowPerformanceService = {
     );
 
     if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: 'Failed to fetch performance' }));
-      throw new Error(error.error || 'Failed to fetch performance');
+      throw await buildResponseError(
+        response,
+        'Failed to fetch performance'
+      );
     }
 
     const data = await response.json();
@@ -48,10 +76,10 @@ export const workflowPerformanceService = {
     );
 
     if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: 'Failed to fetch node history' }));
-      throw new Error(error.error || 'Failed to fetch node history');
+      throw await buildResponseError(
+        response,
+        'Failed to fetch node history'
+      );
     }
 
     const data = await response.json();
@@ -73,10 +101,10 @@ export const workflowPerformanceService = {
     );
 
     if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: 'Failed to clear performance' }));
-      throw new Error(error.error || 'Failed to clear performance');
+      throw await buildResponseError(
+        response,
+        'Failed to clear performance'
+      );
     }
 
     return { success: true };

@@ -81,6 +81,11 @@ const nodeTypes = {
   merge: MergeNode,
 };
 
+const EXECUTION_POLL_INTERVAL_MS = 1000;
+const EXECUTION_HISTORY_REFRESH_INTERVAL_MS = 5000;
+const ACTIVE_TRIGGERS_REFRESH_INTERVAL_MS = 10000;
+const AUTO_REFRESH_PAUSE_DURATION_MS = 30000;
+
 function FullWorkflowEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -105,6 +110,9 @@ function FullWorkflowEditor() {
   // Track multiple active executions simultaneously
   const activeExecutionsRef = useRef(new Map()); // Map<eventId, { status, executedEdges, nodeOutputs, executionLog }>
   const activeExecutionsPollingRef = useRef(new Map()); // Map<eventId, intervalId>
+  const eventSourceRef = useRef(null);
+  const eventStreamReconnectTimeoutRef = useRef(null);
+  const autoRefreshPauseUntilRef = useRef(0);
   const [showActiveTriggers, setShowActiveTriggers] = useState(true); // Default: open
   const [triggersLoading, setTriggersLoading] = useState(false);
   const [triggersError, setTriggersError] = useState(null);
@@ -126,6 +134,53 @@ function FullWorkflowEditor() {
   const [showPerformance, setShowPerformance] = useState(false);
   const [selectedNodeForGraph, setSelectedNodeForGraph] = useState(null);
   const [nodeHistory, setNodeHistory] = useState([]);
+
+  const isAutoRefreshPaused = () => autoRefreshPauseUntilRef.current > Date.now();
+
+  const logAutoRefreshPauseSkip = label => {
+    const resumeInMs = Math.max(
+      0,
+      autoRefreshPauseUntilRef.current - Date.now()
+    );
+    console.log('⏸️ Auto refresh paused, skipping request', {
+      label,
+      resumeInMs,
+      resumeAt: new Date(autoRefreshPauseUntilRef.current).toISOString(),
+    });
+  };
+
+  const pauseAutoRefresh = (reason, context = {}) => {
+    autoRefreshPauseUntilRef.current = Date.now() + AUTO_REFRESH_PAUSE_DURATION_MS;
+    console.warn('⏸️ Auto refresh paused due to gateway response', {
+      reason,
+      resumeAt: new Date(autoRefreshPauseUntilRef.current).toISOString(),
+      context,
+    });
+  };
+
+  const handleHttpAccessIssues = (response, contextLabel) => {
+    if (!response) {
+      return false;
+    }
+
+    if (response.status === 401) {
+      console.warn('Session expired while calling workflow API', {
+        context: contextLabel,
+      });
+      setGeneralError('Session expired. Please sign in again.');
+      return true;
+    }
+
+    if (response.status === 403) {
+      pauseAutoRefresh('403 Forbidden', { context: contextLabel });
+      setGeneralError(
+        'Gateway returned 403 (tunnel/security). Pausing auto-refresh for 30s so it can recover.'
+      );
+      return true;
+    }
+
+    return false;
+  };
 
   const onNodeUpdate = (nodeId, newData) => {
     setNodes(nds => {
@@ -193,7 +248,7 @@ function FullWorkflowEditor() {
     if (!isNew && id) {
       const interval = setInterval(() => {
         fetchActiveTriggers();
-      }, 5000);
+      }, ACTIVE_TRIGGERS_REFRESH_INTERVAL_MS);
       return () => clearInterval(interval);
     }
   }, [id, isNew]);
@@ -201,13 +256,22 @@ function FullWorkflowEditor() {
   // Fetch statistics
   const fetchStatistics = async () => {
     if (!id || isNew) return;
+    if (isAutoRefreshPaused()) {
+      logAutoRefreshPauseSkip('statistics');
+      return;
+    }
     try {
       setStatisticsLoading(true);
       setStatisticsError(null);
       const response = await fetchWithCSRF(
         `/api/full-workflows/${id}/statistics`
       );
-      if (!response.ok) throw new Error('Failed to fetch statistics');
+      if (!response.ok) {
+        if (handleHttpAccessIssues(response, 'statistics')) {
+          return;
+        }
+        throw new Error('Failed to fetch statistics');
+      }
       const data = await response.json();
       setStatistics(data.data);
     } catch (error) {
@@ -231,6 +295,10 @@ function FullWorkflowEditor() {
   // Fetch performance data
   const fetchPerformance = async () => {
     if (!id || isNew) return;
+    if (isAutoRefreshPaused()) {
+      logAutoRefreshPauseSkip('performance');
+      return;
+    }
     try {
       setPerformanceLoading(true);
       setPerformanceError(null);
@@ -239,8 +307,12 @@ function FullWorkflowEditor() {
       );
       setPerformance(data);
     } catch (error) {
-      console.error('Error fetching performance:', error);
-      setPerformanceError(error.message);
+      if (error?.status === 401 || error?.status === 403) {
+        handleHttpAccessIssues({ status: error.status }, 'performance');
+      } else {
+        console.error('Error fetching performance:', error);
+        setPerformanceError(error.message);
+      }
     } finally {
       setPerformanceLoading(false);
     }
@@ -259,11 +331,19 @@ function FullWorkflowEditor() {
   // Fetch node history when node is selected for graph
   useEffect(() => {
     if (selectedNodeForGraph && id && !isNew) {
+      if (isAutoRefreshPaused()) {
+        logAutoRefreshPauseSkip('node-history');
+        return;
+      }
       workflowPerformanceService
         .getNodeHistory(parseInt(id, 10), selectedNodeForGraph, 50)
         .then(setNodeHistory)
         .catch(err => {
-          console.error('Error fetching node history:', err);
+          if (err?.status === 401 || err?.status === 403) {
+            handleHttpAccessIssues({ status: err.status }, 'node-history');
+          } else {
+            console.error('Error fetching node history:', err);
+          }
           setNodeHistory([]);
         });
     }
@@ -352,8 +432,13 @@ function FullWorkflowEditor() {
   };
 
   // Poll a single execution by eventId
-  const pollExecution = async (eventId) => {
+  const pollExecution = async eventId => {
     try {
+      if (isAutoRefreshPaused()) {
+        logAutoRefreshPauseSkip(`execution-poll:${eventId}`);
+        return true;
+      }
+
       const resultsResponse = await fetchWithCSRF(
         `/api/full-workflows/execution-results?eventId=${encodeURIComponent(eventId)}`
       );
@@ -395,19 +480,37 @@ function FullWorkflowEditor() {
           setTimeout(() => {
             activeExecutionsRef.current.delete(eventId);
             updateVisualizationFromActiveExecutions();
-          }, 5000); // Keep for 5 seconds after completion
+          }, 3000); // Keep for 5 seconds after completion
           return false; // Stop polling
         }
       } else if (resultsResponse.status === 404) {
         // Execution not found - might still be starting, continue polling
         return true;
       } else {
-        // Error - stop polling
-        console.warn('Error polling execution', { eventId, status: resultsResponse.status });
-        const intervalId = activeExecutionsPollingRef.current.get(eventId);
-        if (intervalId) {
-          clearInterval(intervalId);
-          activeExecutionsPollingRef.current.delete(eventId);
+        if (handleHttpAccessIssues(resultsResponse, `execution-results:${eventId}`)) {
+          const resumeInMs = Math.max(
+            0,
+            autoRefreshPauseUntilRef.current - Date.now()
+          );
+          if (resumeInMs > 0) {
+            console.log('♻️ Scheduling execution poll retry after pause', {
+              eventId,
+              resumeInMs,
+            });
+            setTimeout(() => {
+              if (activeExecutionsRef.current.has(eventId)) {
+                console.log('♻️ Resuming execution poll after pause', {
+                  eventId,
+                });
+                startPollingExecution(eventId);
+              }
+            }, resumeInMs + 100);
+          }
+        } else {
+          console.warn('Error polling execution', {
+            eventId,
+            status: resultsResponse.status,
+          });
         }
         return false;
       }
@@ -429,14 +532,13 @@ function FullWorkflowEditor() {
     // Poll immediately
     pollExecution(eventId).then(shouldContinue => {
       if (shouldContinue) {
-        // Start interval polling (every 200ms for fast updates)
         const intervalId = setInterval(async () => {
           const shouldContinue = await pollExecution(eventId);
           if (!shouldContinue) {
             clearInterval(intervalId);
             activeExecutionsPollingRef.current.delete(eventId);
           }
-        }, 200);
+        }, EXECUTION_POLL_INTERVAL_MS);
         activeExecutionsPollingRef.current.set(eventId, intervalId);
       }
     });
@@ -445,13 +547,22 @@ function FullWorkflowEditor() {
   // Fetch execution history
   const fetchExecutionHistory = async () => {
     if (!id || isNew) return;
+    if (isAutoRefreshPaused()) {
+      logAutoRefreshPauseSkip('execution-history');
+      return;
+    }
     try {
       setHistoryLoading(true);
       setHistoryError(null);
       const response = await fetchWithCSRF(
         `/api/full-workflows/${id}/execution-history?limit=50`
       );
-      if (!response.ok) throw new Error('Failed to fetch execution history');
+      if (!response.ok) {
+        if (handleHttpAccessIssues(response, 'execution-history')) {
+          return;
+        }
+        throw new Error('Failed to fetch execution history');
+      }
       const data = await response.json();
       const history = data.data || [];
       setExecutionHistory(history);
@@ -544,10 +655,207 @@ function FullWorkflowEditor() {
   useEffect(() => {
     if (!isNew && id) {
       fetchExecutionHistory();
-      // Refresh history every 5 seconds to catch new executions quickly
-      const interval = setInterval(fetchExecutionHistory, 5000);
+      const interval = setInterval(
+        fetchExecutionHistory,
+        EXECUTION_HISTORY_REFRESH_INTERVAL_MS
+      );
       return () => clearInterval(interval);
     }
+  }, [id, isNew]);
+
+  useEffect(() => {
+    if (!id || isNew) {
+      return undefined;
+    }
+
+    if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+      console.warn('⚠️ EventSource not available in this environment, skipping workflow events stream.');
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const connectToEventStream = () => {
+      if (!isMounted) return;
+
+      if (eventSourceRef.current) {
+        console.log('🔌 Closing existing workflow events stream before reconnecting', {
+          workflowId: id,
+        });
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
+      const eventsUrl = `/api/full-workflows/events?workflowId=${encodeURIComponent(id)}`;
+      console.log('🔌 Connecting to workflow events stream', {
+        workflowId: id,
+        eventsUrl,
+      });
+
+      const source = new EventSource(eventsUrl, { withCredentials: true });
+      eventSourceRef.current = source;
+
+      const scheduleReconnect = () => {
+        if (!isMounted) return;
+        if (eventStreamReconnectTimeoutRef.current) {
+          clearTimeout(eventStreamReconnectTimeoutRef.current);
+        }
+        eventStreamReconnectTimeoutRef.current = setTimeout(() => {
+          console.log('♻️ Attempting to reconnect to workflow events stream', {
+            workflowId: id,
+          });
+          connectToEventStream();
+        }, 2000);
+      };
+
+      const parsePayload = event => {
+        if (!event?.data) {
+          console.warn('⚠️ Received workflow event without data payload', {
+            workflowId: id,
+            eventType: event?.type,
+          });
+          return null;
+        }
+        try {
+          return JSON.parse(event.data);
+        } catch (error) {
+          console.warn('⚠️ Failed to parse workflow event payload', {
+            workflowId: id,
+            eventType: event?.type,
+            rawData: event.data,
+            error: error.message,
+          });
+          return null;
+        }
+      };
+
+      const handleCompletionLikeEvent = (payload, eventType) => {
+        if (!payload?.eventId) {
+          console.warn('⚠️ Workflow completion event missing eventId', {
+            workflowId: id,
+            eventType,
+            payload,
+          });
+          return;
+        }
+        console.log('🏁 Workflow completion-type event received', {
+          workflowId: id,
+          eventType,
+          payload,
+        });
+        pollExecution(payload.eventId).catch(error => {
+          console.warn('⚠️ Failed to poll execution after completion event', {
+            workflowId: id,
+            eventType,
+            eventId: payload.eventId,
+            error: error.message,
+          });
+        });
+        fetchExecutionHistory().catch(error => {
+          console.warn('⚠️ Failed to refresh execution history after completion event', {
+            workflowId: id,
+            eventType,
+            error: error.message,
+          });
+        });
+      };
+
+      source.onopen = () => {
+        console.log('🟢 Workflow events stream connected', {
+          workflowId: id,
+        });
+      };
+
+      source.onerror = error => {
+        console.warn('⚠️ Workflow events stream error', {
+          workflowId: id,
+          error,
+        });
+        source.close();
+        eventSourceRef.current = null;
+        scheduleReconnect();
+      };
+
+      source.addEventListener('ready', event => {
+        const payload = parsePayload(event);
+        console.log('✅ Workflow events stream ready', {
+          workflowId: id,
+          payload,
+        });
+      });
+
+      source.addEventListener('heartbeat', event => {
+        const payload = parsePayload(event);
+        console.log('💓 Workflow events heartbeat', {
+          workflowId: id,
+          payload,
+        });
+      });
+
+      source.addEventListener('workflow.pending', event => {
+        const payload = parsePayload(event);
+        if (!payload) return;
+        if (payload.workflowId && Number(payload.workflowId) !== Number(id)) {
+          console.log('⏭️ Ignoring workflow.pending event for different workflow', {
+            currentWorkflowId: id,
+            payloadWorkflowId: payload.workflowId,
+          });
+          return;
+        }
+        console.log('📨 workflow.pending event received', {
+          workflowId: id,
+          payload,
+        });
+        if (payload.eventId && !activeExecutionsRef.current.has(payload.eventId)) {
+          startPollingExecution(payload.eventId);
+        }
+      });
+
+      source.addEventListener('workflow.running', event => {
+        const payload = parsePayload(event);
+        if (!payload) return;
+        if (payload.workflowId && Number(payload.workflowId) !== Number(id)) {
+          return;
+        }
+        console.log('🏃 workflow.running event received', {
+          workflowId: id,
+          payload,
+        });
+      });
+
+      source.addEventListener('workflow.completed', event => {
+        const payload = parsePayload(event);
+        if (!payload) return;
+        if (payload.workflowId && Number(payload.workflowId) !== Number(id)) {
+          return;
+        }
+        handleCompletionLikeEvent(payload, 'workflow.completed');
+      });
+
+      source.addEventListener('workflow.failed', event => {
+        const payload = parsePayload(event);
+        if (!payload) return;
+        if (payload.workflowId && Number(payload.workflowId) !== Number(id)) {
+          return;
+        }
+        handleCompletionLikeEvent(payload, 'workflow.failed');
+      });
+    };
+
+    connectToEventStream();
+
+    return () => {
+      isMounted = false;
+      if (eventStreamReconnectTimeoutRef.current) {
+        clearTimeout(eventStreamReconnectTimeoutRef.current);
+        eventStreamReconnectTimeoutRef.current = null;
+      }
+      if (eventSourceRef.current) {
+        console.log('🔌 Closing workflow events stream', { workflowId: id });
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
   }, [id, isNew]);
 
   // Cleanup polling intervals on unmount
@@ -573,13 +881,22 @@ function FullWorkflowEditor() {
 
   const fetchActiveTriggers = async () => {
     if (!id) return;
+    if (isAutoRefreshPaused()) {
+      logAutoRefreshPauseSkip('active-triggers');
+      return;
+    }
     try {
       setTriggersLoading(true);
       setTriggersError(null);
       const response = await fetchWithCSRF(
         `/api/full-workflows/${id}/triggers`
       );
-      if (!response.ok) throw new Error('Failed to fetch triggers');
+      if (!response.ok) {
+        if (handleHttpAccessIssues(response, 'active-triggers')) {
+          return;
+        }
+        throw new Error('Failed to fetch triggers');
+      }
       const data = await response.json();
       const triggers = data.data || [];
       setActiveTriggers(triggers);

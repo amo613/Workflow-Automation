@@ -1,6 +1,7 @@
 import { inngest } from '#config/inngest.js';
 import logger from '#config/logger.js';
 import { memoryCache } from '#config/cache.js';
+import { broadcastWorkflowEvent } from './workflow-events.service.js';
 
 /**
  * Trigger Service for Full Workflows
@@ -91,6 +92,17 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
         eventId,
       });
     }
+
+    broadcastWorkflowEvent({
+      type: 'workflow.pending',
+      workflowId,
+      userId,
+      eventId,
+      source: 'triggerWorkflow',
+      payloadSummary: {
+        inputKeys: Object.keys(input || {}),
+      },
+    });
 
     return {
       success: true,
@@ -190,6 +202,18 @@ export async function triggerByWebhook(webhookId, payload = {}) {
         eventId,
       });
     }
+
+    broadcastWorkflowEvent({
+      type: 'workflow.pending',
+      workflowId: null,
+      userId: null,
+      eventId,
+      source: 'triggerByWebhook',
+      payloadSummary: {
+        payloadKeys: Object.keys(payload || {}),
+        webhookId,
+      },
+    });
 
     return {
       success: true,
