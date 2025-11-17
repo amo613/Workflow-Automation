@@ -121,266 +121,11 @@ export default function SettingsTab({
 
   if (nodeType === 'call-agent') {
     return (
-      <>
-        {/* Knowledge Base Configuration */}
-        <div style={{ marginBottom: '2rem' }}>
-          <div
-            style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: 'white',
-              marginBottom: '1rem',
-            }}
-          >
-            Knowledge Base
-          </div>
-          <div
-            style={{
-              fontSize: '0.75rem',
-              color: '#94a3b8',
-              marginBottom: '1rem',
-            }}
-          >
-            Select knowledge base entries to include in the call prompt
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            {knowledgeBaseEntries.length === 0 ? (
-              <div
-                style={{
-                  padding: '1rem',
-                  background: '#2a2a2a',
-                  borderRadius: '8px',
-                  color: '#94a3b8',
-                  fontSize: '0.875rem',
-                }}
-              >
-                No knowledge base entries found. Create entries in the Knowledge
-                Base Manager.
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.5rem',
-                }}
-              >
-                {knowledgeBaseEntries.map(entry => {
-                  const isSelected =
-                    localData.knowledge_base_ids?.includes(entry.id) || false;
-                  return (
-                    <label
-                      key={entry.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        padding: '0.75rem',
-                        background: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
-                        border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={e => {
-                          const currentIds = localData.knowledge_base_ids || [];
-                          const newIds = e.target.checked
-                            ? [...currentIds, entry.id]
-                            : currentIds.filter(id => id !== entry.id);
-                          handleUpdate('knowledge_base_ids', newIds);
-                        }}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          cursor: 'pointer',
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            color: 'white',
-                          }}
-                        >
-                          {entry.name}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#94a3b8',
-                            marginTop: '0.25rem',
-                          }}
-                        >
-                          {entry.text.length > 100
-                            ? entry.text.substring(0, 100) + '...'
-                            : entry.text}
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* OpenAI Configuration */}
-        <div
-          style={{
-            marginTop: '2rem',
-            paddingTop: '2rem',
-            borderTop: '1px solid #333',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: 'white',
-              marginBottom: '1rem',
-            }}
-          >
-            OpenAI Configuration
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'white',
-              }}
-            >
-              Temperature (0-2)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="2"
-              step="0.1"
-              value={localData.temperature ?? 1.0}
-              onChange={e =>
-                handleUpdate('temperature', parseFloat(e.target.value))
-              }
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #333',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                background: '#2a2a2a',
-                color: 'white',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'white',
-              }}
-            >
-              Max Response Tokens (1-4096)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="4096"
-              value={localData.max_response_output_tokens ?? 4096}
-              onChange={e =>
-                handleUpdate(
-                  'max_response_output_tokens',
-                  parseInt(e.target.value, 10)
-                )
-              }
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #333',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                background: '#2a2a2a',
-                color: 'white',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'white',
-              }}
-            >
-              VAD Threshold (0-1)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="1"
-              step="0.1"
-              value={localData.vad_threshold ?? 0.5}
-              onChange={e =>
-                handleUpdate('vad_threshold', parseFloat(e.target.value))
-              }
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #333',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                background: '#2a2a2a',
-                color: 'white',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'white',
-              }}
-            >
-              Tool Choice
-            </label>
-            <select
-              value={localData.tool_choice || 'auto'}
-              onChange={e => handleUpdate('tool_choice', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #333',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                background: '#2a2a2a',
-                color: 'white',
-              }}
-            >
-              <option value="auto">Auto</option>
-              <option value="none">None</option>
-              <option value="required">Required</option>
-            </select>
-          </div>
-        </div>
-      </>
+      <CallAgentSettings
+        localData={localData}
+        handleUpdate={handleUpdate}
+        knowledgeBaseEntries={knowledgeBaseEntries}
+      />
     );
   }
 
@@ -631,6 +376,518 @@ export default function SettingsTab({
     <div style={{ color: '#94a3b8' }}>
       No settings available for this node type
     </div>
+  );
+}
+
+/**
+ * Call Agent Settings Component
+ */
+function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
+  const [gcalConnected, setGcalConnected] = useState(false);
+  const [gcalEmail, setGcalEmail] = useState(null);
+  const [checkingGcal, setCheckingGcal] = useState(true);
+
+  // Refresh Google Calendar status
+  const refreshGcalStatus = async () => {
+    try {
+      setCheckingGcal(true);
+      const res = await fetch('/api/integrations/google-calendar/status', {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        setGcalConnected(false);
+        setGcalEmail(null);
+        return;
+      }
+      const data = await res.json();
+      if (data.connected) {
+        setGcalConnected(true);
+        setGcalEmail(data.email || null);
+      } else {
+        setGcalConnected(false);
+        setGcalEmail(null);
+      }
+    } catch (e) {
+      setGcalConnected(false);
+      setGcalEmail(null);
+    } finally {
+      setCheckingGcal(false);
+    }
+  };
+
+  // Handle connect Google Calendar
+  const handleConnectGoogle = async () => {
+    try {
+      const res = await fetch('/api/integrations/google-calendar/auth', {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res
+          .json()
+          .catch(() => ({ error: 'Failed to start OAuth' }));
+        throw new Error(data.error || 'Failed to start OAuth');
+      }
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        alert('Failed to get auth URL');
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  // Handle disconnect Google Calendar
+  const handleDisconnectGoogle = async () => {
+    if (!confirm('Are you sure you want to disconnect Google Calendar?')) {
+      return;
+    }
+    try {
+      const res = await fetchWithCSRF('/api/integrations/google-calendar', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        setGcalConnected(false);
+        setGcalEmail(null);
+        alert('Google Calendar disconnected successfully');
+        setTimeout(refreshGcalStatus, 500);
+      } else {
+        let errorMessage = 'Failed to disconnect';
+        try {
+          const data = await res.json();
+          errorMessage = data.error || data.message || errorMessage;
+        } catch {
+          errorMessage = res.statusText || `HTTP ${res.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (e) {
+      console.error('Error disconnecting Google Calendar:', e);
+      alert(e.message || 'Failed to disconnect Google Calendar');
+    }
+  };
+
+  // Load Google Calendar status on mount
+  useEffect(() => {
+    refreshGcalStatus();
+  }, []);
+
+  // Handle URL params for Google Calendar callback
+  useEffect(() => {
+    if (window.location.search.includes('googleCalendar=connected')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('googleCalendar');
+      window.history.replaceState({}, '', url);
+      // Refresh status after a short delay to allow backend to process
+      setTimeout(refreshGcalStatus, 500);
+    }
+  }, []);
+
+  return (
+    <>
+      {/* Knowledge Base Configuration */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div
+          style={{
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: 'white',
+            marginBottom: '1rem',
+          }}
+        >
+          Knowledge Base
+        </div>
+        <div
+          style={{
+            fontSize: '0.75rem',
+            color: '#94a3b8',
+            marginBottom: '1rem',
+          }}
+        >
+          Select knowledge base entries to include in the call prompt
+        </div>
+        <div style={{ marginBottom: '1rem' }}>
+          {knowledgeBaseEntries.length === 0 ? (
+            <div
+              style={{
+                padding: '1rem',
+                background: '#2a2a2a',
+                borderRadius: '8px',
+                color: '#94a3b8',
+                fontSize: '0.875rem',
+              }}
+            >
+              No knowledge base entries found. Create entries in the Knowledge
+              Base Manager.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              {knowledgeBaseEntries.map(entry => {
+                const isSelected =
+                  localData.knowledge_base_ids?.includes(entry.id) || false;
+                return (
+                  <label
+                    key={entry.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.75rem',
+                      background: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
+                      border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={e => {
+                        const currentIds = localData.knowledge_base_ids || [];
+                        const newIds = e.target.checked
+                          ? [...currentIds, entry.id]
+                          : currentIds.filter(id => id !== entry.id);
+                        handleUpdate('knowledge_base_ids', newIds);
+                      }}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                          color: 'white',
+                        }}
+                      >
+                        {entry.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#94a3b8',
+                          marginTop: '0.25rem',
+                        }}
+                      >
+                        {entry.text.length > 100
+                          ? entry.text.substring(0, 100) + '...'
+                          : entry.text}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Google Calendar Integration */}
+      <div
+        style={{
+          marginTop: '2rem',
+          paddingTop: '2rem',
+          borderTop: '1px solid #333',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: 'white',
+            marginBottom: '1rem',
+          }}
+        >
+          Google Calendar Connection
+        </div>
+        <div
+          style={{
+            fontSize: '0.75rem',
+            color: '#94a3b8',
+            marginBottom: '1rem',
+          }}
+        >
+          Connect your Google Calendar to enable calendar tools in calls
+        </div>
+        {checkingGcal ? (
+          <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+            Checking connection status...
+          </div>
+        ) : gcalConnected ? (
+          <div
+            style={{
+              padding: '1rem',
+              background: '#2a2a2a',
+              borderRadius: '8px',
+              border: '1px solid #10b981',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+              <span
+                style={{
+                  color: '#10b981',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                }}
+              >
+                Connected
+              </span>
+            </div>
+            {gcalEmail && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#94a3b8',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                Account: {gcalEmail}
+              </div>
+            )}
+            <button
+              onClick={handleDisconnectGoogle}
+              style={{
+                background: '#ef4444',
+                border: 'none',
+                color: 'white',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+              }}
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleConnectGoogle}
+            style={{
+              background: '#4285f4',
+              border: 'none',
+              color: 'white',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <span>🔗</span>
+            <span>Connect Google Calendar</span>
+          </button>
+        )}
+      </div>
+
+      {/* Email Credentials */}
+      <div
+        style={{
+          marginTop: '2rem',
+          paddingTop: '2rem',
+          borderTop: '1px solid #333',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: 'white',
+            marginBottom: '1rem',
+          }}
+        >
+          Email Credentials
+        </div>
+        <div
+          style={{
+            fontSize: '0.75rem',
+            color: '#94a3b8',
+            marginBottom: '1rem',
+          }}
+        >
+          Configure your SMTP credentials to enable email tools in calls
+        </div>
+        <EmailCredentialsManager
+          localData={localData}
+          handleUpdate={handleUpdate}
+        />
+      </div>
+
+      {/* OpenAI Configuration */}
+      <div
+        style={{
+          marginTop: '2rem',
+          paddingTop: '2rem',
+          borderTop: '1px solid #333',
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: 'white',
+            marginBottom: '1rem',
+          }}
+        >
+          OpenAI Configuration
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+            }}
+          >
+            Temperature (0-2)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="2"
+            step="0.1"
+            value={localData.temperature ?? 1.0}
+            onChange={e =>
+              handleUpdate('temperature', parseFloat(e.target.value))
+            }
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              background: '#2a2a2a',
+              color: 'white',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+            }}
+          >
+            Max Response Tokens (1-4096)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="4096"
+            value={localData.max_response_output_tokens ?? 4096}
+            onChange={e =>
+              handleUpdate(
+                'max_response_output_tokens',
+                parseInt(e.target.value, 10)
+              )
+            }
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              background: '#2a2a2a',
+              color: 'white',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+            }}
+          >
+            VAD Threshold (0-1)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="1"
+            step="0.1"
+            value={localData.vad_threshold ?? 0.5}
+            onChange={e =>
+              handleUpdate('vad_threshold', parseFloat(e.target.value))
+            }
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              background: '#2a2a2a',
+              color: 'white',
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label
+            style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+            }}
+          >
+            Tool Choice
+          </label>
+          <select
+            value={localData.tool_choice || 'auto'}
+            onChange={e => handleUpdate('tool_choice', e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #333',
+              borderRadius: '8px',
+              fontSize: '0.875rem',
+              background: '#2a2a2a',
+              color: 'white',
+            }}
+          >
+            <option value="auto">Auto</option>
+            <option value="none">None</option>
+            <option value="required">Required</option>
+          </select>
+        </div>
+      </div>
+    </>
   );
 }
 

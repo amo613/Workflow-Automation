@@ -1,4 +1,5 @@
 import { authenticateTokenFastify } from '#middleware/auth.middleware.js';
+import logger from '#config/logger.js';
 import {
   initiateAuth,
   handleCallback,
@@ -56,7 +57,21 @@ export const googleCalendarRoutesFastify = async fastify => {
       preHandler: authenticateTokenFastify,
     },
     async (request, reply) => {
-      return disconnect(request, reply);
+      try {
+        // Fastify sets request.user, but controller expects req.user
+        request.req = request;
+        request.req.user = request.user;
+        return await disconnect(request, reply);
+      } catch (error) {
+        // Error handling to prevent crashes
+        if (!reply.sent) {
+          logger.error('Error in disconnect route:', error);
+          return reply.status(500).send({
+            error: 'Failed to disconnect',
+            message: error.message || 'Unknown error',
+          });
+        }
+      }
     }
   );
 };

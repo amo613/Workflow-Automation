@@ -5,6 +5,7 @@ import OutputPanel from './sidebar/OutputPanel.jsx';
 import NodeConfigFactory from './sidebar/NodeConfigFactory.jsx';
 import SettingsTab from './sidebar/SettingsTab.jsx';
 import DocsTab from './sidebar/DocsTab.jsx';
+import TestingTab from './sidebar/TestingTab.jsx';
 import { nodeExecutionService } from '../../services/nodeExecution.service.js';
 import { googleSheetsService } from '../../services/googleSheets.service.js';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
@@ -311,9 +312,12 @@ export default function NodeSidebarN8N({
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
             <div style={{ padding: '0 1rem', borderBottom: '1px solid hsl(var(--border))' }}>
-              <TabsList className="grid w-full grid-cols-3 bg-transparent">
+              <TabsList className={`grid w-full ${selectedNode?.type === 'call-agent' ? 'grid-cols-4' : 'grid-cols-3'} bg-transparent`}>
                 <TabsTrigger value="parameters">Parameters</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
+                {selectedNode?.type === 'call-agent' && (
+                  <TabsTrigger value="testing">Testing</TabsTrigger>
+                )}
                 <TabsTrigger value="docs">Docs</TabsTrigger>
               </TabsList>
             </div>
@@ -353,6 +357,15 @@ export default function NodeSidebarN8N({
                   onGoogleSheetsDisconnect={handleGoogleSheetsDisconnect}
                 />
               </TabsContent>
+
+              {selectedNode?.type === 'call-agent' && (
+                <TabsContent value="testing" className="mt-0">
+                  <TestingTab
+                    localData={localData}
+                    handleUpdate={handleUpdate}
+                  />
+                </TabsContent>
+              )}
 
               <TabsContent value="docs" className="mt-0">
                 <DocsTab nodeType={selectedNode.type} />

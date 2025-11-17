@@ -258,7 +258,22 @@ export const disconnect = async (req, res) => {
   const isFastifyRequest = isFastify(reply);
 
   try {
-    const userId = req.user.id;
+    // Support both Fastify (request.user) and Express (req.user)
+    const user = req.user || (req.request && req.request.user) || null;
+
+    if (!user || !user.id) {
+      logger.error('Authentication failed - user not found in request');
+      const errorResponse = { error: 'Authentication required' };
+
+      if (isFastifyRequest) {
+        reply.status(401).send(errorResponse);
+        throw new Error('Authentication required');
+      } else {
+        return res.status(401).json(errorResponse);
+      }
+    }
+
+    const userId = user.id;
 
     await db
       .delete(integrations)
@@ -283,7 +298,10 @@ export const disconnect = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error disconnecting integration:', error);
-    const errorResponse = { error: 'Failed to disconnect integration' };
+    const errorResponse = {
+      error: 'Failed to disconnect integration',
+      message: error.message || 'Unknown error',
+    };
 
     if (isFastifyRequest) {
       reply.status(500).send(errorResponse);
