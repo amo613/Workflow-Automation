@@ -436,8 +436,8 @@ fastify.get('/*', async (request, reply) => {
     request.url.startsWith('/js/')
   ) {
     // These should have been handled by specific routes above
-    // If we reach here, return 404
-    return reply.status(404).send('Not found');
+    // If we reach here, return 404 with JSON (consistent with NotFoundHandler)
+    return reply.status(404).send({ error: 'Route not found' });
   }
 
   try {
