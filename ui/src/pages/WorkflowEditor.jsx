@@ -28,7 +28,10 @@ import NodeSidebar from '../components/NodeSidebar';
 import WorkflowCanvasTabs from '../components/workflow/WorkflowCanvasTabs.jsx';
 import { compileWorkflowToPrompt } from '../utils/workflow-compiler.js';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
-import { setLastCallFlowId } from '../utils/callFlowStorage.js';
+import {
+  setLastCallFlowId,
+  clearLastCallFlowId,
+} from '../utils/callFlowStorage.js';
 
 const nodeTypes = {
   start: StartNode,
@@ -78,6 +81,12 @@ function WorkflowEditor() {
       const response = await fetchWithCSRF(`/api/workflows/${id}`);
 
       if (!response.ok) {
+        if (response.status === 404) {
+          // Workflow doesn't exist - clear stored ID and navigate to list
+          clearLastCallFlowId();
+          navigate('/workflows');
+          return;
+        }
         throw new Error('Failed to fetch workflow');
       }
 
@@ -112,9 +121,18 @@ function WorkflowEditor() {
       // Debug: Log loaded nodes to see their structure
       console.log('Loaded nodes from DB:', loadedNodes);
     } catch (err) {
-      alert('Failed to load workflow: ' + err.message);
-      console.error('Error fetching workflow:', err);
-      navigate('/');
+      // Only show alert if it's not a 404 (404 is handled above)
+      if (err.message !== 'Failed to fetch workflow') {
+        alert('Failed to load workflow: ' + err.message);
+      }
+      // Only log error if it's not a 404
+      if (!err.message.includes('404')) {
+        console.error('Error fetching workflow:', err);
+      }
+      // Only navigate if not already navigating (404 case)
+      if (!err.message.includes('404')) {
+        navigate('/workflows');
+      }
     } finally {
       setLoading(false);
     }

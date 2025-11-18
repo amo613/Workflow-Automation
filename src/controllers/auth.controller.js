@@ -2,6 +2,7 @@ import logger from '#config/logger.js';
 import { signUpSchema, signInSchema } from '#validations/auth.validation.js';
 import { formatValidationError } from '#utils/format.js';
 import { createUser, authenticateUser } from '#services/auth.service.js';
+import { getUserById } from '#services/users.service.js';
 import { jwttoken } from '#utils/jwt.js';
 import { cookies } from '#utils/cookies.js';
 import { cookiesFastify } from '#utils/cookies-fastify.js';
@@ -224,6 +225,47 @@ export const signOut = async (req, res, next) => {
     return res.status(200).json(response);
   } catch (e) {
     logger.error('Sign out error', e);
+
+    // Error handling
+    if (isFastifyRequest) {
+      throw e; // Fastify handles errors via error handler
+    }
+    next(e); // Express uses next()
+  }
+};
+
+export const getCurrentUser = async (req, res, next) => {
+  // Support both Express (res) and Fastify (reply)
+  const reply = res; // Fastify uses 'reply', Express uses 'res'
+  const isFastifyRequest = isFastify(reply);
+
+  try {
+    // req.user is set by authenticateToken middleware
+    if (!req.user || !req.user.id) {
+      if (isFastifyRequest) {
+        return reply.status(401).send({ error: 'Authentication required' });
+      }
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Fetch user from database to get latest data (including name)
+    const user = await getUserById(req.user.id);
+
+    const response = {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    };
+
+    if (isFastifyRequest) {
+      return reply.status(200).send(response);
+    }
+    return res.status(200).json(response);
+  } catch (e) {
+    logger.error('Get current user error', e);
 
     // Error handling
     if (isFastifyRequest) {

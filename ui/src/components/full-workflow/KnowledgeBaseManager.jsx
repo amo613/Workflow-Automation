@@ -208,6 +208,7 @@ export default function KnowledgeBaseManager({ onClose }) {
               padding: '0.75rem',
               border: '1px solid #e2e8f0',
               borderRadius: '8px',
+              color: '#111827',
               fontSize: '0.875rem',
               fontFamily: 'inherit',
             }}
@@ -239,6 +240,7 @@ export default function KnowledgeBaseManager({ onClose }) {
               borderRadius: '8px',
               fontSize: '0.875rem',
               fontFamily: 'inherit',
+              color: '#111827',
               resize: 'vertical',
             }}
           />

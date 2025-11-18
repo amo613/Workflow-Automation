@@ -15,6 +15,7 @@ import { EXECUTION_POLL_INTERVAL_MS } from './constants.js';
 import {
   getLastCallFlowId,
   setLastFullWorkflowId,
+  clearLastFullWorkflowId,
 } from '../../utils/callFlowStorage.js';
 
 export function useFullWorkflowEditorLogic() {
@@ -138,6 +139,12 @@ export function useFullWorkflowEditorLogic() {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          // Workflow doesn't exist - clear stored ID and navigate to list
+          clearLastFullWorkflowId();
+          navigate('/fullWorkflows');
+          return;
+        }
         throw new Error('Failed to fetch workflow');
       }
 
@@ -160,9 +167,18 @@ export function useFullWorkflowEditorLogic() {
       setEdges(loadedEdges);
       setAutoRefreshReady(true);
     } catch (err) {
-      alert('Failed to load workflow: ' + err.message);
-      console.error('Error fetching workflow:', err);
-      navigate('/fullWorkflows');
+      // Only show alert if it's not a 404 (404 is handled above)
+      if (err.message !== 'Failed to fetch workflow') {
+        alert('Failed to load workflow: ' + err.message);
+      }
+      // Only log error if it's not a 404
+      if (!err.message.includes('404')) {
+        console.error('Error fetching workflow:', err);
+      }
+      // Only navigate if not already navigating (404 case)
+      if (!err.message.includes('404')) {
+        navigate('/fullWorkflows');
+      }
     } finally {
       setLoading(false);
     }
