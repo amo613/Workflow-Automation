@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import EmailCredentialsManager from './EmailCredentialsManager.jsx';
 import { fetchWithCSRF } from '../../../utils/csrf.utils.js';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * Settings Tab Component
@@ -386,6 +396,15 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
   const [gcalConnected, setGcalConnected] = useState(false);
   const [gcalEmail, setGcalEmail] = useState(null);
   const [checkingGcal, setCheckingGcal] = useState(true);
+  const [gcalSettingsVisible, setGcalSettingsVisible] = useState(false);
+  const [savingGcalSettings, setSavingGcalSettings] = useState(false);
+  const [gcalSettings, setGcalSettings] = useState({
+    timezone: '',
+    minimumNoticeHours: '',
+    maximumDaysAdvance: '',
+    maximumDurationHours: '',
+    mode: 'PERSONAL_ASSISTANT',
+  });
 
   // Refresh Google Calendar status
   const refreshGcalStatus = async () => {
@@ -397,19 +416,39 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
       if (!res.ok) {
         setGcalConnected(false);
         setGcalEmail(null);
+        setGcalSettingsVisible(false);
         return;
       }
       const data = await res.json();
       if (data.connected) {
         setGcalConnected(true);
         setGcalEmail(data.email || null);
+        setGcalSettingsVisible(true);
+        setGcalSettings({
+          timezone: data.timezone || '',
+          minimumNoticeHours:
+            data.minimumNoticeHours != null
+              ? String(data.minimumNoticeHours)
+              : '',
+          maximumDaysAdvance:
+            data.maximumDaysAdvance != null
+              ? String(data.maximumDaysAdvance)
+              : '',
+          maximumDurationHours:
+            data.maximumDurationHours != null
+              ? String(data.maximumDurationHours)
+              : '',
+          mode: data.mode || 'PERSONAL_ASSISTANT',
+        });
       } else {
         setGcalConnected(false);
         setGcalEmail(null);
+        setGcalSettingsVisible(false);
       }
     } catch (e) {
       setGcalConnected(false);
       setGcalEmail(null);
+      setGcalSettingsVisible(false);
     } finally {
       setCheckingGcal(false);
     }
@@ -444,7 +483,7 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
       return;
     }
     try {
-      const res = await fetchWithCSRF('/api/integrations/google-calendar', {
+      const res = await fetch('/api/integrations/google-calendar', {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -467,6 +506,45 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
     } catch (e) {
       console.error('Error disconnecting Google Calendar:', e);
       alert(e.message || 'Failed to disconnect Google Calendar');
+    }
+  };
+
+  const handleSaveGcalSettings = async () => {
+    try {
+      setSavingGcalSettings(true);
+      const response = await fetchWithCSRF(
+        '/api/integrations/google-calendar/settings',
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            timezone: gcalSettings.timezone || undefined,
+            minimumNoticeHours: gcalSettings.minimumNoticeHours
+              ? Number(gcalSettings.minimumNoticeHours)
+              : undefined,
+            maximumDaysAdvance: gcalSettings.maximumDaysAdvance
+              ? Number(gcalSettings.maximumDaysAdvance)
+              : undefined,
+            maximumDurationHours: gcalSettings.maximumDurationHours
+              ? Number(gcalSettings.maximumDurationHours)
+              : undefined,
+            mode: gcalSettings.mode || undefined,
+          }),
+        }
+      );
+      if (!response.ok) {
+        const data = await response
+          .json()
+          .catch(() => ({ error: 'Failed to save settings' }));
+        throw new Error(data.error || 'Failed to save settings');
+      }
+      alert('Calendar settings saved successfully');
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setSavingGcalSettings(false);
     }
   };
 
@@ -635,6 +713,9 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
               background: '#2a2a2a',
               borderRadius: '8px',
               border: '1px solid #10b981',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
             }}
           >
             <div
@@ -642,7 +723,6 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                marginBottom: '0.5rem',
               }}
             >
               <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
@@ -702,6 +782,163 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
             <span>🔗</span>
             <span>Connect Google Calendar</span>
           </button>
+        )}
+
+        {gcalSettingsVisible && (
+          <div
+            style={{
+              marginTop: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem',
+                }}
+              >
+                <Label htmlFor="call-agent-gcal-timezone">Timezone</Label>
+                <Input
+                  id="call-agent-gcal-timezone"
+                  placeholder="Europe/Berlin"
+                  value={gcalSettings.timezone}
+                  onChange={e =>
+                    setGcalSettings({
+                      ...gcalSettings,
+                      timezone: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem',
+                }}
+              >
+                <Label htmlFor="call-agent-gcal-min-notice">
+                  Min notice (hours)
+                </Label>
+                <Input
+                  id="call-agent-gcal-min-notice"
+                  type="number"
+                  min="0"
+                  value={gcalSettings.minimumNoticeHours}
+                  onChange={e =>
+                    setGcalSettings({
+                      ...gcalSettings,
+                      minimumNoticeHours: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem',
+                }}
+              >
+                <Label htmlFor="call-agent-gcal-max-days">
+                  Max days in advance
+                </Label>
+                <Input
+                  id="call-agent-gcal-max-days"
+                  type="number"
+                  min="0"
+                  value={gcalSettings.maximumDaysAdvance}
+                  onChange={e =>
+                    setGcalSettings({
+                      ...gcalSettings,
+                      maximumDaysAdvance: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem',
+                }}
+              >
+                <Label htmlFor="call-agent-gcal-max-duration">
+                  Max duration (hours)
+                </Label>
+                <Input
+                  id="call-agent-gcal-max-duration"
+                  type="number"
+                  min="1"
+                  value={gcalSettings.maximumDurationHours}
+                  onChange={e =>
+                    setGcalSettings({
+                      ...gcalSettings,
+                      maximumDurationHours: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.4rem',
+              }}
+            >
+              <Label htmlFor="call-agent-gcal-mode">Mode</Label>
+              <Select
+                value={gcalSettings.mode}
+                onValueChange={value =>
+                  setGcalSettings({
+                    ...gcalSettings,
+                    mode: value,
+                  })
+                }
+              >
+                <SelectTrigger id="call-agent-gcal-mode">
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERSONAL_ASSISTANT">
+                    Personal Assistant (can view, create, update, delete events)
+                  </SelectItem>
+                  <SelectItem value="MEETING_SCHEDULER">
+                    Meeting Scheduler (can only create events)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={handleSaveGcalSettings}
+              disabled={savingGcalSettings}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              {savingGcalSettings ? 'Saving...' : 'Save Calendar Settings'}
+            </Button>
+          </div>
         )}
       </div>
 

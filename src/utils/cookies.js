@@ -15,7 +15,7 @@ export const cookies = {
   getCSRFOptions: () => ({
     httpOnly: false,
     secure: NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000,
     path: '/', // Ensure cookie is available for all paths
   }),
@@ -24,7 +24,7 @@ export const cookies = {
   getOptions: () => ({
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 15 * 60 * 1000,
   }),
 

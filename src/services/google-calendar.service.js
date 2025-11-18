@@ -15,7 +15,35 @@ export class GoogleCalendarService {
   constructor() {
     this.clientId = process.env.GOOGLE_CLIENT_ID;
     this.clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    this.redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    this.baseRedirectUri =
+      process.env.GOOGLE_REDIRECT_URI_BASE || process.env.GOOGLE_REDIRECT_URI;
+    this.redirectUri = this.getRedirectUri();
+
+    if (!this.clientId || !this.clientSecret || !this.redirectUri) {
+      logger.warn(
+        'Google OAuth credentials not fully configured. Google Calendar integration may fail.'
+      );
+    }
+  }
+
+  /**
+   * Build redirect URI (align with google-oauth.service.js)
+   * @returns {string|null}
+   */
+  getRedirectUri() {
+    if (!this.baseRedirectUri) {
+      return null;
+    }
+
+    if (this.baseRedirectUri.includes('/api/integrations/')) {
+      return this.baseRedirectUri;
+    }
+
+    const normalizedBase = this.baseRedirectUri.endsWith('/')
+      ? this.baseRedirectUri.slice(0, -1)
+      : this.baseRedirectUri;
+
+    return `${normalizedBase}/api/integrations/google-calendar/callback`;
   }
 
   /**
@@ -338,17 +366,49 @@ export class GoogleCalendarService {
    * @returns {Promise<string>} User email
    */
   async getUserEmail(accessToken, refreshToken) {
-    const calendar = this.getCalendarClient(accessToken, refreshToken);
+    if (!this.clientId || !this.clientSecret || !this.redirectUri) {
+      logger.error('Google OAuth credentials not configured');
+      return 'unknown';
+    }
+
+    // Use Google Drive API to get user email (same approach as Google Sheets)
+    let email = 'unknown';
+    const oauth2Client = new google.auth.OAuth2(
+      this.clientId,
+      this.clientSecret,
+      this.redirectUri
+    );
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
 
     try {
-      const calendarList = await calendar.calendarList.list();
-      const primaryCalendar = calendarList.data.items?.find(c => c.primary);
-
-      return primaryCalendar?.id || 'unknown';
+      const drive = google.drive({ version: 'v3', auth: oauth2Client });
+      const about = await drive.about.get({ fields: 'user' });
+      email = about.data.user?.emailAddress || 'unknown';
+      logger.info(`Retrieved email for Google Calendar integration: ${email}`);
     } catch (error) {
-      logger.error('Error getting user email:', error);
-      throw new Error(`Failed to get user email: ${error.message}`);
+      logger.error('Error getting user email from Google Drive API:', {
+        error: error.message,
+        code: error.code,
+      });
+      // Try to get email from token info if available
+      try {
+        const tokenInfo = await oauth2Client.getTokenInfo(accessToken);
+        if (tokenInfo.email) {
+          email = tokenInfo.email;
+          logger.info(`Retrieved email from token info: ${email}`);
+        }
+      } catch (tokenError) {
+        logger.warn('Could not get email from token info:', {
+          error: tokenError.message,
+          code: tokenError.code,
+        });
+      }
     }
+
+    return email;
   }
 }
 

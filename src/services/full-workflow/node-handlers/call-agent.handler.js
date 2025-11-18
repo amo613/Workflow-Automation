@@ -229,6 +229,7 @@ ${knowledgeBaseText}`;
             parseInt(max_response_output_tokens) || 4096,
           vad_threshold: parseFloat(vad_threshold) || 0.5,
           tool_choice: tool_choice || 'auto',
+          userId: userId || null,
         },
       },
       {
