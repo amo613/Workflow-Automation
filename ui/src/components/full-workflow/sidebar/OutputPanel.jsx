@@ -5,9 +5,14 @@ import DataTable from './DataTable.jsx';
  * OutputPanel Component
  * Displays output data from the current node
  */
-export default function OutputPanel({ outputData, outputView, setOutputView, nodeStatus }) {
+export default function OutputPanel({
+  outputData,
+  outputView,
+  setOutputView,
+  nodeStatus,
+}) {
   const [view, setView] = useState(outputView || 'table');
-  
+
   // Sync with parent view state
   useEffect(() => {
     if (setOutputView && view !== outputView) {
@@ -18,7 +23,11 @@ export default function OutputPanel({ outputData, outputView, setOutputView, nod
   if (!outputData || Object.keys(outputData).length === 0) {
     return (
       <div
-        style={{ padding: '0.75rem', color: 'hsl(var(--muted-foreground))', fontSize: '0.875rem' }}
+        style={{
+          padding: '0.75rem',
+          color: 'hsl(var(--muted-foreground))',
+          fontSize: '0.875rem',
+        }}
       >
         No output data available. Execute the node to see output.
       </div>
@@ -35,9 +44,13 @@ export default function OutputPanel({ outputData, outputView, setOutputView, nod
           }}
           style={{
             padding: '0.25rem 0.5rem',
-            background: view === 'table' ? 'hsl(var(--primary))' : 'transparent',
+            background:
+              view === 'table' ? 'hsl(var(--primary))' : 'transparent',
             border: '1px solid hsl(var(--border))',
-            color: view === 'table' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+            color:
+              view === 'table'
+                ? 'hsl(var(--primary-foreground))'
+                : 'hsl(var(--foreground))',
             cursor: 'pointer',
             fontSize: '0.75rem',
             borderRadius: '4px',
@@ -55,7 +68,10 @@ export default function OutputPanel({ outputData, outputView, setOutputView, nod
             padding: '0.25rem 0.5rem',
             background: view === 'json' ? 'hsl(var(--primary))' : 'transparent',
             border: '1px solid hsl(var(--border))',
-            color: view === 'json' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+            color:
+              view === 'json'
+                ? 'hsl(var(--primary-foreground))'
+                : 'hsl(var(--foreground))',
             cursor: 'pointer',
             fontSize: '0.75rem',
             borderRadius: '4px',
@@ -71,9 +87,13 @@ export default function OutputPanel({ outputData, outputView, setOutputView, nod
           }}
           style={{
             padding: '0.25rem 0.5rem',
-            background: view === 'schema' ? 'hsl(var(--primary))' : 'transparent',
+            background:
+              view === 'schema' ? 'hsl(var(--primary))' : 'transparent',
             border: '1px solid hsl(var(--border))',
-            color: view === 'schema' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+            color:
+              view === 'schema'
+                ? 'hsl(var(--primary-foreground))'
+                : 'hsl(var(--foreground))',
             cursor: 'pointer',
             fontSize: '0.75rem',
             borderRadius: '4px',
@@ -86,12 +106,29 @@ export default function OutputPanel({ outputData, outputView, setOutputView, nod
       {view === 'table' ? (
         <DataTable data={outputData} />
       ) : view === 'json' ? (
-        <pre style={{ fontSize: '0.75rem', overflow: 'auto', color: 'hsl(var(--foreground))', background: 'hsl(var(--muted))', padding: '0.5rem', borderRadius: '4px' }}>
+        <pre
+          style={{
+            fontSize: '0.75rem',
+            overflow: 'auto',
+            color: 'hsl(var(--foreground))',
+            background: 'hsl(var(--muted))',
+            padding: '0.5rem',
+            borderRadius: '4px',
+          }}
+        >
           {JSON.stringify(outputData, null, 2)}
         </pre>
       ) : (
         <div style={{ fontSize: '0.75rem', color: 'hsl(var(--foreground))' }}>
-          <pre style={{ background: 'hsl(var(--muted))', padding: '0.5rem', borderRadius: '4px' }}>{JSON.stringify(getSchema(outputData), null, 2)}</pre>
+          <pre
+            style={{
+              background: 'hsl(var(--muted))',
+              padding: '0.5rem',
+              borderRadius: '4px',
+            }}
+          >
+            {JSON.stringify(getSchema(outputData), null, 2)}
+          </pre>
         </div>
       )}
     </div>

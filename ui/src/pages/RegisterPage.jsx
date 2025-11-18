@@ -4,7 +4,13 @@ import { fetchWithCSRF } from '../utils/csrf.utils.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function RegisterPage() {
@@ -77,9 +83,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Sign up</CardTitle>
-          <CardDescription>
-            Create a new account to get started
-          </CardDescription>
+          <CardDescription>Create a new account to get started</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

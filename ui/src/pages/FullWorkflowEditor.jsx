@@ -1,12 +1,10 @@
 import WorkflowEditorLayout from '../components/full-workflow/WorkflowEditorLayout.jsx';
+import WorkflowCanvasTabs from '../components/workflow/WorkflowCanvasTabs.jsx';
 import { useFullWorkflowEditorLogic } from '../hooks/fullWorkflow/useFullWorkflowEditorLogic.js';
 
 function FullWorkflowEditor() {
-  const {
-    loading,
-    executionTracking,
-    ...layoutProps
-  } = useFullWorkflowEditorLogic();
+  const { loading, executionTracking, handleSwitchToCallFlow, ...layoutProps } =
+    useFullWorkflowEditorLogic();
 
   if (loading) {
     return (
@@ -27,10 +25,15 @@ function FullWorkflowEditor() {
   }
 
   return (
-    <WorkflowEditorLayout
-      {...layoutProps}
-      executedEdges={executionTracking.executedEdges}
-    />
+    <WorkflowCanvasTabs
+      activeTab="full"
+      onSelectCallWorkflow={handleSwitchToCallFlow}
+    >
+      <WorkflowEditorLayout
+        {...layoutProps}
+        executedEdges={executionTracking.executedEdges}
+      />
+    </WorkflowCanvasTabs>
   );
 }
 

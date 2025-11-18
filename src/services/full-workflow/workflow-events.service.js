@@ -29,7 +29,7 @@ export function subscribeToWorkflowEvents(reply, context = {}) {
     userId,
   });
 
-  const writeEvent = (event) => {
+  const writeEvent = event => {
     if (workflowId && Number(event.workflowId) !== Number(workflowId)) {
       return;
     }
@@ -85,4 +85,3 @@ export function subscribeToWorkflowEvents(reply, context = {}) {
   reply.raw.write(`event: ready\n`);
   reply.raw.write(`data: ${JSON.stringify(readyPayload)}\n\n`);
 }
-

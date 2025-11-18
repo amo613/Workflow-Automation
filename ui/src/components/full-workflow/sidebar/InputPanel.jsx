@@ -123,9 +123,13 @@ export default function InputPanel({
           onClick={() => setView('table')}
           style={{
             padding: '0.25rem 0.5rem',
-            background: view === 'table' ? 'hsl(var(--primary))' : 'transparent',
+            background:
+              view === 'table' ? 'hsl(var(--primary))' : 'transparent',
             border: '1px solid hsl(var(--border))',
-            color: view === 'table' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
+            color:
+              view === 'table'
+                ? 'hsl(var(--primary-foreground))'
+                : 'hsl(var(--foreground))',
             cursor: 'pointer',
             fontSize: '0.75rem',
             borderRadius: '4px',
@@ -174,7 +178,16 @@ export default function InputPanel({
           </div>
         </>
       ) : (
-        <pre style={{ fontSize: '0.75rem', overflow: 'auto', color: 'hsl(var(--foreground))', background: 'hsl(var(--muted))', padding: '0.5rem', borderRadius: '4px' }}>
+        <pre
+          style={{
+            fontSize: '0.75rem',
+            overflow: 'auto',
+            color: 'hsl(var(--foreground))',
+            background: 'hsl(var(--muted))',
+            padding: '0.5rem',
+            borderRadius: '4px',
+          }}
+        >
           {JSON.stringify(inputData, null, 2)}
         </pre>
       )}

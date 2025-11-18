@@ -5,9 +5,7 @@ export default function StartNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected
-          ? 'hsl(var(--accent))'
-          : 'hsl(var(--card))',
+        background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${selected ? '#10b981' : '#10b981'}`,
         borderRadius: '0.75rem',
         padding: '1.5rem',

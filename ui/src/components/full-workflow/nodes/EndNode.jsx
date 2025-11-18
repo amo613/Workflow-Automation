@@ -5,9 +5,7 @@ export default function EndNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected
-          ? 'hsl(var(--accent))'
-          : 'hsl(var(--card))',
+        background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${selected ? '#ef4444' : '#ef4444'}`,
         borderRadius: '0.75rem',
         padding: '1.5rem',

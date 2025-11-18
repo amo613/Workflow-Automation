@@ -36,11 +36,7 @@ export function useWorkflowTriggers({
     } finally {
       setTriggersLoading(false);
     }
-  }, [
-    isNewWorkflow,
-    autoRefreshReady,
-    workflowId,
-  ]);
+  }, [isNewWorkflow, autoRefreshReady, workflowId]);
 
   useEffect(() => {
     if (!workflowId || isNewWorkflow || !autoRefreshReady) {
@@ -64,5 +60,3 @@ export function useWorkflowTriggers({
     fetchActiveTriggers,
   };
 }
-
-

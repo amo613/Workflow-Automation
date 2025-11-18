@@ -157,7 +157,9 @@ async function webhookRoutes(fastify) {
           } else {
             // If no matching webhookId, check if any node has no webhookId (defaults to workflowId)
             const defaultNode = webhookTriggerNodes.find(
-              node => !node.data?.webhookId || node.data?.webhookId === workflowId.toString()
+              node =>
+                !node.data?.webhookId ||
+                node.data?.webhookId === workflowId.toString()
             );
             if (defaultNode) {
               selectedWebhookNode = defaultNode;

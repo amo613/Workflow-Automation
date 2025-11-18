@@ -2,7 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -23,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import PageContainer from '@/components/layout/PageContainer';
+import WorkflowCanvasTabs from '../components/workflow/WorkflowCanvasTabs.jsx';
 import { toast } from 'sonner';
 
 function WorkflowList() {
@@ -68,9 +75,12 @@ function WorkflowList() {
     if (!workflowToDelete) return;
 
     try {
-      const response = await fetchWithCSRF(`/api/workflows/${workflowToDelete}`, {
-        method: 'DELETE',
-      });
+      const response = await fetchWithCSRF(
+        `/api/workflows/${workflowToDelete}`,
+        {
+          method: 'DELETE',
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Failed to delete workflow');
@@ -104,7 +114,9 @@ function WorkflowList() {
         throw new Error('Failed to update workflow');
       }
 
-      toast.success(`Workflow ${!workflow.is_active ? 'activated' : 'deactivated'}`);
+      toast.success(
+        `Workflow ${!workflow.is_active ? 'activated' : 'deactivated'}`
+      );
       fetchWorkflows();
     } catch (err) {
       toast.error('Failed to update workflow: ' + err.message);
@@ -112,18 +124,12 @@ function WorkflowList() {
     }
   };
 
-  if (loading) {
-    return (
-      <PageContainer>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-lg text-muted-foreground">Loading workflows...</div>
-        </div>
-      </PageContainer>
-    );
-  }
-
-  return (
-    <PageContainer>
+  const listContent = loading ? (
+    <div className="flex items-center justify-center h-96">
+      <div className="text-lg text-muted-foreground">Loading workflows...</div>
+    </div>
+  ) : (
+    <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -141,7 +147,8 @@ function WorkflowList() {
           <CardHeader>
             <CardTitle>All Call Flows</CardTitle>
             <CardDescription>
-              {workflows.length} workflow{workflows.length !== 1 ? 's' : ''} found
+              {workflows.length} workflow{workflows.length !== 1 ? 's' : ''}{' '}
+              found
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -179,7 +186,9 @@ function WorkflowList() {
                         {workflow.name || 'Unnamed Workflow'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={workflow.is_active ? 'default' : 'secondary'}>
+                        <Badge
+                          variant={workflow.is_active ? 'default' : 'secondary'}
+                        >
                           {workflow.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
@@ -220,18 +229,28 @@ function WorkflowList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the workflow.
+              This action cannot be undone. This will permanently delete the
+              workflow.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageContainer>
+    </>
+  );
+
+  return (
+    <WorkflowCanvasTabs activeTab="call">
+      <PageContainer>{listContent}</PageContainer>
+    </WorkflowCanvasTabs>
   );
 }
 

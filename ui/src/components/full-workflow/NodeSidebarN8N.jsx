@@ -111,7 +111,9 @@ export default function NodeSidebarN8N({
       }
     } catch (error) {
       console.error('Error initiating Google Sheets auth:', error);
-      toast.error(`Failed to initiate Google Sheets authentication: ${error.message || 'Unknown error'}`);
+      toast.error(
+        `Failed to initiate Google Sheets authentication: ${error.message || 'Unknown error'}`
+      );
     }
   };
 
@@ -172,7 +174,10 @@ export default function NodeSidebarN8N({
     if (type === 'google-sheets') {
       return { icon: <Sheet className="w-5 h-5" />, label: 'Google Sheets' };
     } else if (type === 'google-sheets-trigger') {
-      return { icon: <Sheet className="w-5 h-5" />, label: 'Google Sheets Trigger' };
+      return {
+        icon: <Sheet className="w-5 h-5" />,
+        label: 'Google Sheets Trigger',
+      };
     } else if (type === 'start') {
       return { icon: <Rocket className="w-5 h-5" />, label: 'Manual Trigger' };
     }
@@ -265,13 +270,19 @@ export default function NodeSidebarN8N({
               alignItems: 'center',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
               {nodeDisplay.icon}
-              <span style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}>
+              <span
+                style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}
+              >
                 {nodeDisplay.label}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+            >
               <Button
                 size="sm"
                 onClick={handleExecuteNode}
@@ -310,9 +321,20 @@ export default function NodeSidebarN8N({
           </div>
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-            <div style={{ padding: '0 1rem', borderBottom: '1px solid hsl(var(--border))' }}>
-              <TabsList className={`grid w-full ${selectedNode?.type === 'call-agent' ? 'grid-cols-4' : 'grid-cols-3'} bg-transparent`}>
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex-1 flex flex-col overflow-hidden"
+          >
+            <div
+              style={{
+                padding: '0 1rem',
+                borderBottom: '1px solid hsl(var(--border))',
+              }}
+            >
+              <TabsList
+                className={`grid w-full ${selectedNode?.type === 'call-agent' ? 'grid-cols-4' : 'grid-cols-3'} bg-transparent`}
+              >
                 <TabsTrigger value="parameters">Parameters</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
                 {selectedNode?.type === 'call-agent' && (
@@ -414,7 +436,8 @@ export default function NodeSidebarN8N({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Node?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this node? This action cannot be undone.
+              Are you sure you want to delete this node? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

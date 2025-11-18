@@ -43,7 +43,9 @@ export default function ErrorDetailsModal({
             )}
 
             <div>
-              <div className="text-sm text-muted-foreground mb-2">Error Message</div>
+              <div className="text-sm text-muted-foreground mb-2">
+                Error Message
+              </div>
               <Alert variant="destructive">
                 <AlertDescription className="break-words">
                   {errorLogEntry.error || 'Unknown error'}
@@ -53,7 +55,9 @@ export default function ErrorDetailsModal({
 
             {errorLogEntry.errorType && (
               <div>
-                <div className="text-sm text-muted-foreground mb-2">Error Type</div>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Error Type
+                </div>
                 <Badge
                   variant={
                     errorLogEntry.errorType === 'transient'
@@ -82,7 +86,9 @@ export default function ErrorDetailsModal({
 
             {errorLogEntry.timestamp && (
               <div>
-                <div className="text-sm text-muted-foreground mb-1">Timestamp</div>
+                <div className="text-sm text-muted-foreground mb-1">
+                  Timestamp
+                </div>
                 <div className="text-sm">
                   {new Date(errorLogEntry.timestamp).toLocaleString()}
                 </div>

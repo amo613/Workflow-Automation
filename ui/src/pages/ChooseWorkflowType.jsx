@@ -1,5 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PageContainer from '@/components/layout/PageContainer';
 
@@ -32,8 +38,8 @@ function ChooseWorkflowType() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-6">
-                  Define what the AI agent says during the conversation, including steps,
-                  conditions, and responses.
+                  Define what the AI agent says during the conversation,
+                  including steps, conditions, and responses.
                 </p>
                 <Button className="w-full" variant="default">
                   Create Call Flow →
@@ -55,8 +61,8 @@ function ChooseWorkflowType() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-6">
-                  Connect multiple services with webhooks, HTTP requests, database queries,
-                  and more. Automate complex processes.
+                  Connect multiple services with webhooks, HTTP requests,
+                  database queries, and more. Automate complex processes.
                 </p>
                 <Button className="w-full" variant="default">
                   Create Full Workflow →

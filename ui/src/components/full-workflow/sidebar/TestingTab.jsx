@@ -27,7 +27,6 @@ export default function TestingTab({ localData, handleUpdate }) {
   const [transcriptEntries, setTranscriptEntries] = useState([]);
   const [showTranscript, setShowTranscript] = useState(false);
 
-
   // Module instances (useRef to persist across renders)
   const audioContextRef = useRef(null);
   const audioCaptureRef = useRef(null);
@@ -61,21 +60,20 @@ export default function TestingTab({ localData, handleUpdate }) {
     setTranscriptEntries(entries);
   };
 
-
   // Get config from localData with Knowledge Base integration (like Twilio backend)
   const getConfigFromLocalData = async () => {
     // Get prompt from localData (could be in prompt or instructions field)
     let prompt = localData?.prompt || localData?.instructions || '';
-    
+
     // Load and integrate Knowledge Base entries if IDs are specified (like call-agent.handler.js)
     const kbIds = localData?.knowledge_base_ids || [];
     if (kbIds.length > 0) {
       try {
         // Fetch all knowledge base entries
         const allEntries = await knowledgeBaseService.fetchEntries();
-        
+
         // Filter entries by selected IDs (like backend: inArray(knowledgeBaseEntries.id, kbIds))
-        const selectedEntries = allEntries.filter(entry => 
+        const selectedEntries = allEntries.filter(entry =>
           kbIds.includes(entry.id)
         );
 
@@ -91,25 +89,35 @@ export default function TestingTab({ localData, handleUpdate }) {
 KNOWLEDGE BASE:
 ${knowledgeBaseText}`;
 
-          log(`📚 Loaded ${selectedEntries.length} knowledge base entries`, 'success');
+          log(
+            `📚 Loaded ${selectedEntries.length} knowledge base entries`,
+            'success'
+          );
         } else {
           log(`⚠️ No knowledge base entries found for selected IDs`, 'warning');
         }
       } catch (error) {
         console.error('Error loading knowledge base entries:', error);
-        log(`⚠️ Failed to load knowledge base entries: ${error.message}`, 'warning');
+        log(
+          `⚠️ Failed to load knowledge base entries: ${error.message}`,
+          'warning'
+        );
       }
     }
-    
+
     // Use prompt as instructions, or fallback to default
-    const instructions = prompt || 'You are a helpful voice assistant. Keep responses brief, natural, and conversational.';
-    
+    const instructions =
+      prompt ||
+      'You are a helpful voice assistant. Keep responses brief, natural, and conversational.';
+
     return {
       voice: localData?.voice || 'alloy',
       temperature: parseFloat(localData?.temperature ?? 1.0),
       instructions: instructions,
       vad_threshold: parseFloat(localData?.vad_threshold ?? 0.5),
-      max_response_output_tokens: parseInt(localData?.max_response_output_tokens ?? 4096),
+      max_response_output_tokens: parseInt(
+        localData?.max_response_output_tokens ?? 4096
+      ),
       tool_choice: localData?.tool_choice || 'auto',
       prefix_padding_ms: parseInt(localData?.prefix_padding_ms ?? 300),
       silence_duration_ms: parseInt(localData?.silence_duration_ms ?? 500),
@@ -250,9 +258,15 @@ ${knowledgeBaseText}`;
     updateButtons(false);
   };
 
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1rem' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        gap: '1rem',
+      }}
+    >
       {/* Status and Connection Controls */}
       <div
         style={{
@@ -313,7 +327,13 @@ ${knowledgeBaseText}`;
             alignItems: 'center',
           }}
         >
-          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'hsl(var(--foreground))' }}>
+          <div
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'hsl(var(--foreground))',
+            }}
+          >
             Logs
           </div>
           <Button
@@ -337,7 +357,12 @@ ${knowledgeBaseText}`;
           }}
         >
           {logEntries.length === 0 ? (
-            <div style={{ color: 'hsl(var(--muted-foreground))', fontStyle: 'italic' }}>
+            <div
+              style={{
+                color: 'hsl(var(--muted-foreground))',
+                fontStyle: 'italic',
+              }}
+            >
               No logs yet. Connect to start logging.
             </div>
           ) : (
@@ -383,7 +408,16 @@ ${knowledgeBaseText}`;
               alignItems: 'center',
             }}
           >
-            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'hsl(var(--foreground))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'hsl(var(--foreground))',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
               <MessageSquare className="w-4 h-4" />
               Conversation
             </div>
@@ -404,7 +438,13 @@ ${knowledgeBaseText}`;
             }}
           >
             {transcriptEntries.length === 0 ? (
-              <div style={{ color: 'hsl(var(--muted-foreground))', fontStyle: 'italic', fontSize: '0.875rem' }}>
+              <div
+                style={{
+                  color: 'hsl(var(--muted-foreground))',
+                  fontStyle: 'italic',
+                  fontSize: '0.875rem',
+                }}
+              >
                 No conversation yet.
               </div>
             ) : (
@@ -414,7 +454,10 @@ ${knowledgeBaseText}`;
                   style={{
                     marginBottom: '0.75rem',
                     padding: '0.75rem',
-                    background: entry.speaker === 'user' ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+                    background:
+                      entry.speaker === 'user'
+                        ? 'hsl(var(--accent))'
+                        : 'hsl(var(--card))',
                     borderRadius: '6px',
                     border: '1px solid hsl(var(--border))',
                   }}
@@ -429,7 +472,12 @@ ${knowledgeBaseText}`;
                   >
                     {entry.speaker === 'user' ? '👤 You' : '🤖 Assistant'}
                   </div>
-                  <div style={{ fontSize: '0.875rem', color: 'hsl(var(--foreground))' }}>
+                  <div
+                    style={{
+                      fontSize: '0.875rem',
+                      color: 'hsl(var(--foreground))',
+                    }}
+                  >
                     {entry.text}
                   </div>
                   <div
@@ -463,4 +511,3 @@ ${knowledgeBaseText}`;
     </div>
   );
 }
-

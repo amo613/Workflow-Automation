@@ -25,8 +25,10 @@ import IfNode from '../components/nodes/IfNode';
 import StepNode from '../components/nodes/StepNode';
 import EndNode from '../components/nodes/EndNode';
 import NodeSidebar from '../components/NodeSidebar';
+import WorkflowCanvasTabs from '../components/workflow/WorkflowCanvasTabs.jsx';
 import { compileWorkflowToPrompt } from '../utils/workflow-compiler.js';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
+import { setLastCallFlowId } from '../utils/callFlowStorage.js';
 
 const nodeTypes = {
   start: StartNode,
@@ -52,6 +54,9 @@ function WorkflowEditor() {
 
   useEffect(() => {
     if (!isNew) {
+      if (id) {
+        setLastCallFlowId(id);
+      }
       fetchWorkflow();
     } else {
       // Initialize with default start node
@@ -65,7 +70,7 @@ function WorkflowEditor() {
       ]);
       setEdges([]);
     }
-  }, [id]);
+  }, [id, isNew]);
 
   const fetchWorkflow = async () => {
     try {
@@ -311,40 +316,36 @@ function WorkflowEditor() {
     }
   };
 
-  if (loading) {
-    return (
+  const editorContent = loading ? (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100%',
+        fontSize: '18px',
+        color: '#667eea',
+        fontWeight: 600,
+      }}
+    >
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          fontSize: '18px',
-          color: '#667eea',
-          fontWeight: 600,
+          padding: '24px 48px',
+          background: 'hsl(var(--card))',
+          color: 'hsl(var(--foreground))',
+          borderRadius: '0.75rem',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          border: '1px solid hsl(var(--border))',
         }}
       >
-        <div
-          style={{
-            padding: '24px 48px',
-            background: 'hsl(var(--card))',
-            color: 'hsl(var(--foreground))',
-            borderRadius: '0.75rem',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-            border: '1px solid hsl(var(--border))',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Loading workflow...</span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Loading workflow...</span>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    </div>
+  ) : (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div
         id="workflow-header"
         style={{
@@ -496,7 +497,15 @@ function WorkflowEditor() {
           </div>
         </div>
       </div>
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', width: '100%', minWidth: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          width: '100%',
+          minWidth: 0,
+        }}
+      >
         <div
           style={{
             width: '100%',
@@ -524,7 +533,12 @@ function WorkflowEditor() {
             nodeTypes={nodeTypes}
             fitView
           >
-            <Background variant="grid" gap={24} size={1} color="hsl(var(--border))" />
+            <Background
+              variant="grid"
+              gap={24}
+              size={1}
+              color="hsl(var(--border))"
+            />
             <Controls />
             <MiniMap
               nodeColor={node => {
@@ -600,7 +614,9 @@ function WorkflowEditor() {
                 marginBottom: '1.5rem',
               }}
             >
-              <h2 style={{ margin: 0, color: 'hsl(var(--foreground))' }}>Compiled Prompt</h2>
+              <h2 style={{ margin: 0, color: 'hsl(var(--foreground))' }}>
+                Compiled Prompt
+              </h2>
               <button
                 onClick={() => setShowPromptModal(false)}
                 style={{
@@ -668,6 +684,10 @@ function WorkflowEditor() {
         </div>
       )}
     </div>
+  );
+
+  return (
+    <WorkflowCanvasTabs activeTab="call">{editorContent}</WorkflowCanvasTabs>
   );
 }
 

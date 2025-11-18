@@ -146,5 +146,3 @@ export function useWorkflowHistory({
     fetchExecutionHistory,
   };
 }
-
-

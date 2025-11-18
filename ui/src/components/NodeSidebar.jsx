@@ -317,7 +317,9 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
 
         {/* Start Node */}
         {selectedNode.type === 'start' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
             <div>
               <label
                 style={{
@@ -389,12 +391,16 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                             color: 'hsl(var(--foreground))',
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = 'hsl(var(--accent))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--primary))';
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.background = 'hsl(var(--card))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--card))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--border))';
                           }}
                         >
                           {'{'}
@@ -403,7 +409,12 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                         </button>
                       ))
                     ) : (
-                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'hsl(var(--muted-foreground))',
+                        }}
+                      >
                         No variables available. Add entries in Knowledge Base.
                       </div>
                     )}
@@ -418,7 +429,13 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                     color: 'hsl(var(--muted-foreground))',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Lightbulb className="w-3 h-3" />
                     <span>Tip: Type {'{'} to see available variables</span>
                   </div>
@@ -430,7 +447,9 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
 
         {/* Step Node */}
         {selectedNode.type === 'step' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
             <div>
               <label
                 style={{
@@ -528,12 +547,16 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                             color: 'hsl(var(--foreground))',
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = 'hsl(var(--accent))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--primary))';
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.background = 'hsl(var(--card))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--card))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--border))';
                           }}
                         >
                           {'{'}
@@ -542,7 +565,12 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                         </button>
                       ))
                     ) : (
-                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'hsl(var(--muted-foreground))',
+                        }}
+                      >
                         No variables available. Add entries in Knowledge Base.
                       </div>
                     )}
@@ -557,7 +585,13 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                     color: 'hsl(var(--muted-foreground))',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Lightbulb className="w-3 h-3" />
                     <span>Tip: Type {'{'} to see available variables</span>
                   </div>
@@ -569,7 +603,9 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
 
         {/* If Node */}
         {selectedNode.type === 'if' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
             <div>
               <label
                 style={{
@@ -639,12 +675,16 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                             color: 'hsl(var(--foreground))',
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = 'hsl(var(--accent))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--primary))';
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.background = 'hsl(var(--card))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--card))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--border))';
                           }}
                         >
                           {'{'}
@@ -653,7 +693,12 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                         </button>
                       ))
                     ) : (
-                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'hsl(var(--muted-foreground))',
+                        }}
+                      >
                         No variables available. Add entries in Knowledge Base.
                       </div>
                     )}
@@ -668,7 +713,13 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                     color: 'hsl(var(--muted-foreground))',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Lightbulb className="w-3 h-3" />
                     <span>Tip: Type {'{'} to see available variables</span>
                   </div>
@@ -728,7 +779,9 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
 
         {/* End Node */}
         {selectedNode.type === 'end' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
             <div>
               <label
                 style={{
@@ -800,12 +853,16 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                             color: 'hsl(var(--foreground))',
                           }}
                           onMouseEnter={e => {
-                            e.currentTarget.style.background = 'hsl(var(--accent))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--primary))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--accent))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--primary))';
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.background = 'hsl(var(--card))';
-                            e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                            e.currentTarget.style.background =
+                              'hsl(var(--card))';
+                            e.currentTarget.style.borderColor =
+                              'hsl(var(--border))';
                           }}
                         >
                           {'{'}
@@ -814,7 +871,12 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                         </button>
                       ))
                     ) : (
-                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'hsl(var(--muted-foreground))',
+                        }}
+                      >
                         No variables available. Add entries in Knowledge Base.
                       </div>
                     )}
@@ -829,7 +891,13 @@ function NodeSidebar({ selectedNode, onNodeUpdate, nodes, edges, onClose }) {
                     color: 'hsl(var(--muted-foreground))',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Lightbulb className="w-3 h-3" />
                     <span>Tip: Type {'{'} to see available variables</span>
                   </div>

@@ -1,20 +1,7 @@
 /* global alert, confirm, URLSearchParams */
-import {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from 'react';
-import {
-  useParams,
-  useNavigate,
-  useSearchParams,
-} from 'react-router-dom';
-import {
-  addEdge,
-  useNodesState,
-  useEdgesState,
-} from 'reactflow';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { addEdge, useNodesState, useEdgesState } from 'reactflow';
 import { workflowExportImportService } from '../../services/workflowExportImport.service.js';
 import { workflowPerformanceService } from '../../services/workflowPerformance.service.js';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
@@ -24,9 +11,11 @@ import { useWorkflowStatistics } from './useWorkflowStatistics.js';
 import { useWorkflowPerformanceData } from './useWorkflowPerformanceData.js';
 import { useWorkflowTriggers } from './useWorkflowTriggers.js';
 import { useWorkflowHistory } from './useWorkflowHistory.js';
+import { EXECUTION_POLL_INTERVAL_MS } from './constants.js';
 import {
-  EXECUTION_POLL_INTERVAL_MS,
-} from './constants.js';
+  getLastCallFlowId,
+  setLastFullWorkflowId,
+} from '../../utils/callFlowStorage.js';
 
 export function useFullWorkflowEditorLogic() {
   const { id } = useParams();
@@ -131,6 +120,15 @@ export function useFullWorkflowEditorLogic() {
     navigate('/fullWorkflows');
   }, [navigate]);
 
+  const handleSwitchToCallFlow = useCallback(() => {
+    const lastId = getLastCallFlowId();
+    if (lastId) {
+      navigate(`/workflows/edit/${lastId}`);
+    } else {
+      navigate('/workflows');
+    }
+  }, [navigate]);
+
   const fetchWorkflow = useCallback(async () => {
     if (!id) return;
     try {
@@ -176,6 +174,9 @@ export function useFullWorkflowEditorLogic() {
 
   useEffect(() => {
     if (!isNew) {
+      if (id) {
+        setLastFullWorkflowId(id);
+      }
       fetchWorkflow().catch(() => {});
     } else {
       setNodes([
@@ -500,15 +501,9 @@ export function useFullWorkflowEditorLogic() {
   ]);
 
   const handleClearPerformance = useCallback(async () => {
-    if (
-      confirm(
-        'Are you sure you want to clear all performance data?'
-      )
-    ) {
+    if (confirm('Are you sure you want to clear all performance data?')) {
       try {
-        await workflowPerformanceService.clearPerformance(
-          parseInt(id, 10)
-        );
+        await workflowPerformanceService.clearPerformance(parseInt(id, 10));
         await fetchPerformance();
       } catch (err) {
         alert('Failed to clear performance data: ' + err.message);
@@ -574,7 +569,6 @@ export function useFullWorkflowEditorLogic() {
     historyState,
     executionTracking,
     handleClearPerformance,
+    handleSwitchToCallFlow,
   };
 }
-
-

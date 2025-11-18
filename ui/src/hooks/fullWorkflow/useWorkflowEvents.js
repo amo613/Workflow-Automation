@@ -15,11 +15,7 @@ export function useWorkflowEvents({
   const reconnectAttemptRef = useRef(0);
 
   useEffect(() => {
-    if (
-      !workflowId ||
-      isNewWorkflow ||
-      !autoRefreshReady
-    ) {
+    if (!workflowId || isNewWorkflow || !autoRefreshReady) {
       return undefined;
     }
 
@@ -178,18 +174,27 @@ export function useWorkflowEvents({
       source.addEventListener('workflow.pending', event => {
         const payload = parsePayload(event);
         if (!payload) return;
-        if (payload.workflowId && Number(payload.workflowId) !== Number(workflowId)) {
-          console.log('⏭️ Ignoring workflow.pending event for different workflow', {
-            currentWorkflowId: workflowId,
-            payloadWorkflowId: payload.workflowId,
-          });
+        if (
+          payload.workflowId &&
+          Number(payload.workflowId) !== Number(workflowId)
+        ) {
+          console.log(
+            '⏭️ Ignoring workflow.pending event for different workflow',
+            {
+              currentWorkflowId: workflowId,
+              payloadWorkflowId: payload.workflowId,
+            }
+          );
           return;
         }
         console.log('📨 workflow.pending event received', {
           workflowId,
           payload,
         });
-        if (payload.eventId && !activeExecutionsRef.current.has(payload.eventId)) {
+        if (
+          payload.eventId &&
+          !activeExecutionsRef.current.has(payload.eventId)
+        ) {
           startPollingExecution(payload.eventId);
         }
       });
@@ -197,7 +202,10 @@ export function useWorkflowEvents({
       source.addEventListener('workflow.running', event => {
         const payload = parsePayload(event);
         if (!payload) return;
-        if (payload.workflowId && Number(payload.workflowId) !== Number(workflowId)) {
+        if (
+          payload.workflowId &&
+          Number(payload.workflowId) !== Number(workflowId)
+        ) {
           return;
         }
         console.log('🏃 workflow.running event received', {
@@ -209,7 +217,10 @@ export function useWorkflowEvents({
       source.addEventListener('workflow.completed', event => {
         const payload = parsePayload(event);
         if (!payload) return;
-        if (payload.workflowId && Number(payload.workflowId) !== Number(workflowId)) {
+        if (
+          payload.workflowId &&
+          Number(payload.workflowId) !== Number(workflowId)
+        ) {
           return;
         }
         handleCompletionLikeEvent(payload, 'workflow.completed');
@@ -218,7 +229,10 @@ export function useWorkflowEvents({
       source.addEventListener('workflow.failed', event => {
         const payload = parsePayload(event);
         if (!payload) return;
-        if (payload.workflowId && Number(payload.workflowId) !== Number(workflowId)) {
+        if (
+          payload.workflowId &&
+          Number(payload.workflowId) !== Number(workflowId)
+        ) {
           return;
         }
         handleCompletionLikeEvent(payload, 'workflow.failed');
@@ -250,5 +264,3 @@ export function useWorkflowEvents({
     workflowId,
   ]);
 }
-
-

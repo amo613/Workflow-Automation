@@ -26,14 +26,14 @@ import {
   XCircle,
   AlertCircle,
   Info,
-  
+
   // Workflow & Nodes
   Workflow,
   GitBranch,
   Network,
   Layers,
   Box,
-  
+
   // Data & Knowledge
   Database,
   Book,
@@ -41,14 +41,14 @@ import {
   FileJson,
   Folder,
   FolderOpen,
-  
+
   // Communication
   Mail,
   MessageSquare,
   Phone,
   PhoneCall,
   Video,
-  
+
   // Status & Indicators
   Clock,
   Calendar,
@@ -58,22 +58,22 @@ import {
   Activity,
   Circle,
   Dot,
-  
+
   // Google Services
   Sheet,
   Table,
-  
+
   // Web & HTTP
   Globe,
   Link,
   Webhook,
-  
+
   // AI & Automation
   Bot,
   Sparkles,
   Brain,
   Cpu,
-  
+
   // UI Elements
   Menu,
   ChevronRight,
@@ -98,14 +98,14 @@ import {
   LogOut,
   LogIn,
   UserPlus,
-  
+
   // Status
   CheckCircle2,
   XCircle as XCircleIcon,
   AlertTriangle,
   Loader2,
   RefreshCw,
-  
+
   // Other
   Copy,
   Clipboard,
@@ -121,7 +121,7 @@ export const iconMap = {
   // Version History
   versionHistory: BookOpen,
   history: History,
-  
+
   // Actions
   save: Save,
   execute: Play,
@@ -132,53 +132,53 @@ export const iconMap = {
   pencil: Pencil,
   add: Plus,
   addCircle: PlusCircle,
-  
+
   // Import/Export
   export: Download,
   import: Upload,
   download: FileDown,
   upload: FileUp,
-  
+
   // Status
   success: CheckCircle,
   error: XCircle,
   warning: AlertCircle,
   info: Info,
   loading: Loader2,
-  
+
   // Workflow
   workflow: Workflow,
   node: Box,
   branch: GitBranch,
-  
+
   // Knowledge Base
   knowledgeBase: Database,
   book: Book,
-  
+
   // Statistics & Performance
   statistics: BarChart3,
   performance: Zap,
   activity: Activity,
   trending: TrendingUp,
-  
+
   // Time
   clock: Clock,
   calendar: Calendar,
-  
+
   // Google Sheets
   sheets: Sheet,
   table: Table,
-  
+
   // HTTP & Web
   http: Globe,
   webhook: Webhook,
   link: Link,
-  
+
   // AI
   ai: Bot,
   sparkles: Sparkles,
   brain: Brain,
-  
+
   // UI
   menu: Menu,
   chevronRight: ChevronRight,
@@ -191,20 +191,20 @@ export const iconMap = {
   filter: Filter,
   eye: Eye,
   eyeOff: EyeOff,
-  
+
   // Auth
   login: LogIn,
   logout: LogOut,
   register: UserPlus,
   user: User,
   users: Users,
-  
+
   // Communication
   email: Mail,
   message: MessageSquare,
   phone: Phone,
   call: PhoneCall,
-  
+
   // Other
   copy: Copy,
   clipboard: Clipboard,
@@ -323,4 +323,3 @@ export {
   Home,
   HelpCircle,
 };
-

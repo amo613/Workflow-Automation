@@ -321,7 +321,10 @@ export default function KnowledgeBaseManager({ onClose }) {
                 key={entry.id}
                 style={{
                   padding: '1rem',
-                  background: editingId === entry.id ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+                  background:
+                    editingId === entry.id
+                      ? 'hsl(var(--accent))'
+                      : 'hsl(var(--card))',
                   border: `1px solid ${editingId === entry.id ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                   borderRadius: '8px',
                   transition: 'all 0.2s',

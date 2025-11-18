@@ -12,7 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { BookOpen, Clock, RefreshCw, Loader2, MessageSquare } from 'lucide-react';
+import {
+  BookOpen,
+  Clock,
+  RefreshCw,
+  Loader2,
+  MessageSquare,
+} from 'lucide-react';
 
 export default function VersionHistory({ workflowId, onRestore }) {
   const [versions, setVersions] = useState([]);
@@ -133,7 +139,9 @@ export default function VersionHistory({ workflowId, onRestore }) {
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-2xl">Version History</DialogTitle>
+                  <DialogTitle className="text-2xl">
+                    Version History
+                  </DialogTitle>
                   <DialogDescription className="mt-1">
                     {versions.length} version{versions.length !== 1 ? 's' : ''}{' '}
                     saved
@@ -143,7 +151,10 @@ export default function VersionHistory({ workflowId, onRestore }) {
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 px-6 py-4" style={{ maxHeight: 'calc(85vh - 120px)' }}>
+          <ScrollArea
+            className="flex-1 px-6 py-4"
+            style={{ maxHeight: 'calc(85vh - 120px)' }}
+          >
             {loading && (
               <div className="text-center py-8 text-muted-foreground flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -159,8 +170,8 @@ export default function VersionHistory({ workflowId, onRestore }) {
 
             {!loading && !error && versions.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No versions yet. Versions are automatically created when you save
-                changes.
+                No versions yet. Versions are automatically created when you
+                save changes.
               </div>
             )}
 
@@ -190,8 +201,10 @@ export default function VersionHistory({ workflowId, onRestore }) {
                       onClick={() => setSelectedVersion(version)}
                       onMouseEnter={e => {
                         if (!isSelected) {
-                          e.currentTarget.style.background = 'hsl(var(--accent))';
-                          e.currentTarget.style.borderColor = 'hsl(var(--border))';
+                          e.currentTarget.style.background =
+                            'hsl(var(--accent))';
+                          e.currentTarget.style.borderColor =
+                            'hsl(var(--border))';
                         }
                       }}
                       onMouseLeave={e => {
@@ -226,7 +239,8 @@ export default function VersionHistory({ workflowId, onRestore }) {
                                 className="font-semibold text-sm"
                                 style={{ color: 'hsl(var(--foreground))' }}
                               >
-                                {version.name || `Version ${version.version_number}`}
+                                {version.name ||
+                                  `Version ${version.version_number}`}
                               </h3>
                               {isLatest && (
                                 <Badge

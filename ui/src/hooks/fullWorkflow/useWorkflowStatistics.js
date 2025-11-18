@@ -31,11 +31,7 @@ export function useWorkflowStatistics({
     } finally {
       setStatisticsLoading(false);
     }
-  }, [
-    isNewWorkflow,
-    autoRefreshReady,
-    workflowId,
-  ]);
+  }, [isNewWorkflow, autoRefreshReady, workflowId]);
 
   useEffect(() => {
     if (!workflowId || isNewWorkflow || !autoRefreshReady) {
@@ -43,7 +39,10 @@ export function useWorkflowStatistics({
     }
 
     fetchStatistics();
-    const interval = setInterval(fetchStatistics, STATISTICS_REFRESH_INTERVAL_MS);
+    const interval = setInterval(
+      fetchStatistics,
+      STATISTICS_REFRESH_INTERVAL_MS
+    );
     return () => clearInterval(interval);
   }, [autoRefreshReady, fetchStatistics, isNewWorkflow, workflowId]);
 
@@ -56,5 +55,3 @@ export function useWorkflowStatistics({
     fetchStatistics,
   };
 }
-
-

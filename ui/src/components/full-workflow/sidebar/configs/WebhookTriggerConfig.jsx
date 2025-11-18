@@ -19,18 +19,16 @@ const generateSecret = () => {
   if (cryptoSource?.getRandomValues) {
     const array = new Uint32Array(SECRET_LENGTH);
     cryptoSource.getRandomValues(array);
-    return Array.from(array, value =>
-      SECRET_ALPHABET[value % SECRET_ALPHABET.length]
+    return Array.from(
+      array,
+      value => SECRET_ALPHABET[value % SECRET_ALPHABET.length]
     ).join('');
   }
 
   // Fallback (should rarely happen, e.g., SSR)
   return Array.from({ length: SECRET_LENGTH })
     .map(
-      () =>
-        SECRET_ALPHABET[
-          Math.floor(Math.random() * SECRET_ALPHABET.length)
-        ]
+      () => SECRET_ALPHABET[Math.floor(Math.random() * SECRET_ALPHABET.length)]
     )
     .join('');
 };
@@ -204,7 +202,11 @@ export default function WebhookTriggerConfig({
               >
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
-              <Button type="button" variant="outline" onClick={handleGenerateSecret}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateSecret}
+              >
                 Regenerate
               </Button>
             </div>

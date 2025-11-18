@@ -620,7 +620,9 @@ export default function NodeSidebar({
                           style={{
                             padding: '0.75rem',
                             marginBottom: '0.5rem',
-                            background: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+                            background: isSelected
+                              ? 'hsl(var(--accent))'
+                              : 'hsl(var(--card))',
                             border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                             borderRadius: '6px',
                             cursor: 'pointer',
@@ -628,12 +630,14 @@ export default function NodeSidebar({
                           }}
                           onMouseEnter={e => {
                             if (!isSelected) {
-                              e.currentTarget.style.background = 'hsl(var(--muted))';
+                              e.currentTarget.style.background =
+                                'hsl(var(--muted))';
                             }
                           }}
                           onMouseLeave={e => {
                             if (!isSelected) {
-                              e.currentTarget.style.background = 'hsl(var(--card))';
+                              e.currentTarget.style.background =
+                                'hsl(var(--card))';
                             }
                           }}
                         >

@@ -12,11 +12,13 @@ export default function ScheduleTriggerNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected
-          ? 'hsl(var(--accent))'
-          : 'hsl(var(--card))',
+        background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${
-          status !== 'idle' ? statusColor[status] : selected ? '#8b5cf6' : 'hsl(var(--border))'
+          status !== 'idle'
+            ? statusColor[status]
+            : selected
+              ? '#8b5cf6'
+              : 'hsl(var(--border))'
         }`,
         borderRadius: '0.75rem',
         padding: '1rem',

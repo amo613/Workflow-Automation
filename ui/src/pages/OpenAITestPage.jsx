@@ -387,7 +387,7 @@ function OpenAITestPage() {
 
         <div className="call-section">
           <Link
-            to="/choose"
+            to="/fullWorkflows"
             style={{
               display: 'block',
               padding: '0.75rem 1.5rem',
@@ -624,7 +624,12 @@ function OpenAITestPage() {
                     </label>
                   </div>
                   <div>
-                    <small style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.85em' }}>
+                    <small
+                      style={{
+                        color: 'hsl(var(--muted-foreground))',
+                        fontSize: '0.85em',
+                      }}
+                    >
                       Note: Tools must be configured server-side
                     </small>
                   </div>
@@ -683,7 +688,9 @@ function OpenAITestPage() {
 
         {showTranscript && (
           <div className="transcript-section">
-            <h2><MessageSquare className="w-4 h-4 mr-1" /> Conversation</h2>
+            <h2>
+              <MessageSquare className="w-4 h-4 mr-1" /> Conversation
+            </h2>
             <div className="transcript-content">
               {transcriptEntries.map(entry => (
                 <div
@@ -724,8 +731,9 @@ function OpenAITestPage() {
                 display: 'block',
               }}
             >
-              <Lightbulb className="w-3 h-3 mr-1" /> Tip: Separate multiple numbers with commas (e.g., +49123456789,
-              +49987654321) for bulk calls
+              <Lightbulb className="w-3 h-3 mr-1" /> Tip: Separate multiple
+              numbers with commas (e.g., +49123456789, +49987654321) for bulk
+              calls
             </small>
           </div>
           <button
@@ -752,7 +760,9 @@ function OpenAITestPage() {
                 width: '10px',
                 height: '10px',
                 borderRadius: '50%',
-                background: gcalConnected ? '#10b981' : 'hsl(var(--destructive))',
+                background: gcalConnected
+                  ? '#10b981'
+                  : 'hsl(var(--destructive))',
               }}
             />
             <span>{gcalConnected ? 'Connected' : 'Disconnected'}</span>

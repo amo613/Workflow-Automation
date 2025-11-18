@@ -40,13 +40,18 @@ export function useExecutionTracking({
       }
 
       if (executionData.nodeOutputs) {
-        Object.entries(executionData.nodeOutputs).forEach(([nodeId, output]) => {
-          const existing = nodeOutputsMap.get(nodeId);
-          const executionTimestamp = executionData.timestamp || 0;
-          if (!existing || executionTimestamp > existing.timestamp) {
-            nodeOutputsMap.set(nodeId, { output, timestamp: executionTimestamp });
+        Object.entries(executionData.nodeOutputs).forEach(
+          ([nodeId, output]) => {
+            const existing = nodeOutputsMap.get(nodeId);
+            const executionTimestamp = executionData.timestamp || 0;
+            if (!existing || executionTimestamp > existing.timestamp) {
+              nodeOutputsMap.set(nodeId, {
+                output,
+                timestamp: executionTimestamp,
+              });
+            }
           }
-        });
+        );
       }
     });
 
@@ -117,7 +122,8 @@ export function useExecutionTracking({
             workflowId,
             eventId,
             status,
-            nodeOutputsCount: Object.keys(executionData.nodeOutputs || {}).length,
+            nodeOutputsCount: Object.keys(executionData.nodeOutputs || {})
+              .length,
             executedEdgesCount: executionData.executedEdges?.length || 0,
           });
 
@@ -143,14 +149,15 @@ export function useExecutionTracking({
           return false;
         }
       } catch (error) {
-        console.warn('Error polling execution', { workflowId, eventId, error: error.message });
+        console.warn('Error polling execution', {
+          workflowId,
+          eventId,
+          error: error.message,
+        });
         return false;
       }
     },
-    [
-      updateVisualizationFromActiveExecutions,
-      workflowId,
-    ]
+    [updateVisualizationFromActiveExecutions, workflowId]
   );
 
   const startPollingExecution = useCallback(
@@ -197,5 +204,3 @@ export function useExecutionTracking({
     startPollingExecution,
   };
 }
-
-

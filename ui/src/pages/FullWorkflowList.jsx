@@ -2,9 +2,21 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,9 +86,12 @@ function FullWorkflowList() {
     if (!workflowToDelete) return;
 
     try {
-      const response = await fetchWithCSRF(`/api/full-workflows/${workflowToDelete}`, {
-        method: 'DELETE',
-      });
+      const response = await fetchWithCSRF(
+        `/api/full-workflows/${workflowToDelete}`,
+        {
+          method: 'DELETE',
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Failed to delete workflow');
@@ -113,7 +128,9 @@ function FullWorkflowList() {
         throw new Error('Failed to update workflow');
       }
 
-      toast.success(`Workflow ${!workflow.is_active ? 'activated' : 'deactivated'}`);
+      toast.success(
+        `Workflow ${!workflow.is_active ? 'activated' : 'deactivated'}`
+      );
       fetchWorkflows();
     } catch (err) {
       toast.error('Failed to update workflow: ' + err.message);
@@ -125,7 +142,9 @@ function FullWorkflowList() {
     return (
       <PageContainer>
         <div className="flex items-center justify-center h-96">
-          <div className="text-lg text-muted-foreground">Loading workflows...</div>
+          <div className="text-lg text-muted-foreground">
+            Loading workflows...
+          </div>
         </div>
       </PageContainer>
     );
@@ -152,7 +171,8 @@ function FullWorkflowList() {
               <div>
                 <CardTitle>All Workflows</CardTitle>
                 <CardDescription>
-                  {workflows.length} workflow{workflows.length !== 1 ? 's' : ''} found
+                  {workflows.length} workflow{workflows.length !== 1 ? 's' : ''}{' '}
+                  found
                 </CardDescription>
               </div>
               <Select value={filterType} onValueChange={setFilterType}>
@@ -197,16 +217,22 @@ function FullWorkflowList() {
                     <TableRow
                       key={workflow.id}
                       className="cursor-pointer"
-                      onClick={() => navigate(`/fullWorkflows/edit/${workflow.id}`)}
+                      onClick={() =>
+                        navigate(`/fullWorkflows/edit/${workflow.id}`)
+                      }
                     >
                       <TableCell className="font-medium">
                         {workflow.name || 'Unnamed Workflow'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{workflow.type || 'automation'}</Badge>
+                        <Badge variant="outline">
+                          {workflow.type || 'automation'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={workflow.is_active ? 'default' : 'secondary'}>
+                        <Badge
+                          variant={workflow.is_active ? 'default' : 'secondary'}
+                        >
                           {workflow.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
@@ -247,12 +273,16 @@ function FullWorkflowList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the workflow.
+              This action cannot be undone. This will permanently delete the
+              workflow.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

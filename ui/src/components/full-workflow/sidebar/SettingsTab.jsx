@@ -542,7 +542,9 @@ function CallAgentSettings({ localData, handleUpdate, knowledgeBaseEntries }) {
                       alignItems: 'center',
                       gap: '0.75rem',
                       padding: '0.75rem',
-                      background: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
+                      background: isSelected
+                        ? 'hsl(var(--accent))'
+                        : 'hsl(var(--muted))',
                       border: `1px solid ${isSelected ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                       borderRadius: '8px',
                       cursor: 'pointer',

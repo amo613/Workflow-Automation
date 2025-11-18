@@ -1,7 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import WorkflowList from './pages/WorkflowList';
 import WorkflowEditor from './pages/WorkflowEditor';
-import ChooseWorkflowType from './pages/ChooseWorkflowType';
 import FullWorkflowList from './pages/FullWorkflowList';
 import FullWorkflowEditor from './pages/FullWorkflowEditor';
 import OAuthCallback from './pages/OAuthCallback';
@@ -17,7 +16,6 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/choose" element={<ChooseWorkflowType />} />
         <Route path="/workflows" element={<WorkflowList />} />
         <Route path="/workflows/new" element={<WorkflowEditor />} />
         <Route path="/workflows/edit/:id" element={<WorkflowEditor />} />
@@ -32,7 +30,7 @@ function App() {
           element={<OAuthCallback />}
         />
         <Route path="/test-openai" element={<OpenAITestPage />} />
-        <Route path="*" element={<ChooseWorkflowType />} />
+        <Route path="*" element={<FullWorkflowList />} />
       </Routes>
       <Toaster />
     </MainLayout>

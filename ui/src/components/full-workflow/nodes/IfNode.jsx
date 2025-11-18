@@ -4,9 +4,7 @@ export default function IfNode({ data, selected }) {
   return (
     <div
       style={{
-        background: selected
-          ? 'hsl(var(--accent))'
-          : 'hsl(var(--card))',
+        background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${selected ? '#f59e0b' : 'hsl(var(--border))'}`,
         borderRadius: '0.75rem',
         padding: '1rem',
@@ -90,11 +88,15 @@ export default function IfNode({ data, selected }) {
             flexWrap: 'wrap',
           }}
         >
-          <span style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}>{data.condition1 || '?'}</span>
+          <span style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}>
+            {data.condition1 || '?'}
+          </span>
           <span style={{ color: '#f59e0b', fontWeight: 700 }}>
             {data.operator || '=='}
           </span>
-          <span style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}>{data.condition2 || '?'}</span>
+          <span style={{ fontWeight: 600, color: 'hsl(var(--foreground))' }}>
+            {data.condition2 || '?'}
+          </span>
         </div>
       )}
 
@@ -108,7 +110,8 @@ export default function IfNode({ data, selected }) {
           height: '16px',
           border: '3px solid hsl(var(--card))',
           left: '30%',
-          boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2), 0 2px 8px rgba(16, 185, 129, 0.4)',
+          boxShadow:
+            '0 0 0 2px rgba(16, 185, 129, 0.2), 0 2px 8px rgba(16, 185, 129, 0.4)',
         }}
       />
       <Handle
@@ -121,7 +124,8 @@ export default function IfNode({ data, selected }) {
           height: '16px',
           border: '3px solid hsl(var(--card))',
           left: '70%',
-          boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(239, 68, 68, 0.4)',
+          boxShadow:
+            '0 0 0 2px rgba(239, 68, 68, 0.2), 0 2px 8px rgba(239, 68, 68, 0.4)',
         }}
       />
     </div>

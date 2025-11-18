@@ -26,11 +26,13 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
   return (
     <div
       style={{
-        background: selected
-          ? 'hsl(var(--accent))'
-          : 'hsl(var(--card))',
+        background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${
-          status !== 'idle' ? statusColor[status] : selected ? color : 'hsl(var(--border))'
+          status !== 'idle'
+            ? statusColor[status]
+            : selected
+              ? color
+              : 'hsl(var(--border))'
         }`,
         borderRadius: '0.75rem',
         padding: '1rem',

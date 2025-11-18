@@ -10,10 +10,7 @@ const buildResponseError = async (response, fallbackMessage) => {
   try {
     const payload = await response.clone().json();
     message =
-      payload?.error ||
-      payload?.message ||
-      payload?.data?.error ||
-      message;
+      payload?.error || payload?.message || payload?.data?.error || message;
   } catch {
     try {
       const textPayload = await response.text();
@@ -51,10 +48,7 @@ export const workflowPerformanceService = {
     );
 
     if (!response.ok) {
-      throw await buildResponseError(
-        response,
-        'Failed to fetch performance'
-      );
+      throw await buildResponseError(response, 'Failed to fetch performance');
     }
 
     const data = await response.json();
@@ -76,10 +70,7 @@ export const workflowPerformanceService = {
     );
 
     if (!response.ok) {
-      throw await buildResponseError(
-        response,
-        'Failed to fetch node history'
-      );
+      throw await buildResponseError(response, 'Failed to fetch node history');
     }
 
     const data = await response.json();
@@ -101,10 +92,7 @@ export const workflowPerformanceService = {
     );
 
     if (!response.ok) {
-      throw await buildResponseError(
-        response,
-        'Failed to clear performance'
-      );
+      throw await buildResponseError(response, 'Failed to clear performance');
     }
 
     return { success: true };

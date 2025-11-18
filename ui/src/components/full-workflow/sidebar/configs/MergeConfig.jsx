@@ -30,7 +30,9 @@ export default function MergeConfig({ localData, handleUpdate }) {
           color: '#0369a1',
         }}
       >
-        <strong style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <strong
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
           <Lightbulb className="w-4 h-4" />
           How it works:
         </strong>

@@ -29,11 +29,7 @@ export function useWorkflowPerformanceData({
     } finally {
       setPerformanceLoading(false);
     }
-  }, [
-    isNewWorkflow,
-    autoRefreshReady,
-    workflowId,
-  ]);
+  }, [isNewWorkflow, autoRefreshReady, workflowId]);
 
   useEffect(() => {
     if (!workflowId || isNewWorkflow || !autoRefreshReady) {
@@ -41,12 +37,20 @@ export function useWorkflowPerformanceData({
     }
 
     fetchPerformance();
-    const interval = setInterval(fetchPerformance, PERFORMANCE_REFRESH_INTERVAL_MS);
+    const interval = setInterval(
+      fetchPerformance,
+      PERFORMANCE_REFRESH_INTERVAL_MS
+    );
     return () => clearInterval(interval);
   }, [autoRefreshReady, fetchPerformance, isNewWorkflow, workflowId]);
 
   useEffect(() => {
-    if (!selectedNodeForGraph || !workflowId || isNewWorkflow || !autoRefreshReady) {
+    if (
+      !selectedNodeForGraph ||
+      !workflowId ||
+      isNewWorkflow ||
+      !autoRefreshReady
+    ) {
       return;
     }
     workflowPerformanceService
@@ -56,12 +60,7 @@ export function useWorkflowPerformanceData({
         console.error('Error fetching node history:', err);
         setNodeHistory([]);
       });
-  }, [
-    isNewWorkflow,
-    autoRefreshReady,
-    selectedNodeForGraph,
-    workflowId,
-  ]);
+  }, [isNewWorkflow, autoRefreshReady, selectedNodeForGraph, workflowId]);
 
   return {
     performance,
@@ -73,5 +72,3 @@ export function useWorkflowPerformanceData({
     fetchPerformance,
   };
 }
-
-

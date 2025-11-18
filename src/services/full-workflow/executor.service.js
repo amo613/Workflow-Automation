@@ -70,12 +70,13 @@ export async function executeWorkflow(
     // This allows multiple trigger nodes in the same workflow to work independently
     if (input && typeof input === 'object' && input.triggerNodeId) {
       startNode = nodes.find(node => node.id === input.triggerNodeId);
-      if (startNode && (
-        startNode.type === 'google-sheets-trigger' ||
-        startNode.type === 'webhook-trigger' ||
-        startNode.type === 'schedule-trigger' ||
-        startNode.type === 'start'
-      )) {
+      if (
+        startNode &&
+        (startNode.type === 'google-sheets-trigger' ||
+          startNode.type === 'webhook-trigger' ||
+          startNode.type === 'schedule-trigger' ||
+          startNode.type === 'start')
+      ) {
         logger.info('Using specific trigger node from input', {
           triggerNodeId: input.triggerNodeId,
           nodeType: startNode.type,
@@ -85,11 +86,14 @@ export async function executeWorkflow(
               : workflowIdOrWorkflow,
         });
       } else {
-        logger.warn('Specified triggerNodeId not found or invalid, falling back to default', {
-          triggerNodeId: input.triggerNodeId,
-          foundNode: !!startNode,
-          nodeType: startNode?.type,
-        });
+        logger.warn(
+          'Specified triggerNodeId not found or invalid, falling back to default',
+          {
+            triggerNodeId: input.triggerNodeId,
+            foundNode: !!startNode,
+            nodeType: startNode?.type,
+          }
+        );
         startNode = null; // Fall back to default behavior
       }
     }

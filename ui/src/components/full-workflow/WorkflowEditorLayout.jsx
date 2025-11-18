@@ -1,8 +1,4 @@
-import ReactFlow, {
-  Background,
-  Controls,
-  MiniMap,
-} from 'reactflow';
+import ReactFlow, { Background, Controls, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
 import StartNode from './nodes/StartNode';
 import EndNode from './nodes/EndNode';
@@ -171,20 +167,20 @@ function WorkflowEditorLayout({
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', height: '100%', flexDirection: 'column' }}>
       <div
         style={{
           background: 'hsl(var(--card))',
           padding: '1rem 2rem',
           borderBottom: '1px solid hsl(var(--border))',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
           color: 'hsl(var(--foreground))',
           width: '100%',
           maxWidth: '100%',
           overflowX: 'hidden',
           boxSizing: 'border-box',
+          gap: '1.5rem',
         }}
       >
         <div
@@ -193,6 +189,7 @@ function WorkflowEditorLayout({
             gap: '1rem',
             alignItems: 'center',
             flex: 1,
+            minWidth: 0,
           }}
         >
           <button
@@ -241,7 +238,16 @@ function WorkflowEditorLayout({
             <option value="call-workflow">Call Workflow</option>
           </select>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'center',
+            flex: 1,
+            justifyContent: 'flex-end',
+          }}
+        >
           <button
             onClick={toggleKnowledgeBase}
             style={{
@@ -415,7 +421,9 @@ function WorkflowEditorLayout({
             >
               Error
             </div>
-            <div style={{ fontSize: '0.875rem', color: 'hsl(var(--destructive))' }}>
+            <div
+              style={{ fontSize: '0.875rem', color: 'hsl(var(--destructive))' }}
+            >
               {generalError}
             </div>
           </div>
@@ -668,7 +676,12 @@ function WorkflowEditorLayout({
                           >
                             Last Execution
                           </div>
-                          <div style={{ fontSize: '0.7rem', color: 'hsl(var(--foreground))' }}>
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              color: 'hsl(var(--foreground))',
+                            }}
+                          >
                             {new Date(
                               statistics.lastExecution
                             ).toLocaleString()}
@@ -745,7 +758,10 @@ function WorkflowEditorLayout({
                             }}
                           >
                             {statistics.errors.slice(-3).map((err, idx) => (
-                              <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                              <div
+                                key={idx}
+                                style={{ marginBottom: '0.25rem' }}
+                              >
                                 {new Date(err.timestamp).toLocaleString()}:{' '}
                                 {err.error}
                               </div>
@@ -788,8 +804,8 @@ function WorkflowEditorLayout({
                             }}
                           >
                             <span>
-                              <Clipboard className="w-4 h-4 mr-1" /> Execution History (
-                              {executionHistory.length || 0})
+                              <Clipboard className="w-4 h-4 mr-1" /> Execution
+                              History ({executionHistory.length || 0})
                             </span>
                             <span>{showExecutionHistory ? '▼' : '▶'}</span>
                           </button>
@@ -944,7 +960,8 @@ function WorkflowEditorLayout({
                                           <div
                                             style={{
                                               fontSize: '0.65rem',
-                                              color: 'hsl(var(--muted-foreground))',
+                                              color:
+                                                'hsl(var(--muted-foreground))',
                                               marginTop: '0.125rem',
                                             }}
                                           >
@@ -958,7 +975,8 @@ function WorkflowEditorLayout({
                                         <span
                                           style={{
                                             fontSize: '0.7rem',
-                                            color: 'hsl(var(--muted-foreground))',
+                                            color:
+                                              'hsl(var(--muted-foreground))',
                                             pointerEvents: 'none',
                                           }}
                                         >
@@ -1009,7 +1027,8 @@ function WorkflowEditorLayout({
                                               <summary
                                                 style={{
                                                   cursor: 'pointer',
-                                                  color: 'hsl(var(--destructive))',
+                                                  color:
+                                                    'hsl(var(--destructive))',
                                                   fontSize: '0.65rem',
                                                   fontWeight: 600,
                                                 }}
@@ -1020,7 +1039,8 @@ function WorkflowEditorLayout({
                                                 style={{
                                                   marginTop: '0.5rem',
                                                   padding: '0.5rem',
-                                                  background: 'hsl(var(--destructive) / 0.1)',
+                                                  background:
+                                                    'hsl(var(--destructive) / 0.1)',
                                                   borderRadius: '4px',
                                                   fontSize: '0.6rem',
                                                   color: '#991b1b',
@@ -1086,7 +1106,9 @@ function WorkflowEditorLayout({
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 600,
-                    color: performance?.workflow ? '#10b981' : 'hsl(var(--muted-foreground))',
+                    color: performance?.workflow
+                      ? '#10b981'
+                      : 'hsl(var(--muted-foreground))',
                     margin: 0,
                   }}
                 >
@@ -1098,7 +1120,9 @@ function WorkflowEditorLayout({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: performance?.workflow ? '#10b981' : 'hsl(var(--muted-foreground))',
+                    color: performance?.workflow
+                      ? '#10b981'
+                      : 'hsl(var(--muted-foreground))',
                     cursor: 'pointer',
                     fontSize: '0.75rem',
                   }}
@@ -1178,7 +1202,11 @@ function WorkflowEditorLayout({
                               marginBottom: '0.25rem',
                             }}
                           >
-                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>Avg Time</span>
+                            <span
+                              style={{ color: 'hsl(var(--muted-foreground))' }}
+                            >
+                              Avg Time
+                            </span>
                             <span style={{ fontWeight: 600, color: '#1f2937' }}>
                               {performance.workflow.avgExecutionTime.toFixed(2)}
                               ms
@@ -1191,7 +1219,11 @@ function WorkflowEditorLayout({
                               marginBottom: '0.25rem',
                             }}
                           >
-                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>Min Time</span>
+                            <span
+                              style={{ color: 'hsl(var(--muted-foreground))' }}
+                            >
+                              Min Time
+                            </span>
                             <span style={{ fontWeight: 600, color: '#10b981' }}>
                               {performance.workflow.minExecutionTime.toFixed(2)}
                               ms
@@ -1204,7 +1236,11 @@ function WorkflowEditorLayout({
                               marginBottom: '0.25rem',
                             }}
                           >
-                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>Max Time</span>
+                            <span
+                              style={{ color: 'hsl(var(--muted-foreground))' }}
+                            >
+                              Max Time
+                            </span>
                             <span style={{ fontWeight: 600, color: '#ef4444' }}>
                               {performance.workflow.maxExecutionTime.toFixed(2)}
                               ms
@@ -1216,7 +1252,9 @@ function WorkflowEditorLayout({
                               justifyContent: 'space-between',
                             }}
                           >
-                            <span style={{ color: 'hsl(var(--muted-foreground))' }}>
+                            <span
+                              style={{ color: 'hsl(var(--muted-foreground))' }}
+                            >
                               Total Executions
                             </span>
                             <span style={{ fontWeight: 600, color: '#1f2937' }}>
@@ -1249,9 +1287,10 @@ function WorkflowEditorLayout({
                                 key={node.nodeId}
                                 style={{
                                   padding: '0.5rem',
-                                  background: idx === 0
-                                    ? 'hsl(var(--muted))'
-                                    : 'hsl(var(--card))',
+                                  background:
+                                    idx === 0
+                                      ? 'hsl(var(--muted))'
+                                      : 'hsl(var(--card))',
                                   borderRadius: '6px',
                                   marginBottom: '0.5rem',
                                   border:
@@ -1364,7 +1403,8 @@ function WorkflowEditorLayout({
                                             );
                                             const height =
                                               maxTime > 0
-                                                ? (record.executionTime / maxTime) *
+                                                ? (record.executionTime /
+                                                    maxTime) *
                                                   100
                                                 : 0;
                                             return (
@@ -1467,9 +1507,10 @@ function WorkflowEditorLayout({
               style={{
                 marginBottom: '1.5rem',
                 padding: '0.75rem',
-                background: activeTriggers.length > 0
-                  ? 'hsl(var(--muted))'
-                  : 'hsl(var(--card))',
+                background:
+                  activeTriggers.length > 0
+                    ? 'hsl(var(--muted))'
+                    : 'hsl(var(--card))',
                 border: `1px solid ${activeTriggers.length > 0 ? '#3b82f6' : 'hsl(var(--border))'}`,
                 borderRadius: '8px',
               }}
@@ -1580,25 +1621,46 @@ function WorkflowEditorLayout({
                           gap: '0.5rem',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {trigger.triggerConfig?.type === 'google-sheets-trigger' ? (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                          }}
+                        >
+                          {trigger.triggerConfig?.type ===
+                          'google-sheets-trigger' ? (
                             <>
-                              <Sheet className="w-4 h-4" style={{ color: '#34d399' }} />
+                              <Sheet
+                                className="w-4 h-4"
+                                style={{ color: '#34d399' }}
+                              />
                               <span>Google Sheets Trigger</span>
                             </>
-                          ) : trigger.triggerConfig?.type === 'schedule-trigger' ? (
+                          ) : trigger.triggerConfig?.type ===
+                            'schedule-trigger' ? (
                             <>
-                              <Clock className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+                              <Clock
+                                className="w-4 h-4"
+                                style={{ color: '#8b5cf6' }}
+                              />
                               <span>Schedule Trigger</span>
                             </>
-                          ) : trigger.triggerConfig?.type === 'webhook-trigger' ? (
+                          ) : trigger.triggerConfig?.type ===
+                            'webhook-trigger' ? (
                             <>
-                              <LinkIcon className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+                              <LinkIcon
+                                className="w-4 h-4"
+                                style={{ color: '#8b5cf6' }}
+                              />
                               <span>Webhook Trigger</span>
                             </>
                           ) : (
                             <>
-                              <Rocket className="w-4 h-4" style={{ color: '#10b981' }} />
+                              <Rocket
+                                className="w-4 h-4"
+                                style={{ color: '#10b981' }}
+                              />
                               <span>Manual Trigger</span>
                             </>
                           )}
@@ -1975,7 +2037,12 @@ function WorkflowEditorLayout({
             nodeTypes={nodeTypes}
             fitView
           >
-            <Background variant="grid" gap={24} size={1} color="hsl(var(--border))" />
+            <Background
+              variant="grid"
+              gap={24}
+              size={1}
+              color="hsl(var(--border))"
+            />
             <Controls />
             <MiniMap
               nodeColor={node => {
@@ -2116,5 +2183,3 @@ function WorkflowEditorLayout({
 }
 
 export default WorkflowEditorLayout;
-
-

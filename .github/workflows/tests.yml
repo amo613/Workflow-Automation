@@ -45,9 +45,6 @@ jobs:
           NODE_OPTIONS: --experimental-vm-modules
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://test:test@localhost:5432/testdb' }}
           REDIS_URL: redis://localhost:6379
-          PORT: 3001
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-secret-key-for-ci' }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test-key' }}
         run: npm test
         continue-on-error: true
 
