@@ -6,6 +6,10 @@ import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 import { db } from '#config/database.js';
 import { knowledgeBaseEntries } from '#models/knowledge-base.model.js';
 import { eq, inArray, and } from 'drizzle-orm';
+import {
+  getUserTwilioCredentials,
+  decryptTwilioCredentials,
+} from '#services/twilio-credentials.service.js';
 
 // Call Agent Node: Triggert einen Anruf über das BullMQ Job-System
 export async function executeCallAgent(data, context) {
@@ -214,6 +218,51 @@ ${knowledgeBaseText}`;
   try {
     const userId = context.userId || context.workflowInput?.userId;
 
+    // Load Twilio credentials from database
+    let twilioCredentials = null;
+    if (userId) {
+      try {
+        const encryptedCredentials = await getUserTwilioCredentials(userId);
+        if (encryptedCredentials) {
+          twilioCredentials = decryptTwilioCredentials(encryptedCredentials);
+          // Add phone number from node data (resolved) - this is the "from" number
+          const fromPhoneNumber = resolveTemplate(
+            data.from_phone_number || '',
+            context
+          );
+          if (fromPhoneNumber) {
+            twilioCredentials.phoneNumber = fromPhoneNumber;
+          } else {
+            logger.warn(
+              'No from_phone_number set in node, Twilio call may fail',
+              {
+                userId,
+              }
+            );
+          }
+          logger.info('Loaded Twilio credentials from database', {
+            userId,
+            hasAccountSid: !!twilioCredentials.accountSid,
+            hasAuthToken: !!twilioCredentials.authToken,
+            hasPhoneNumber: !!twilioCredentials.phoneNumber,
+          });
+        } else {
+          logger.warn(
+            'No Twilio credentials found in database, falling back to .env',
+            {
+              userId,
+            }
+          );
+        }
+      } catch (error) {
+        logger.error('Failed to load Twilio credentials from database', {
+          error: error.message,
+          userId,
+        });
+        // Continue without credentials - will fall back to .env
+      }
+    }
+
     const job = await createJob(
       'phone-call',
       {
@@ -231,6 +280,7 @@ ${knowledgeBaseText}`;
           tool_choice: tool_choice || 'auto',
           userId: userId || null,
         },
+        ...(twilioCredentials ? { twilioCredentials } : {}),
       },
       {
         maxAttempts: 3,

@@ -283,6 +283,38 @@ ${parsedConfig.instructions.trim()}`;
                   }
                 }
               }
+
+              // Send greeting for inbound calls (Agent speaks first)
+              if (parsedConfig?.isInbound && parsedConfig?.greeting) {
+                try {
+                  logger.info(
+                    'Sending initial greeting for inbound call (fast-path)',
+                    {
+                      callSid,
+                      greeting: parsedConfig.greeting,
+                    }
+                  );
+
+                  openaiWs.send(
+                    JSON.stringify({
+                      type: 'response.create',
+                      response: {
+                        modalities: ['text', 'audio'],
+                        instructions: parsedConfig.greeting,
+                      },
+                    })
+                  );
+
+                  logger.info('Greeting sent successfully (fast-path)', {
+                    callSid,
+                  });
+                } catch (error) {
+                  logger.error('Error sending greeting (fast-path)', {
+                    callSid,
+                    error: error.message,
+                  });
+                }
+              }
             }
           }
         }

@@ -25,7 +25,9 @@ export function useNodeSidebarViewModel(
   const [showSheetModal, setShowSheetModal] = useState(false);
 
   // Data hooks
-  const shouldFetchKB = selectedNode?.type === 'call-agent';
+  const shouldFetchKB =
+    selectedNode?.type === 'call-agent' ||
+    selectedNode?.type === 'call-trigger';
   const { entries: knowledgeBaseEntries, refetch: refetchKB } =
     useKnowledgeBase(shouldFetchKB);
   const { workflows, refetch: refetchWorkflows } = useWorkflows(shouldFetchKB);

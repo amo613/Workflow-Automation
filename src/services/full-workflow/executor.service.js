@@ -75,6 +75,7 @@ export async function executeWorkflow(
         (startNode.type === 'google-sheets-trigger' ||
           startNode.type === 'webhook-trigger' ||
           startNode.type === 'schedule-trigger' ||
+          startNode.type === 'call-trigger' ||
           startNode.type === 'start')
       ) {
         logger.info('Using specific trigger node from input', {
@@ -105,6 +106,7 @@ export async function executeWorkflow(
           node.type === 'google-sheets-trigger' ||
           node.type === 'webhook-trigger' ||
           node.type === 'schedule-trigger' ||
+          node.type === 'call-trigger' ||
           node.type === 'start'
       );
       startNode = triggerNodes.length > 0 ? triggerNodes[0] : null;

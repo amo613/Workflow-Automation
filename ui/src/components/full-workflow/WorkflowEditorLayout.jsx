@@ -5,6 +5,7 @@ import EndNode from './nodes/EndNode';
 import WebhookNode from './nodes/WebhookNode';
 import HttpRequestNode from './nodes/HttpRequestNode';
 import CallAgentNode from './nodes/CallAgentNode';
+import CallTriggerNode from './nodes/CallTriggerNode';
 import VariableSetNode from './nodes/VariableSetNode';
 import IfNode from './nodes/IfNode';
 import WaitNode from './nodes/WaitNode';
@@ -41,6 +42,7 @@ import {
   Clock,
   Globe,
   Phone,
+  PhoneIncoming,
   Mail,
   GitBranch,
   GitMerge,
@@ -55,6 +57,7 @@ const nodeTypes = {
   webhook: WebhookNode,
   'http-request': HttpRequestNode,
   'call-agent': CallAgentNode,
+  'call-trigger': CallTriggerNode,
   'variable-set': VariableSetNode,
   if: IfNode,
   wait: WaitNode,
@@ -1600,210 +1603,265 @@ function WorkflowEditorLayout({
                         Schedule, or Webhook) and save the workflow to activate.
                       </div>
                     )}
-                  {activeTriggers.map((trigger, index) => (
-                    <div
-                      key={trigger.id || index}
-                      style={{
-                        padding: '0.75rem',
-                        background: 'hsl(var(--muted))',
-                        borderRadius: '6px',
-                        fontSize: '0.75rem',
-                        border: '1px solid hsl(var(--border))',
-                        color: 'hsl(var(--foreground))',
-                      }}
-                    >
+                  {activeTriggers
+                    .filter(
+                      trigger =>
+                        trigger.triggerConfig?.type &&
+                        trigger.triggerConfig.type !== 'start'
+                    )
+                    .map((trigger, index) => (
                       <div
+                        key={trigger.id || index}
                         style={{
-                          fontWeight: 600,
-                          marginBottom: '0.5rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
+                          padding: '0.75rem',
+                          background: 'hsl(var(--muted))',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          border: '1px solid hsl(var(--border))',
+                          color: 'hsl(var(--foreground))',
                         }}
                       >
                         <div
                           style={{
+                            fontWeight: 600,
+                            marginBottom: '0.5rem',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.5rem',
                           }}
                         >
-                          {trigger.triggerConfig?.type ===
-                          'google-sheets-trigger' ? (
-                            <>
-                              <Sheet
-                                className="w-4 h-4"
-                                style={{ color: '#34d399' }}
-                              />
-                              <span>Google Sheets Trigger</span>
-                            </>
-                          ) : trigger.triggerConfig?.type ===
-                            'schedule-trigger' ? (
-                            <>
-                              <Clock
-                                className="w-4 h-4"
-                                style={{ color: '#8b5cf6' }}
-                              />
-                              <span>Schedule Trigger</span>
-                            </>
-                          ) : trigger.triggerConfig?.type ===
-                            'webhook-trigger' ? (
-                            <>
-                              <LinkIcon
-                                className="w-4 h-4"
-                                style={{ color: '#8b5cf6' }}
-                              />
-                              <span>Webhook Trigger</span>
-                            </>
-                          ) : (
-                            <>
-                              <Rocket
-                                className="w-4 h-4"
-                                style={{ color: '#10b981' }}
-                              />
-                              <span>Manual Trigger</span>
-                            </>
-                          )}
-                        </div>
-                        {trigger.state && (
-                          <span
+                          <div
                             style={{
-                              padding: '0.125rem 0.5rem',
-                              borderRadius: '12px',
-                              fontSize: '0.65rem',
-                              background:
-                                trigger.state === 'active'
-                                  ? '#10b981'
-                                  : '#64748b',
-                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
                             }}
                           >
-                            {trigger.state}
-                          </span>
+                            {trigger.triggerConfig?.type ===
+                            'google-sheets-trigger' ? (
+                              <>
+                                <Sheet
+                                  className="w-4 h-4"
+                                  style={{ color: '#34d399' }}
+                                />
+                                <span>Google Sheets Trigger</span>
+                              </>
+                            ) : trigger.triggerConfig?.type ===
+                              'schedule-trigger' ? (
+                              <>
+                                <Clock
+                                  className="w-4 h-4"
+                                  style={{ color: '#8b5cf6' }}
+                                />
+                                <span>Schedule Trigger</span>
+                              </>
+                            ) : trigger.triggerConfig?.type ===
+                              'webhook-trigger' ? (
+                              <>
+                                <LinkIcon
+                                  className="w-4 h-4"
+                                  style={{ color: '#8b5cf6' }}
+                                />
+                                <span>Webhook Trigger</span>
+                              </>
+                            ) : trigger.triggerConfig?.type ===
+                              'call-trigger' ? (
+                              <>
+                                <PhoneIncoming
+                                  className="w-4 h-4"
+                                  style={{ color: '#3b82f6' }}
+                                />
+                                <span>Call Trigger</span>
+                              </>
+                            ) : (
+                              <>
+                                <Rocket
+                                  className="w-4 h-4"
+                                  style={{ color: '#10b981' }}
+                                />
+                                <span>Manual Trigger</span>
+                              </>
+                            )}
+                          </div>
+                          {trigger.state && (
+                            <span
+                              style={{
+                                padding: '0.125rem 0.5rem',
+                                borderRadius: '12px',
+                                fontSize: '0.65rem',
+                                background:
+                                  trigger.state === 'active'
+                                    ? '#10b981'
+                                    : '#64748b',
+                                color: 'white',
+                              }}
+                            >
+                              {trigger.state}
+                            </span>
+                          )}
+                        </div>
+                        {trigger.triggerConfig?.type === 'webhook-trigger' && (
+                          <>
+                            <div
+                              style={{
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Method: {trigger.triggerConfig.method || 'POST'}
+                            </div>
+                            <div
+                              style={{
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                                wordBreak: 'break-all',
+                              }}
+                            >
+                              URL:{' '}
+                              <code
+                                style={{
+                                  background: 'hsl(var(--muted))',
+                                  padding: '0.125rem 0.25rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.65rem',
+                                }}
+                              >
+                                {typeof window !== 'undefined'
+                                  ? `${window.location.origin}${trigger.triggerConfig.webhookUrl}`
+                                  : trigger.triggerConfig.webhookUrl}
+                              </code>
+                            </div>
+                          </>
+                        )}
+                        {trigger.triggerConfig?.type === 'call-trigger' && (
+                          <>
+                            {trigger.triggerConfig.phoneNumber && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.7rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Phone Number:{' '}
+                                {trigger.triggerConfig.phoneNumber}
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                                wordBreak: 'break-all',
+                              }}
+                            >
+                              Webhook URL:{' '}
+                              <code
+                                style={{
+                                  background: 'hsl(var(--muted))',
+                                  padding: '0.125rem 0.25rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.65rem',
+                                }}
+                              >
+                                {typeof window !== 'undefined'
+                                  ? `${window.location.origin}${trigger.triggerConfig.webhookUrl}`
+                                  : trigger.triggerConfig.webhookUrl}
+                              </code>
+                            </div>
+                          </>
+                        )}
+                        {trigger.triggerConfig?.type ===
+                          'google-sheets-trigger' && (
+                          <>
+                            {trigger.triggerConfig?.spreadsheetId && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.7rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Sheet:{' '}
+                                {trigger.triggerConfig.sheetName || 'N/A'}
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Poll Interval:{' '}
+                              {trigger.triggerConfig?.pollTime || 'N/A'}
+                            </div>
+                            {trigger.triggerConfig?.triggerOn && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.7rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Trigger On: {trigger.triggerConfig.triggerOn}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {trigger.triggerConfig?.type === 'schedule-trigger' && (
+                          <>
+                            {trigger.triggerConfig?.cronExpression && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.7rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Cron: {trigger.triggerConfig.cronExpression}
+                              </div>
+                            )}
+                            {trigger.triggerConfig?.preset && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.7rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Preset: {trigger.triggerConfig.preset}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {trigger.nextRun && (
+                          <div
+                            style={{
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.7rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Next Run:{' '}
+                            {new Date(trigger.nextRun).toLocaleString()}
+                          </div>
+                        )}
+                        {trigger.id && (
+                          <div
+                            style={{
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.65rem',
+                              marginTop: '0.25rem',
+                            }}
+                          >
+                            ID: {trigger.id}
+                          </div>
                         )}
                       </div>
-                      {trigger.triggerConfig?.type === 'webhook-trigger' && (
-                        <>
-                          <div
-                            style={{
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.7rem',
-                              marginBottom: '0.25rem',
-                            }}
-                          >
-                            Method: {trigger.triggerConfig.method || 'POST'}
-                          </div>
-                          <div
-                            style={{
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.7rem',
-                              marginBottom: '0.25rem',
-                              wordBreak: 'break-all',
-                            }}
-                          >
-                            URL:{' '}
-                            <code
-                              style={{
-                                background: 'hsl(var(--muted))',
-                                padding: '0.125rem 0.25rem',
-                                borderRadius: '4px',
-                                fontSize: '0.65rem',
-                              }}
-                            >
-                              {typeof window !== 'undefined'
-                                ? `${window.location.origin}${trigger.triggerConfig.webhookUrl}`
-                                : trigger.triggerConfig.webhookUrl}
-                            </code>
-                          </div>
-                        </>
-                      )}
-                      {trigger.triggerConfig?.type ===
-                        'google-sheets-trigger' && (
-                        <>
-                          {trigger.triggerConfig?.spreadsheetId && (
-                            <div
-                              style={{
-                                color: 'hsl(var(--muted-foreground))',
-                                fontSize: '0.7rem',
-                                marginBottom: '0.25rem',
-                              }}
-                            >
-                              Sheet: {trigger.triggerConfig.sheetName || 'N/A'}
-                            </div>
-                          )}
-                          <div
-                            style={{
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.7rem',
-                              marginBottom: '0.25rem',
-                            }}
-                          >
-                            Poll Interval:{' '}
-                            {trigger.triggerConfig?.pollTime || 'N/A'}
-                          </div>
-                          {trigger.triggerConfig?.triggerOn && (
-                            <div
-                              style={{
-                                color: 'hsl(var(--muted-foreground))',
-                                fontSize: '0.7rem',
-                                marginBottom: '0.25rem',
-                              }}
-                            >
-                              Trigger On: {trigger.triggerConfig.triggerOn}
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {trigger.triggerConfig?.type === 'schedule-trigger' && (
-                        <>
-                          {trigger.triggerConfig?.cronExpression && (
-                            <div
-                              style={{
-                                color: 'hsl(var(--muted-foreground))',
-                                fontSize: '0.7rem',
-                                marginBottom: '0.25rem',
-                              }}
-                            >
-                              Cron: {trigger.triggerConfig.cronExpression}
-                            </div>
-                          )}
-                          {trigger.triggerConfig?.preset && (
-                            <div
-                              style={{
-                                color: 'hsl(var(--muted-foreground))',
-                                fontSize: '0.7rem',
-                                marginBottom: '0.25rem',
-                              }}
-                            >
-                              Preset: {trigger.triggerConfig.preset}
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {trigger.nextRun && (
-                        <div
-                          style={{
-                            color: 'hsl(var(--muted-foreground))',
-                            fontSize: '0.7rem',
-                            marginBottom: '0.25rem',
-                          }}
-                        >
-                          Next Run: {new Date(trigger.nextRun).toLocaleString()}
-                        </div>
-                      )}
-                      {trigger.id && (
-                        <div
-                          style={{
-                            color: 'hsl(var(--muted-foreground))',
-                            fontSize: '0.65rem',
-                            marginTop: '0.25rem',
-                          }}
-                        >
-                          ID: {trigger.id}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
@@ -1857,6 +1915,13 @@ function WorkflowEditorLayout({
             >
               <Clock className="w-4 h-4" style={{ color: '#8b5cf6' }} />
               <span>Schedule Trigger</span>
+            </button>
+            <button
+              onClick={() => addNode('call-trigger')}
+              style={nodePaletteButtonStyle}
+            >
+              <PhoneIncoming className="w-4 h-4" style={{ color: '#10b981' }} />
+              <span>Call Trigger</span>
             </button>
           </div>
 
@@ -2003,6 +2068,7 @@ function WorkflowEditorLayout({
                 'webhook-trigger': '#3b82f6',
                 'schedule-trigger': '#22c55e',
                 'google-sheets-trigger': '#a855f7',
+                'call-trigger': '#10b981',
                 start: '#14b8a6',
               };
 
@@ -2052,6 +2118,7 @@ function WorkflowEditorLayout({
                   webhook: '#8b5cf6',
                   'http-request': '#3b82f6',
                   'call-agent': '#10b981',
+                  'call-trigger': '#10b981',
                   'ai-agent': '#3b82f6',
                   email: '#8b5cf6',
                   'variable-set': '#f59e0b',

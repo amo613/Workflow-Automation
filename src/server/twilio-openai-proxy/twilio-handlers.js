@@ -16,6 +16,7 @@ export function setupTwilioHandlers({
   twilioConnected,
   twilioConnectedResponseSent,
   setupComplete,
+  streamStarted, // Ref object to track if stream has started
   onCallSidExtracted,
   onStreamSidExtracted,
   onConfigExtracted,
@@ -186,6 +187,9 @@ export function setupTwilioHandlers({
         if (startEventStreamSid) {
           streamSidRef.current = startEventStreamSid;
           mediaSequenceNumberRef.current = 0;
+          if (streamStarted) {
+            streamStarted.current = true; // Mark stream as started
+          }
           logger.info(
             `✅ Extracted streamSid from start event: ${streamSidRef.current}`
           );

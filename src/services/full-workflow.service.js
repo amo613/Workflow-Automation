@@ -25,14 +25,17 @@ export const createFullWorkflow = async (userId, data) => {
   }
 };
 
-export const getFullWorkflow = async (workflowId, userId) => {
+export const getFullWorkflow = async (workflowId, userId = null) => {
   try {
+    const whereConditions = [eq(fullWorkflows.id, workflowId)];
+    if (userId !== null) {
+      whereConditions.push(eq(fullWorkflows.user_id, userId));
+    }
+
     const [workflow] = await db
       .select()
       .from(fullWorkflows)
-      .where(
-        and(eq(fullWorkflows.id, workflowId), eq(fullWorkflows.user_id, userId))
-      )
+      .where(and(...whereConditions))
       .limit(1);
 
     if (!workflow) {

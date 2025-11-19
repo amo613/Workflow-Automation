@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
-import { Settings, Calendar, Mail, FileSpreadsheet, Key } from 'lucide-react';
+import {
+  Settings,
+  Calendar,
+  Mail,
+  FileSpreadsheet,
+  Key,
+  Phone,
+} from 'lucide-react';
 import './OpenAITestPage.css';
 
 function OpenAITestPage() {
@@ -23,6 +30,7 @@ function OpenAITestPage() {
     googleCalendar: { connected: false, email: null },
     googleSheets: { connected: false, email: null },
     email: { configured: false },
+    twilio: { configured: false },
   });
 
   // API Keys state
@@ -104,9 +112,12 @@ function OpenAITestPage() {
 
       // Google Sheets
       try {
-        const sheetsRes = await fetch('/api/integrations/google-sheets/status', {
-          credentials: 'include',
-        });
+        const sheetsRes = await fetch(
+          '/api/integrations/google-sheets/status',
+          {
+            credentials: 'include',
+          }
+        );
         if (sheetsRes.ok) {
           const sheetsData = await sheetsRes.json();
           setIntegrations(prev => ({
@@ -119,6 +130,24 @@ function OpenAITestPage() {
         }
       } catch (error) {
         console.error('Error fetching Google Sheets status:', error);
+      }
+
+      // Twilio
+      try {
+        const twilioRes = await fetch('/api/twilio/credentials/check', {
+          credentials: 'include',
+        });
+        if (twilioRes.ok) {
+          const twilioData = await twilioRes.json();
+          setIntegrations(prev => ({
+            ...prev,
+            twilio: {
+              configured: twilioData.hasCredentials || false,
+            },
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching Twilio status:', error);
       }
     };
 
@@ -319,8 +348,15 @@ function OpenAITestPage() {
                       }
                     />
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '1rem' }}>
-                    To change your password, please contact support or use the sign-in page.
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#64748b',
+                      marginTop: '1rem',
+                    }}
+                  >
+                    To change your password, please contact support or use the
+                    sign-in page.
                   </p>
                   <button type="submit" className="btn-primary">
                     Save Changes
@@ -336,7 +372,9 @@ function OpenAITestPage() {
                       <span>OpenAI API Key</span>
                       <span
                         className={
-                          apiKeys.openai.hasKey ? 'status-badge success' : 'status-badge error'
+                          apiKeys.openai.hasKey
+                            ? 'status-badge success'
+                            : 'status-badge error'
                         }
                       >
                         {apiKeys.openai.checking
@@ -346,7 +384,13 @@ function OpenAITestPage() {
                             : '✗ Not Set'}
                       </span>
                     </div>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
+                    <p
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        marginTop: '0.5rem',
+                      }}
+                    >
                       Your personal OpenAI API key for AI Agent nodes
                     </p>
                     <button
@@ -374,11 +418,19 @@ function OpenAITestPage() {
                             : 'status-badge error'
                         }
                       >
-                        {integrations.googleCalendar.connected ? '✓ Connected' : '✗ Disconnected'}
+                        {integrations.googleCalendar.connected
+                          ? '✓ Connected'
+                          : '✗ Disconnected'}
                       </span>
                     </div>
                     {integrations.googleCalendar.email && (
-                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
+                      <p
+                        style={{
+                          fontSize: '0.875rem',
+                          color: '#64748b',
+                          marginTop: '0.5rem',
+                        }}
+                      >
                         Account: {integrations.googleCalendar.email}
                       </p>
                     )}
@@ -394,7 +446,10 @@ function OpenAITestPage() {
                   </div>
 
                   {/* Google Sheets */}
-                  <div className="integration-item" style={{ marginTop: '1.5rem' }}>
+                  <div
+                    className="integration-item"
+                    style={{ marginTop: '1.5rem' }}
+                  >
                     <div className="integration-header">
                       <FileSpreadsheet size={20} />
                       <span>Google Sheets</span>
@@ -405,11 +460,19 @@ function OpenAITestPage() {
                             : 'status-badge error'
                         }
                       >
-                        {integrations.googleSheets.connected ? '✓ Connected' : '✗ Disconnected'}
+                        {integrations.googleSheets.connected
+                          ? '✓ Connected'
+                          : '✗ Disconnected'}
                       </span>
                     </div>
                     {integrations.googleSheets.email && (
-                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
+                      <p
+                        style={{
+                          fontSize: '0.875rem',
+                          color: '#64748b',
+                          marginTop: '0.5rem',
+                        }}
+                      >
                         Account: {integrations.googleSheets.email}
                       </p>
                     )}
@@ -425,14 +488,64 @@ function OpenAITestPage() {
                   </div>
 
                   {/* Email */}
-                  <div className="integration-item" style={{ marginTop: '1.5rem' }}>
+                  <div
+                    className="integration-item"
+                    style={{ marginTop: '1.5rem' }}
+                  >
                     <div className="integration-header">
                       <Mail size={20} />
                       <span>Email Credentials</span>
-                      <span className="status-badge info">Configure in Workflows</span>
+                      <span className="status-badge info">
+                        Configure in Workflows
+                      </span>
                     </div>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.5rem' }}>
+                    <p
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        marginTop: '0.5rem',
+                      }}
+                    >
                       Configure email credentials in Call Agent node settings
+                    </p>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => navigate('/fullWorkflows')}
+                      style={{ marginTop: '1rem' }}
+                    >
+                      Go to Workflows
+                    </button>
+                  </div>
+
+                  {/* Twilio */}
+                  <div
+                    className="integration-item"
+                    style={{ marginTop: '1.5rem' }}
+                  >
+                    <div className="integration-header">
+                      <Phone size={20} />
+                      <span>Twilio</span>
+                      <span
+                        className={
+                          integrations.twilio.configured
+                            ? 'status-badge success'
+                            : 'status-badge error'
+                        }
+                      >
+                        {integrations.twilio.configured
+                          ? '✓ Configured'
+                          : '✗ Not Configured'}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      Configure Twilio credentials in Call Agent or Call Trigger
+                      node settings
                     </p>
                     <button
                       className="btn-secondary"
@@ -456,9 +569,17 @@ function OpenAITestPage() {
               </Link>
             </div>
             {workflowsLoading ? (
-              <div style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                Loading...
+              </div>
             ) : workflows.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: '#64748b',
+                }}
+              >
                 No workflows yet. Create your first workflow!
               </div>
             ) : (
@@ -469,7 +590,9 @@ function OpenAITestPage() {
                     className="workflow-item"
                     onClick={() => navigate(`/fullWorkflows/${workflow.id}`)}
                   >
-                    <div className="workflow-name">{workflow.name || 'Unnamed Workflow'}</div>
+                    <div className="workflow-name">
+                      {workflow.name || 'Unnamed Workflow'}
+                    </div>
                     <div className="workflow-meta">
                       <span>
                         Updated:{' '}
@@ -477,7 +600,9 @@ function OpenAITestPage() {
                       </span>
                       <span
                         className={
-                          workflow.is_active ? 'status-badge success' : 'status-badge'
+                          workflow.is_active
+                            ? 'status-badge success'
+                            : 'status-badge'
                         }
                       >
                         {workflow.is_active ? 'Active' : 'Inactive'}

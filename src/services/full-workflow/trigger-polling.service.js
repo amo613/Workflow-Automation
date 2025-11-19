@@ -1004,10 +1004,34 @@ export async function getActiveTriggers(workflowId) {
       });
     }
 
+    // Also check for call-trigger nodes (passive triggers, not BullMQ jobs)
+    const callTriggerNodes = workflowNodes.filter(
+      node => node.type === 'call-trigger'
+    );
+
+    for (const callTriggerNode of callTriggerNodes) {
+      // Get webhook URL for call trigger
+      const webhookUrl = `/api/full-workflows/call-trigger?workflowId=${workflowId}`;
+
+      validTriggers.push({
+        id: `call-trigger:${workflowId}:${callTriggerNode.id}`,
+        workflowId,
+        triggerNodeId: callTriggerNode.id,
+        triggerConfig: {
+          type: 'call-trigger',
+          webhookUrl,
+          phoneNumber: callTriggerNode.data?.phone_number || null,
+        },
+        nextRun: null, // Call triggers are passive, no scheduled runs
+        state: 'active', // Always active for call triggers (if workflow is active)
+      });
+    }
+
     logger.info('Returning active triggers', {
       workflowId,
       triggerCount: validTriggers.length,
       webhookTriggerCount: webhookTriggerNodes.length,
+      callTriggerCount: callTriggerNodes.length,
       source: workflowJobs.length > 0 ? 'direct_queue' : 'repeatable_jobs',
     });
 

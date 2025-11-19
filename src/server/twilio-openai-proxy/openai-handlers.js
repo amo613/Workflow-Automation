@@ -14,9 +14,12 @@ export function setupOpenAIHandlers({
   openaiSessionReady,
   streamSid,
   mediaSequenceNumberRef,
+  streamStarted, // Ref object to track if stream has started
   onSessionReady,
   onAudioBufferFlush,
   userId = null, // Optional: User ID from config
+  parsedConfig = null, // Optional: Parsed config from Twilio webhook
+  parsedConfigRef = null, // Optional: Ref object for parsed config (for inbound greeting)
 }) {
   openaiWs.on('message', data => {
     try {
@@ -75,7 +78,8 @@ export function setupOpenAIHandlers({
           twilioWs.readyState === twilioWs.OPEN &&
           twilioConnected.current &&
           openaiSessionReady.current &&
-          streamSid.current
+          streamSid.current &&
+          streamStarted?.current // Only send if stream has started
         ) {
           try {
             const audioDelta = message.delta; // Bereits base64 μ-law
@@ -185,7 +189,8 @@ export function setupOpenAIHandlers({
         if (
           twilioWs.readyState === twilioWs.OPEN &&
           twilioConnected.current &&
-          streamSid.current
+          streamSid.current &&
+          streamStarted?.current // Only send if stream has started
         ) {
           try {
             const clearMessage = {
@@ -237,7 +242,8 @@ export function setupOpenAIHandlers({
         if (
           twilioWs.readyState === twilioWs.OPEN &&
           twilioConnected.current &&
-          streamSid.current
+          streamSid.current &&
+          streamStarted?.current // Only send if stream has started
         ) {
           try {
             const clearMessage = {
@@ -300,6 +306,46 @@ export function setupOpenAIHandlers({
           }
         );
 
+        // Send initial greeting for inbound calls (Agent speaks first)
+        if (
+          parsedConfigRef?.current?.isInbound &&
+          parsedConfigRef?.current?.greeting
+        ) {
+          try {
+            if (openaiWs && openaiWs.readyState === openaiWs.OPEN) {
+              const greetingMessage = {
+                type: 'response.create',
+                response: {
+                  modalities: ['text', 'audio'],
+                  instructions: parsedConfigRef.current.greeting,
+                },
+              };
+              openaiWs.send(JSON.stringify(greetingMessage));
+              logger.info(
+                `✅ Sent initial greeting for inbound call ${callSid}`,
+                {
+                  greeting: parsedConfigRef.current.greeting,
+                }
+              );
+            } else {
+              logger.warn(
+                `⚠️ Cannot send greeting: OpenAI WebSocket not open`,
+                {
+                  callSid,
+                  readyState: openaiWs?.readyState,
+                }
+              );
+            }
+          } catch (error) {
+            logger.error(
+              `❌ Error sending greeting for inbound call ${callSid}:`,
+              {
+                error: error.message,
+              }
+            );
+          }
+        }
+
         // Gepufferte Audio-Chunks senden
         if (onAudioBufferFlush) {
           onAudioBufferFlush();
@@ -327,6 +373,35 @@ export function setupOpenAIHandlers({
             // Gepufferte Audio-Chunks senden
             if (onAudioBufferFlush) {
               onAudioBufferFlush();
+            }
+
+            // Send greeting for inbound calls (Agent speaks first)
+            if (parsedConfig?.isInbound && parsedConfig?.greeting) {
+              try {
+                logger.info('Sending initial greeting for inbound call', {
+                  callSid,
+                  greeting: parsedConfig.greeting,
+                });
+
+                openaiWs.send(
+                  JSON.stringify({
+                    type: 'response.create',
+                    response: {
+                      modalities: ['text', 'audio'],
+                      instructions: parsedConfig.greeting,
+                    },
+                  })
+                );
+
+                logger.info('Greeting sent successfully', {
+                  callSid,
+                });
+              } catch (error) {
+                logger.error('Error sending greeting', {
+                  callSid,
+                  error: error.message,
+                });
+              }
             }
           }
         }

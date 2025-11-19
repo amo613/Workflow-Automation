@@ -30,6 +30,7 @@ import webhookRoutes from '#routes/webhook.routes.js';
 import inngestRoutes from '#routes/inngest.routes.js';
 import aiAgentRoutes from '#routes/ai-agent.routes.js';
 import emailRoutes from '#routes/email.routes.js';
+import twilioRoutes from '#routes/twilio.routes.js';
 import workflowVersionRoutes from '#routes/workflow-version.routes.js';
 import { initRedis } from '#config/cache.js';
 import './jobs/jobs.executor.js'; // (auto-starts  job executor when imported)
@@ -306,6 +307,26 @@ fastify.register(
   { prefix: '' }
 );
 
+// Register Call Trigger Webhook Route (NO CSRF - public Twilio webhook)
+// Must be registered BEFORE fullWorkflowRoutes to avoid CSRF protection
+fastify.post('/api/full-workflows/call-trigger', {
+  schema: {
+    querystring: {
+      type: 'object',
+      required: ['workflowId'],
+      properties: {
+        workflowId: { type: 'string' },
+      },
+    },
+  },
+  handler: async (request, reply) => {
+    const { callTriggerWebhookHandler } = await import(
+      '#controllers/full-workflow.controller.js'
+    );
+    return callTriggerWebhookHandler(request, reply);
+  },
+});
+
 // Register full-workflow routes with CSRF protection
 fastify.register(
   async fastify => {
@@ -329,6 +350,7 @@ fastify.register(
 
     fastify.register(aiAgentRoutes, { prefix: '' });
     fastify.register(emailRoutes, { prefix: '' });
+    fastify.register(twilioRoutes, { prefix: '' });
     fastify.register(workflowVersionRoutes, { prefix: '' });
   },
   { prefix: '' }

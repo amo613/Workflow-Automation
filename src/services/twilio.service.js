@@ -48,16 +48,35 @@ class TwilioService {
     }
   }
 
-  async makeOutboundCall(toNumber, configParams = null) {
+  async makeOutboundCall(
+    toNumber,
+    configParams = null,
+    twilioCredentials = null
+  ) {
     try {
-      // Ensure client is initialized
-      const client = this.initialize();
-      if (!client) {
+      // Use provided credentials or fall back to .env
+      let accountSid, authToken, fromNumber;
+
+      if (twilioCredentials) {
+        accountSid = twilioCredentials.accountSid;
+        authToken = twilioCredentials.authToken;
+        fromNumber = twilioCredentials.phoneNumber;
+      } else {
+        // Fallback to .env for backward compatibility
+        accountSid = TWILIO_ACCOUNT_SID;
+        authToken = TWILIO_AUTH_TOKEN;
+        fromNumber = TWILIO_PHONE_NUMBER;
+      }
+
+      if (!accountSid || !authToken || !fromNumber) {
         return {
           success: false,
           error: 'Twilio credentials not configured',
         };
       }
+
+      // Create Twilio client with provided credentials
+      const client = twilio(accountSid, authToken);
 
       // Validate phone number format (basic E.164 check)
       if (!toNumber || typeof toNumber !== 'string' || !toNumber.trim()) {
@@ -123,7 +142,7 @@ class TwilioService {
       // Make the outbound call
       const call = await client.calls.create({
         to: toNumber.trim(),
-        from: TWILIO_PHONE_NUMBER,
+        from: fromNumber,
         url: webhookUrl,
       });
 

@@ -59,10 +59,11 @@ export class PhoneCallJob extends BaseJob {
   }
 
   async execute(data) {
-    const { toNumber, config } = data;
+    const { toNumber, config, twilioCredentials } = data;
 
     logger.info(`📞 Phone call job executing:`, {
       hasConfig: !!config,
+      hasTwilioCredentials: !!twilioCredentials,
       toNumber: Array.isArray(toNumber)
         ? `${toNumber.length} numbers`
         : toNumber,
@@ -83,12 +84,14 @@ export class PhoneCallJob extends BaseJob {
         logger.info(`📞 Making outbound call:`, {
           to: targetNumber,
           hasConfig: !!config,
+          hasTwilioCredentials: !!twilioCredentials,
           configKeys: config ? Object.keys(config) : [],
         });
 
         const callResult = await twilioService.makeOutboundCall(
           targetNumber,
-          config
+          config,
+          twilioCredentials
         );
 
         if (callResult.success) {

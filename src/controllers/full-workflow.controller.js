@@ -26,6 +26,13 @@ import {
 } from '#services/full-workflow/performance.service.js';
 import { createWorkflowVersion } from '#services/workflow-version.service.js';
 import { memoryCache } from '#config/cache.js';
+import { getUserTwilioCredentials } from '#services/twilio-credentials.service.js';
+import { getNgrokUrl, storeCallFrom } from '#utils/ngrok.service.js';
+import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
+import { getWorkflow } from '#services/workflow.service.js';
+import { db } from '#config/database.js';
+import { knowledgeBaseEntries } from '#models/knowledge-base.model.js';
+import { eq, inArray, and } from 'drizzle-orm';
 
 /**
  * Create a new full workflow
@@ -988,5 +995,304 @@ export async function clearWorkflowPerformanceHandler(req, reply) {
       success: false,
       error: error.message || 'Failed to clear performance data',
     });
+  }
+}
+
+/**
+ * POST /api/full-workflows/call-trigger?workflowId=123
+ * Twilio webhook endpoint for inbound calls
+ * NO CSRF Protection (Twilio webhook)
+ */
+export async function callTriggerWebhookHandler(req, reply) {
+  try {
+    const { CallSid, From, To, AccountSid, CallStatus, Direction } = req.body;
+    const { workflowId } = req.query;
+
+    if (!CallSid) {
+      logger.error('Twilio webhook called without CallSid');
+      return reply
+        .status(400)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    if (!workflowId) {
+      logger.error('Call trigger webhook called without workflowId');
+      return reply
+        .status(400)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    logger.info('Call trigger webhook called', {
+      callSid: CallSid,
+      from: From,
+      to: To,
+      workflowId,
+    });
+
+    // 1. Load workflow (without userId check for webhook)
+    let workflow;
+    try {
+      workflow = await getFullWorkflow(parseInt(workflowId, 10), null);
+    } catch (error) {
+      logger.error('Failed to load workflow', {
+        workflowId,
+        error: error.message,
+      });
+      return reply
+        .status(404)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    if (!workflow || !workflow.is_active) {
+      logger.warn('Workflow not found or not active', {
+        workflowId,
+        isActive: workflow?.is_active,
+      });
+      return reply
+        .status(404)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    // 2. Find Call Trigger Node
+    const workflowJson = workflow.workflow_json || {};
+    const nodes = workflowJson.nodes || [];
+    const callTriggerNodes = nodes.filter(node => node.type === 'call-trigger');
+
+    if (callTriggerNodes.length === 0) {
+      logger.error('No call trigger node found in workflow', {
+        workflowId,
+      });
+      return reply
+        .status(500)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    // Use first call trigger node (if multiple exist)
+    const callTriggerNode = callTriggerNodes[0];
+
+    // 3. Get Twilio Credentials
+    const userId = workflow.user_id;
+    const twilioCredentials = await getUserTwilioCredentials(userId);
+    if (!twilioCredentials) {
+      logger.error('Twilio credentials not found for user', {
+        userId,
+        workflowId,
+      });
+      return reply
+        .status(500)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    // 4. Trigger Workflow (ASYNC - nicht blockieren!)
+    // Pass triggerNodeId so the workflow starts from the correct call-trigger node
+    const eventId = await triggerWorkflow(parseInt(workflowId, 10), userId, {
+      triggerNodeId: callTriggerNode.id, // Explicitly set which trigger node to use
+      CallSid,
+      From,
+      To,
+      Direction: Direction || 'inbound',
+      _call: {
+        timestamp: new Date().toISOString(),
+        direction: 'inbound',
+        callStatus: CallStatus,
+        accountSid: AccountSid,
+      },
+    });
+
+    logger.info('Workflow triggered for inbound call', {
+      workflowId,
+      eventId: eventId.eventId || eventId,
+      callSid: CallSid,
+    });
+
+    // 5. Generate Config from Node
+    let callPrompt = '';
+    const {
+      use_existing,
+      workflow_id: promptWorkflowId,
+      prompt,
+      voice = 'alloy',
+      greeting = 'Hello, how can I help you?',
+      knowledge_base_ids = [],
+      temperature = 1.0,
+      instructions = 'You are a helpful voice assistant. Keep responses brief, natural, and conversational.',
+      max_response_output_tokens = 4096,
+      vad_threshold = 0.5,
+      tool_choice = 'auto',
+    } = callTriggerNode.data || {};
+
+    const kbIds = Array.isArray(knowledge_base_ids)
+      ? knowledge_base_ids
+      : knowledge_base_ids
+        ? [knowledge_base_ids]
+        : [];
+
+    // Load prompt (similar to Call Agent)
+    if (use_existing && promptWorkflowId) {
+      try {
+        const promptWorkflow = await getWorkflow(promptWorkflowId, userId);
+        if (promptWorkflow && promptWorkflow.graph_json) {
+          callPrompt = compileWorkflowToPrompt(promptWorkflow.graph_json);
+
+          // Remove old knowledge base if new entries selected
+          if (kbIds && kbIds.length > 0) {
+            const kbSectionRegex =
+              /\n\nKNOWLEDGE BASE:[\s\S]*?(?=\n\n(?:[A-Z][A-Z_ ]+:|$))/;
+            callPrompt = callPrompt.replace(kbSectionRegex, '');
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to load prompt workflow', {
+          workflowId: promptWorkflowId,
+          error: error.message,
+        });
+      }
+    } else if (prompt) {
+      callPrompt = prompt;
+    }
+
+    // Load Knowledge Base entries
+    let knowledgeBaseText = '';
+    if (kbIds && kbIds.length > 0) {
+      try {
+        const entries = await db
+          .select()
+          .from(knowledgeBaseEntries)
+          .where(
+            and(
+              eq(knowledgeBaseEntries.user_id, userId),
+              inArray(knowledgeBaseEntries.id, kbIds)
+            )
+          );
+
+        if (entries.length > 0) {
+          knowledgeBaseText = entries
+            .map(entry => `**${entry.name}**:\n${entry.text}`)
+            .join('\n\n');
+        }
+      } catch (error) {
+        logger.error('Failed to load knowledge base entries', {
+          error: error.message,
+          knowledgeBaseIds: kbIds,
+        });
+      }
+    }
+
+    // Integrate Knowledge Base into prompt
+    if (knowledgeBaseText) {
+      callPrompt = `${callPrompt}
+
+KNOWLEDGE BASE:
+${knowledgeBaseText}`;
+    }
+
+    // 6. Generate Config
+    const config = {
+      prompt: callPrompt,
+      voice: voice || 'alloy',
+      greeting: greeting || 'Hello, how can I help you?',
+      temperature: parseFloat(temperature) || 1.0,
+      instructions:
+        instructions ||
+        'You are a helpful voice assistant. Keep responses brief, natural, and conversational.',
+      max_response_output_tokens: parseInt(max_response_output_tokens) || 4096,
+      vad_threshold: parseFloat(vad_threshold) || 0.5,
+      tool_choice: tool_choice || 'auto',
+      workflowId: parseInt(workflowId, 10),
+      eventId: eventId.eventId || eventId,
+      isInbound: true, // WICHTIG: Flag für Greeting
+      userId,
+    };
+
+    // 7. Get ngrok URL for WebSocket endpoint
+    const ngrokUrl = getNgrokUrl();
+    if (!ngrokUrl) {
+      logger.error(
+        'Ngrok URL not available, cannot establish proxy connection'
+      );
+      return reply
+        .status(503)
+        .type('text/xml')
+        .send(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+        );
+    }
+
+    // Store callSid -> From mapping
+    if (From) {
+      storeCallFrom(CallSid, From);
+    }
+
+    // Convert HTTP(S) URL to WebSocket URL
+    const wsProtocol = ngrokUrl.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = ngrokUrl.replace(/^https?:\/\//, '');
+    const wsFullUrl = `${wsProtocol}://${wsHost}/ws/openai/call?callSid=${CallSid}`;
+
+    // Encode config as base64
+    const configBase64 = Buffer.from(JSON.stringify(config)).toString('base64');
+
+    // Escape XML entities in URL for TwiML
+    const wsFullUrlEscaped = wsFullUrl.replace(/&/g, '&amp;');
+
+    // 8. Generate TwiML
+    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <Stream url="${wsFullUrlEscaped}">
+      <Parameter name="callSid" value="${CallSid}" />
+      <Parameter name="call_sid" value="${CallSid}" />
+      ${AccountSid ? `<Parameter name="account_sid" value="${AccountSid}" />` : ''}
+      ${From ? `<Parameter name="from_number" value="${From}" />` : ''}
+      ${To ? `<Parameter name="to_number" value="${To}" />` : ''}
+      ${CallStatus ? `<Parameter name="call_status" value="${CallStatus}" />` : ''}
+      ${Direction ? `<Parameter name="direction" value="${Direction}" />` : ''}
+      <Parameter name="config" value="${configBase64}" />
+      <Parameter name="isInbound" value="true" />
+    </Stream>
+  </Connect>
+</Response>`;
+
+    logger.info('TwiML generated for inbound call', {
+      callSid: CallSid,
+      workflowId,
+      eventId: eventId.eventId || eventId,
+      hasGreeting: !!greeting,
+      twimlLength: twiml.length,
+      wsUrl: wsFullUrl,
+      hasConfig: !!configBase64,
+      configLength: configBase64?.length || 0,
+      fullTwiML: twiml, // Log full TwiML for debugging
+    });
+
+    return reply.status(200).type('text/xml').send(twiml);
+  } catch (error) {
+    logger.error('Error handling call trigger webhook', {
+      error: error.message,
+      stack: error.stack,
+    });
+    return reply
+      .status(500)
+      .type('text/xml')
+      .send(
+        '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
+      );
   }
 }

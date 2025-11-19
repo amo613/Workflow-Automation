@@ -16,6 +16,7 @@ import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
 import { executeAiAgent } from './ai-agent.handler.js';
 import { executeEmail } from './email.handler.js';
 import { executeScheduleTrigger } from './schedule-trigger.handler.js';
+import { executeCallTrigger } from './call-trigger.handler.js';
 import { executeMerge } from './merge.handler.js';
 import logger from '#config/logger.js';
 
@@ -93,6 +94,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'schedule-trigger':
       return executeScheduleTrigger(data, templateContext);
+
+    case 'call-trigger':
+      return executeCallTrigger(data, templateContext);
 
     case 'merge':
       return executeMerge(node, templateContext, variableContext);

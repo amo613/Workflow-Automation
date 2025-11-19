@@ -21,6 +21,7 @@ import EmailConfig from './configs/EmailConfig.jsx';
 import ScheduleTriggerConfig from './configs/ScheduleTriggerConfig.jsx';
 import MergeConfig from './configs/MergeConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
+import CallTriggerConfig from './configs/CallTriggerConfig.jsx';
 
 const configMap = {
   webhook: WebhookConfig,
@@ -39,6 +40,7 @@ const configMap = {
   'schedule-trigger': ScheduleTriggerConfig,
   merge: MergeConfig,
   start: StartConfig,
+  'call-trigger': CallTriggerConfig,
 };
 
 export default function NodeConfigFactory({ nodeType, ...props }) {

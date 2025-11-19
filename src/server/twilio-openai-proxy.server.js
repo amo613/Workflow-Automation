@@ -76,6 +76,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
     const twilioConnected = false;
     const twilioConnectedResponseSent = false;
     const setupComplete = false;
+    const streamStarted = false; // Track if stream has started
     let parsedConfig = null;
 
     // Call State mit CallState-Klasse verwalten
@@ -93,6 +94,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
       current: twilioConnectedResponseSent,
     };
     const setupCompleteRef = { current: setupComplete };
+    const streamStartedRef = { current: streamStarted };
 
     // Setup OpenAI Connection Handler
     const handleSetupOpenAI = async (sid, config) => {
@@ -144,6 +146,8 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
           setupOpenAIHandlers({
             openaiWs: newOpenaiWs,
             userId: parsedConfigRef.current?.userId || null, // Pass userId from config
+            parsedConfig: parsedConfigRef.current, // Pass parsed config for greeting
+            parsedConfigRef, // Pass ref for inbound greeting
             callSid: sid,
             callState,
             twilioWs,
@@ -151,6 +155,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
             openaiSessionReady: openaiSessionReadyRef,
             streamSid: streamSidRef,
             mediaSequenceNumberRef,
+            streamStarted: streamStartedRef,
             onSessionReady: isReady => {
               if (isReady === undefined) {
                 return openaiSessionReadyRef.current;
@@ -261,6 +266,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
       twilioConnected: twilioConnectedRef,
       twilioConnectedResponseSent: twilioConnectedResponseSentRef,
       setupComplete: setupCompleteRef,
+      streamStarted: streamStartedRef,
       onCallSidExtracted: sid => {
         callSid = sid;
         callSidRef.current = sid;
@@ -269,6 +275,7 @@ export function initTwilioOpenAIProxyServer(_httpServer) {
       onStreamSidExtracted: sid => {
         streamSid = sid;
         streamSidRef.current = sid;
+        streamStartedRef.current = true; // Mark stream as started
       },
       onConfigExtracted: config => {
         parsedConfig = config;
