@@ -225,21 +225,6 @@ function WorkflowEditorLayout({
               color: 'hsl(var(--foreground))',
             }}
           />
-          <select
-            value={type}
-            onChange={e => setType(e.target.value)}
-            style={{
-              padding: '0.5rem 1rem',
-              border: '1px solid hsl(var(--input))',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              background: 'hsl(var(--background))',
-              color: 'hsl(var(--foreground))',
-            }}
-          >
-            <option value="automation">Automation</option>
-            <option value="call-workflow">Call Workflow</option>
-          </select>
         </div>
 
         <div

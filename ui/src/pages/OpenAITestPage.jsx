@@ -8,8 +8,12 @@ import {
   FileSpreadsheet,
   Key,
   Phone,
+  User,
 } from 'lucide-react';
 import './OpenAITestPage.css';
+import googleLogo from '@/lib/assets/Google__G__logo.svg';
+import openaiLogo from '@/lib/assets/openai-svgrepo-com.svg';
+import twilioLogo from '@/lib/assets/twilio-icon.svg';
 
 function OpenAITestPage() {
   const navigate = useNavigate();
@@ -130,6 +134,23 @@ function OpenAITestPage() {
         }
       } catch (error) {
         console.error('Error fetching Google Sheets status:', error);
+      }
+
+      // Email credentials
+      try {
+        const emailRes = await fetch('/api/email/credentials/check', {
+          credentials: 'include',
+        });
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          console.log('Email response:', emailData);
+          setIntegrations(prev => ({
+            ...prev,
+            email: { configured: emailData.hasCredentials || false },
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching email credentials status:', error);
       }
 
       // Twilio
@@ -289,10 +310,8 @@ function OpenAITestPage() {
           {/* Profile Section */}
           <div className="dashboard-card profile-card">
             <div
+              className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent"
               style={{
-                fontSize: '1.5rem',
-                fontWeight: 600,
-                color: '#10b981',
                 marginBottom: '1.5rem',
               }}
             >
@@ -304,19 +323,25 @@ function OpenAITestPage() {
               <button
                 className={activeTab === 'account' ? 'active' : ''}
                 onClick={() => setActiveTab('account')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
+                <User size={16} />
                 Account
               </button>
               <button
                 className={activeTab === 'api-keys' ? 'active' : ''}
                 onClick={() => setActiveTab('api-keys')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
+                <Key size={16} />
                 API Keys
               </button>
               <button
                 className={activeTab === 'integrations' ? 'active' : ''}
                 onClick={() => setActiveTab('integrations')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
+                <Settings size={16} />
                 Integrations
               </button>
             </div>
@@ -366,10 +391,19 @@ function OpenAITestPage() {
 
               {activeTab === 'api-keys' && (
                 <div>
-                  <div className="integration-item">
+                  <div className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10">
                     <div className="integration-header">
-                      <Key size={20} />
-                      <span>OpenAI API Key</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <img
+                            src={openaiLogo}
+                            alt="OpenAI"
+                            className="w-5 h-5"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                        </div>
+                        <span>OpenAI API Key</span>
+                      </div>
                       <span
                         className={
                           apiKeys.openai.hasKey
@@ -407,10 +441,19 @@ function OpenAITestPage() {
               {activeTab === 'integrations' && (
                 <div>
                   {/* Google Calendar */}
-                  <div className="integration-item">
+                  <div className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10">
                     <div className="integration-header">
-                      <Calendar size={20} />
-                      <span>Google Calendar</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <img
+                            src={googleLogo}
+                            alt="Google"
+                            className="w-5 h-5"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                        </div>
+                        <span>Google Calendar</span>
+                      </div>
                       <span
                         className={
                           integrations.googleCalendar.connected
@@ -447,12 +490,21 @@ function OpenAITestPage() {
 
                   {/* Google Sheets */}
                   <div
-                    className="integration-item"
+                    className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10"
                     style={{ marginTop: '1.5rem' }}
                   >
                     <div className="integration-header">
-                      <FileSpreadsheet size={20} />
-                      <span>Google Sheets</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <img
+                            src={googleLogo}
+                            alt="Google"
+                            className="w-5 h-5"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                        </div>
+                        <span>Google Sheets</span>
+                      </div>
                       <span
                         className={
                           integrations.googleSheets.connected
@@ -489,14 +541,26 @@ function OpenAITestPage() {
 
                   {/* Email */}
                   <div
-                    className="integration-item"
+                    className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10"
                     style={{ marginTop: '1.5rem' }}
                   >
                     <div className="integration-header">
-                      <Mail size={20} />
-                      <span>Email Credentials</span>
-                      <span className="status-badge info">
-                        Configure in Workflows
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <Mail size={20} className="text-blue-400" />
+                        </div>
+                        <span>Email Credentials</span>
+                      </div>
+                      <span
+                        className={
+                          integrations.email.configured
+                            ? 'status-badge success'
+                            : 'status-badge error'
+                        }
+                      >
+                        {integrations.email.configured
+                          ? '✓ Configured'
+                          : '✗ Not Configured'}
                       </span>
                     </div>
                     <p
@@ -519,12 +583,21 @@ function OpenAITestPage() {
 
                   {/* Twilio */}
                   <div
-                    className="integration-item"
+                    className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10"
                     style={{ marginTop: '1.5rem' }}
                   >
                     <div className="integration-header">
-                      <Phone size={20} />
-                      <span>Twilio</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <img
+                            src={twilioLogo}
+                            alt="Twilio"
+                            className="w-5 h-5"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                        </div>
+                        <span>Twilio</span>
+                      </div>
                       <span
                         className={
                           integrations.twilio.configured
@@ -553,6 +626,51 @@ function OpenAITestPage() {
                       style={{ marginTop: '1rem' }}
                     >
                       Go to Workflows
+                    </button>
+                  </div>
+
+                  {/* OpenAI */}
+                  <div
+                    className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10"
+                    style={{ marginTop: '1.5rem' }}
+                  >
+                    <div className="integration-header">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <img
+                            src={openaiLogo}
+                            alt="OpenAI"
+                            className="w-5 h-5"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                        </div>
+                        <span>OpenAI API Key</span>
+                      </div>
+                      <span
+                        className={
+                          apiKeys.openai.hasKey
+                            ? 'status-badge success'
+                            : 'status-badge error'
+                        }
+                      >
+                        {apiKeys.openai.hasKey ? '✓ Set' : '✗ Not Set'}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      Your personal OpenAI API key for AI Agent nodes
+                    </p>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => navigate('/fullWorkflows')}
+                      style={{ marginTop: '1rem' }}
+                    >
+                      {apiKeys.openai.hasKey ? 'Update Key' : 'Set API Key'}
                     </button>
                   </div>
                 </div>
@@ -588,7 +706,9 @@ function OpenAITestPage() {
                   <div
                     key={workflow.id}
                     className="workflow-item"
-                    onClick={() => navigate(`/fullWorkflows/${workflow.id}`)}
+                    onClick={() =>
+                      navigate(`/fullWorkflows/edit/${workflow.id}`)
+                    }
                   >
                     <div className="workflow-name">
                       {workflow.name || 'Unnamed Workflow'}

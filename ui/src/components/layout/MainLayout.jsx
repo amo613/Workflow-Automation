@@ -1,10 +1,54 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import {
+  Workflow,
+  Sparkles,
+  User,
+  ChevronDown,
+  Settings,
+  LogOut,
+} from 'lucide-react';
+import logoChain from '@/lib/assets/Logo-Chain_pixian_ai.png';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function MainLayout({ children }) {
   const location = useLocation();
   const isAuthPage =
     location.pathname === '/login' || location.pathname === '/register';
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/sign-out', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Optional: CSRF-Token Cookie löschen (falls vorhanden)
+        document.cookie =
+          'csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+        // Redirect zu Login
+        window.location.href = '/login';
+      } else {
+        console.error('Logout failed');
+        // Fallback: Trotzdem redirecten
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: Redirect
+      window.location.href = '/login';
+    }
+  };
 
   if (isAuthPage) {
     return <div className="min-h-screen bg-background">{children}</div>;
@@ -15,36 +59,83 @@ export default function MainLayout({ children }) {
       className="min-h-screen bg-background"
       style={{ overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}
     >
+      {/* Glassmorphism Header */}
       <nav
-        className="border-b border-border bg-card"
+        className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60"
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
         <div
-          className="container mx-auto px-4 py-3 flex items-center justify-between"
+          className="container mx-auto px-8 py-5 flex items-center justify-between"
           style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
         >
+          {/* Logo + Brand */}
           <Link
             to="/choose"
-            className="text-xl font-semibold text-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-3 group transition-transform hover:scale-105"
           >
-            Workflow Builder
+            <div className="relative">
+              <img
+                src={logoChain}
+                alt="NodeChain Logo"
+                className="w-14 h-14 object-contain"
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-lg blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              NodeChain
+            </span>
           </Link>
-          <div className="flex items-center gap-4">
+
+          {/* Navigation */}
+          <div className="flex items-center gap-3">
             <Link to="/fullWorkflows">
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 hover:bg-accent/50 transition-all hover:scale-105"
+              >
+                <Workflow className="w-4 h-4" />
                 Workflows
               </Button>
             </Link>
             <Link to="/test-openai">
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all hover:scale-105"
+              >
+                <Sparkles className="w-4 h-4" />
                 Test Page
               </Button>
             </Link>
+
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 hover:bg-accent/50"
+                >
+                  <User className="w-4 h-4" />
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  className="gap-2 text-destructive"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </nav>
       <main
-        className="container mx-auto px-4 py-6"
+        className="container mx-auto px-8 py-8"
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
         {children}

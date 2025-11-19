@@ -410,3 +410,56 @@ body.light-theme::before {
   border-color: hsl(var(--primary)) !important;
   transform: translateX(2px);
 }
+
+/* Glassmorphism Utility */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow Effects */
+.glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.glow-blue:hover {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+.glow-purple:hover {
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
+}
+
+.glow-magenta {
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+}
+
+.glow-magenta:hover {
+  box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+}
+
+/* Hover Lift Effect */
+.hover-lift {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+}

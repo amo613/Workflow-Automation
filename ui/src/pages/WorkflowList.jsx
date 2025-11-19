@@ -31,6 +31,7 @@ import {
 import PageContainer from '@/components/layout/PageContainer';
 import WorkflowCanvasTabs from '../components/workflow/WorkflowCanvasTabs.jsx';
 import { toast } from 'sonner';
+import { Phone, Plus, CheckCircle, XCircle, Trash2, Power } from 'lucide-react';
 
 function WorkflowList() {
   const [workflows, setWorkflows] = useState([]);
@@ -130,40 +131,69 @@ function WorkflowList() {
     </div>
   ) : (
     <>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 py-4">
+        {/* Header Section with Icons */}
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Call Flows</h1>
-            <p className="text-muted-foreground mt-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-blue-500/30">
+                <Phone className="w-6 h-6 text-blue-400" />
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                Call Flows
+              </h1>
+            </div>
+            <p className="text-muted-foreground ml-14">
               Manage your conversational call workflows
             </p>
           </div>
-          <Button onClick={() => navigate('/workflows/new')}>
+          <Button
+            onClick={() => navigate('/workflows/new')}
+            className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all hover:scale-105"
+          >
+            <Plus className="w-4 h-4" />
             Create Call Flow
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Call Flows</CardTitle>
+        {/* Glassmorphism Card */}
+        <Card className="glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-blue-400" />
+              All Call Flows
+            </CardTitle>
             <CardDescription>
               {workflows.length} workflow{workflows.length !== 1 ? 's' : ''}{' '}
               found
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-6">
             {error ? (
               <div className="text-destructive text-center py-8">{error}</div>
             ) : workflows.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg mb-2">No workflows found</p>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/workflows/new')}
-                  className="mt-4"
-                >
-                  Create your first call flow
-                </Button>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="p-4 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-blue-500/30">
+                    <Phone className="w-12 h-12 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-lg mb-2 font-semibold">
+                      No call flows found
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Get started by creating your first call flow
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/workflows/new')}
+                    className="gap-2 hover:scale-105 transition-transform"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create your first call flow
+                  </Button>
+                </div>
               </div>
             ) : (
               <Table>
@@ -179,38 +209,63 @@ function WorkflowList() {
                   {workflows.map(workflow => (
                     <TableRow
                       key={workflow.id}
-                      className="cursor-pointer"
+                      className="cursor-pointer hover:bg-blue-500/5 hover:border-blue-500/20 transition-all group border-b border-border/50"
+                      style={{ minHeight: '64px' }}
                       onClick={() => navigate(`/workflows/edit/${workflow.id}`)}
                     >
-                      <TableCell className="font-medium">
-                        {workflow.name || 'Unnamed Workflow'}
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-600/10 border border-blue-500/20 group-hover:border-blue-500/40 group-hover:from-blue-500/20 group-hover:to-purple-600/20 transition-all">
+                            <Phone className="w-4 h-4 text-blue-400" />
+                          </div>
+                          <span className="font-medium">
+                            {workflow.name || 'Unnamed Workflow'}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <Badge
                           variant={workflow.is_active ? 'default' : 'secondary'}
+                          className={`gap-1.5 ${
+                            workflow.is_active
+                              ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                              : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+                          }`}
                         >
+                          {workflow.is_active ? (
+                            <CheckCircle className="w-3 h-3 text-green-400" />
+                          ) : (
+                            <XCircle className="w-3 h-3 text-gray-400" />
+                          )}
                           {workflow.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4 text-muted-foreground">
                         {workflow.created_at
                           ? new Date(workflow.created_at).toLocaleDateString()
                           : '-'}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <TableCell className="text-right py-4">
+                        <div
+                          className="flex items-center justify-end gap-2"
+                          onClick={e => e.stopPropagation()}
+                        >
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={e => handleToggleActive(workflow, e)}
+                            className="gap-1.5 hover:scale-105 hover:bg-blue-500/10 hover:text-blue-300 transition-all"
                           >
+                            <Power className="w-4 h-4" />
                             {workflow.is_active ? 'Deactivate' : 'Activate'}
                           </Button>
                           <Button
-                            variant="destructive"
+                            variant="ghost"
                             size="sm"
                             onClick={e => handleDeleteClick(workflow.id, e)}
+                            className="gap-1.5 text-destructive hover:scale-105 hover:bg-red-500/10 transition-all"
                           >
+                            <Trash2 className="w-4 h-4" />
                             Delete
                           </Button>
                         </div>
