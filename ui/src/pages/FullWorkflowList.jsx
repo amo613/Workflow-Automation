@@ -20,14 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import PageContainer from '@/components/layout/PageContainer';
 import { toast } from 'sonner';
 import {
@@ -153,25 +145,25 @@ function FullWorkflowList() {
     <PageContainer>
       <div className="space-y-6 py-4">
         {/* Header Section with Icons */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-10">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-blue-500/30">
-                <Workflow className="w-6 h-6 text-blue-400" />
+            <div className="flex items-center gap-4 mb-5">
+              <div className="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-blue-500/30">
+                <Workflow className="w-8 h-8 text-blue-400" />
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                 Workflows
               </h1>
             </div>
-            <p className="text-muted-foreground ml-14">
+            <p className="text-muted-foreground ml-16 text-lg">
               Manage your automation workflows
             </p>
           </div>
           <Button
             onClick={() => navigate('/fullWorkflows/new')}
-            className="gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all hover:scale-105"
+            className="gap-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all hover:scale-105 text-base px-6 py-3"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-5 h-5" />
             Create Workflow
           </Button>
         </div>
@@ -218,100 +210,103 @@ function FullWorkflowList() {
                 </div>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workflows.map(workflow => (
-                    <TableRow
+              <div className="space-y-4">
+                <div className="grid grid-cols-12 gap-4 px-8 py-5 text-base font-semibold text-muted-foreground border-b border-border/30">
+                  <div className="col-span-3 flex items-center">Name</div>
+                  <div className="col-span-2 flex items-center">Type</div>
+                  <div className="col-span-2 flex items-center">Status</div>
+                  <div className="col-span-2 flex items-center">Created</div>
+                  <div className="col-span-3 text-right flex items-center justify-end">Actions</div>
+                </div>
+                <div className="space-y-4">
+                  {workflows.map((workflow, index) => (
+                    <div
                       key={workflow.id}
-                      className="cursor-pointer hover:bg-blue-500/5 hover:border-blue-500/20 transition-all group border-b border-border/50"
-                      style={{ minHeight: '64px' }}
+                      className="cursor-pointer hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm flex items-center"
+                      style={{ 
+                        minHeight: '100px',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                      }}
                       onClick={() =>
                         navigate(`/fullWorkflows/edit/${workflow.id}`)
                       }
                     >
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-600/10 border border-blue-500/20 group-hover:border-blue-500/40 group-hover:from-blue-500/20 group-hover:to-purple-600/20 transition-all">
-                            <Workflow className="w-4 h-4 text-blue-400" />
+                      <div className="grid grid-cols-12 gap-4 w-full py-7 px-8">
+                        <div className="col-span-3 flex items-center">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3.5 rounded-xl bg-gradient-to-br from-blue-500/15 to-purple-600/15 border border-blue-500/25 group-hover:border-blue-500/50 group-hover:from-blue-500/25 group-hover:to-purple-600/25 transition-all shadow-sm flex items-center justify-center">
+                              <Workflow className="w-7 h-7 text-blue-400" />
+                            </div>
+                            <span className="font-semibold text-lg flex items-center">
+                              {workflow.name || 'Unnamed Workflow'}
+                            </span>
                           </div>
-                          <span className="font-medium">
-                            {workflow.name || 'Unnamed Workflow'}
-                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge
-                          variant="outline"
-                          className="gap-1.5 border-purple-500/30 bg-purple-500/5 text-purple-300"
-                        >
-                          {workflow.type === 'automation' ? (
-                            <Zap className="w-3 h-3 text-purple-400" />
-                          ) : (
-                            <LinkIcon className="w-3 h-3 text-purple-400" />
-                          )}
-                          {workflow.type || 'automation'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge
-                          variant={workflow.is_active ? 'default' : 'secondary'}
-                          className={`gap-1.5 ${
-                            workflow.is_active
-                              ? 'bg-green-500/20 border-green-500/30 text-green-300'
-                              : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                          }`}
-                        >
-                          {workflow.is_active ? (
-                            <CheckCircle className="w-3 h-3 text-green-400" />
-                          ) : (
-                            <XCircle className="w-3 h-3 text-gray-400" />
-                          )}
-                          {workflow.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4 text-muted-foreground">
-                        {workflow.created_at
-                          ? new Date(workflow.created_at).toLocaleDateString()
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-right py-4">
-                        <div
-                          className="flex items-center justify-end gap-2"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={e => handleToggleActive(workflow, e)}
-                            className="gap-1.5 hover:scale-105 hover:bg-blue-500/10 hover:text-blue-300 transition-all"
+                        <div className="col-span-2 flex items-center justify-start">
+                          <Badge
+                            variant="outline"
+                            className="gap-2.5 border-purple-500/30 bg-purple-500/5 text-purple-300 px-4 py-2 text-base flex items-center"
                           >
-                            <Power className="w-4 h-4" />
-                            {workflow.is_active ? 'Deactivate' : 'Activate'}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={e => handleDeleteClick(workflow.id, e)}
-                            className="gap-1.5 text-destructive hover:scale-105 hover:bg-red-500/10 transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </Button>
+                            {workflow.type === 'automation' ? (
+                              <Zap className="w-5 h-5 text-purple-400" />
+                            ) : (
+                              <LinkIcon className="w-5 h-5 text-purple-400" />
+                            )}
+                            <span className="flex items-center">{workflow.type || 'automation'}</span>
+                          </Badge>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                        <div className="col-span-2 flex items-center justify-start">
+                          <Badge
+                            variant={workflow.is_active ? 'default' : 'secondary'}
+                            className={`gap-2.5 px-4 py-2 text-base flex items-center ${
+                              workflow.is_active
+                                ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                                : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+                            }`}
+                          >
+                            {workflow.is_active ? (
+                              <CheckCircle className="w-5 h-5 text-green-400" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-gray-400" />
+                            )}
+                            <span className="flex items-center">{workflow.is_active ? 'Active' : 'Inactive'}</span>
+                          </Badge>
+                        </div>
+                        <div className="col-span-2 text-muted-foreground text-lg flex items-center">
+                          {workflow.created_at
+                            ? new Date(workflow.created_at).toLocaleDateString()
+                            : '-'}
+                        </div>
+                        <div className="col-span-3 text-right flex items-center justify-end">
+                          <div
+                            className="flex items-center justify-end gap-3"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="default"
+                              onClick={e => handleToggleActive(workflow, e)}
+                              className="gap-2.5 hover:scale-105 hover:bg-blue-500/10 hover:text-blue-300 transition-all px-5 py-2.5 text-base flex items-center"
+                            >
+                              <Power className="w-6 h-6" />
+                              <span className="flex items-center">{workflow.is_active ? 'Deactivate' : 'Activate'}</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="default"
+                              onClick={e => handleDeleteClick(workflow.id, e)}
+                              className="gap-2.5 text-destructive hover:scale-105 hover:bg-red-500/10 transition-all px-5 py-2.5 text-base flex items-center"
+                            >
+                              <Trash2 className="w-6 h-6" />
+                              <span className="flex items-center">Delete</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
