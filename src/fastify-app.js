@@ -3,6 +3,7 @@ import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import compress from '@fastify/compress';
 import staticFiles from '@fastify/static';
 import { join } from 'path';
 import { readFileSync } from 'fs';
@@ -63,11 +64,18 @@ fastify.register(cookie, {
 // Register CORS plugin (same as Express)
 fastify.register(cors);
 
+// Register compression plugin (gzip, deflate, brotli)
+fastify.register(compress, {
+  global: true,
+  encodings: ['gzip', 'deflate', 'br'],
+});
+
 // Register Helmet plugin for security headers (same as Express)
 fastify.register(helmet, {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+      fontSrc: ["'self'", 'https://cdn.ngrok.com', 'https://assets.ngrok.com'],
       scriptSrc: [
         "'self'",
         "'unsafe-inline'",

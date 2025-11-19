@@ -2089,9 +2089,9 @@ function WorkflowEditorLayout({
             fitView
           >
             <Background
-              variant="grid"
-              gap={24}
-              size={1}
+              variant="cross"
+              gap={20}
+              size={5}
               color="hsl(var(--border))"
             />
             <Controls />

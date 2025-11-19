@@ -50,6 +50,7 @@
     "@arcjet/node": "^1.0.0-beta.13",
     "@bull-board/api": "^6.7.7",
     "@bull-board/express": "^6.7.7",
+    "@fastify/compress": "^7.0.3",
     "@fastify/cookie": "^8.3.0",
     "@fastify/cors": "^8.5.0",
     "@fastify/formbody": "^7.4.0",

@@ -403,7 +403,8 @@
 
 .btn-link {
   color: hsl(var(--primary));
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
   font-size: 0.875rem;
   font-weight: 500;
   transition: color 0.2s;
@@ -411,6 +412,13 @@
 
 .btn-link:hover {
   color: hsl(var(--primary) / 0.8);
+  text-decoration-thickness: 2px;
+}
+
+.btn-link:focus {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .profile-tabs {

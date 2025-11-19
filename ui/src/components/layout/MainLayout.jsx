@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,14 @@ export default function MainLayout({ children }) {
   const location = useLocation();
   const isAuthPage =
     location.pathname === '/login' || location.pathname === '/register';
+
+  // Update canonical URL on route change
+  React.useEffect(() => {
+    const canonicalLink = document.getElementById('canonical-link');
+    if (canonicalLink) {
+      canonicalLink.href = window.location.href.split('?')[0]; // Remove query params
+    }
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {

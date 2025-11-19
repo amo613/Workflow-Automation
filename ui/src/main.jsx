@@ -8,6 +8,12 @@ import './index.css';
 document.documentElement.classList.add('dark');
 document.body.classList.add('dark');
 
+// Set canonical URL dynamically
+const canonicalLink = document.getElementById('canonical-link');
+if (canonicalLink) {
+  canonicalLink.href = window.location.href.split('?')[0]; // Remove query params
+}
+
 // Ensure CSRF token is available by making a GET request to trigger token generation
 fetch('/api', {
   method: 'GET',
