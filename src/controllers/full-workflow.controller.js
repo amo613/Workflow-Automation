@@ -196,6 +196,95 @@ export async function updateFullWorkflowHandler(req, reply) {
     if (workflow_json && workflow_json.nodes) {
       const nodes = workflow_json.nodes || [];
 
+      // Handle Custom Webhook Paths
+      try {
+        const {
+          registerCustomPath,
+          unregisterCustomPath,
+          getCustomPathsForWorkflow,
+        } = await import('#services/custom-webhook-path.service.js');
+
+        // Get existing custom paths for this workflow
+        const existingCustomPaths = await getCustomPathsForWorkflow(workflowId);
+
+        // Find webhook trigger nodes with custom paths
+        const webhookTriggerNodes = nodes.filter(
+          node => node.type === 'webhook-trigger'
+        );
+
+        // Collect new custom paths
+        const newCustomPaths = [];
+        for (const webhookNode of webhookTriggerNodes) {
+          const customPath = webhookNode.data?.customPath;
+          if (customPath && customPath.trim() !== '') {
+            // Ensure path starts with /api/custom/
+            const normalizedPath = customPath.startsWith('/api/custom/')
+              ? customPath
+              : `/api/custom${customPath.startsWith('/') ? '' : '/'}${customPath}`;
+            newCustomPaths.push({
+              path: normalizedPath,
+              nodeId: webhookNode.id,
+            });
+          }
+        }
+
+        // Unregister old custom paths that are no longer used
+        for (const oldPath of existingCustomPaths) {
+          const stillExists = newCustomPaths.some(
+            np => np.path === oldPath
+          );
+          if (!stillExists) {
+            await unregisterCustomPath(oldPath);
+            logger.info('Unregistered custom webhook path', {
+              workflowId,
+              customPath: oldPath,
+            });
+          }
+        }
+
+        // Register new custom paths (only if workflow is active)
+        if (is_active !== false && workflow.is_active) {
+          for (const { path, nodeId } of newCustomPaths) {
+            // Check if already registered
+            const alreadyExists = existingCustomPaths.includes(path);
+            if (!alreadyExists) {
+              await registerCustomPath(path, {
+                workflowId,
+                nodeId,
+                webhookId: workflowId.toString(),
+              });
+              logger.info('Registered custom webhook path', {
+                workflowId,
+                customPath: path,
+                nodeId,
+                normalizedPath: path,
+              });
+            } else {
+              logger.info('Custom webhook path already registered', {
+                workflowId,
+                customPath: path,
+                nodeId,
+              });
+            }
+          }
+        } else {
+          // Workflow is inactive, unregister all custom paths
+          for (const { path } of newCustomPaths) {
+            await unregisterCustomPath(path);
+            logger.info('Unregistered custom webhook path (workflow inactive)', {
+              workflowId,
+              customPath: path,
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Error managing custom webhook paths', {
+          workflowId,
+          error: error.message,
+        });
+        // Don't fail the save operation if custom path management fails
+      }
+
       // Find all trigger nodes
       const triggerNodes = nodes.filter(
         node =>
@@ -231,6 +320,28 @@ export async function updateFullWorkflowHandler(req, reply) {
           error: error.message,
         });
         // Continue - don't fail the save operation
+      }
+
+      // Handle Custom Paths when workflow is deactivated
+      if (is_active === false || (is_active !== undefined && !is_active)) {
+        try {
+          const { getCustomPathsForWorkflow, unregisterCustomPath } =
+            await import('#services/custom-webhook-path.service.js');
+          const customPaths = await getCustomPathsForWorkflow(workflowId);
+          for (const path of customPaths) {
+            await unregisterCustomPath(path);
+            logger.info('Unregistered custom webhook path (workflow deactivated)', {
+              workflowId,
+              customPath: path,
+            });
+          }
+        } catch (error) {
+          logger.error('Error unregistering custom paths on deactivation', {
+            workflowId,
+            error: error.message,
+          });
+          // Don't fail the save operation
+        }
       }
 
       // Schedule new triggers if workflow is active
@@ -328,8 +439,29 @@ export async function deleteFullWorkflowHandler(req, reply) {
   try {
     const userId = req.user.id;
     const { id } = req.params;
+    const workflowId = parseInt(id, 10);
 
-    await deleteFullWorkflow(parseInt(id, 10), userId);
+    // Unregister custom webhook paths before deleting workflow
+    try {
+      const { getCustomPathsForWorkflow, unregisterCustomPath } =
+        await import('#services/custom-webhook-path.service.js');
+      const customPaths = await getCustomPathsForWorkflow(workflowId);
+      for (const path of customPaths) {
+        await unregisterCustomPath(path);
+        logger.info('Unregistered custom webhook path (workflow deleted)', {
+          workflowId,
+          customPath: path,
+        });
+      }
+    } catch (error) {
+      logger.error('Error unregistering custom paths on workflow deletion', {
+        workflowId,
+        error: error.message,
+      });
+      // Don't fail the delete operation if custom path cleanup fails
+    }
+
+    await deleteFullWorkflow(workflowId, userId);
 
     return reply.code(200).send({
       success: true,

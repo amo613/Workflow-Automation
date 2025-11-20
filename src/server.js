@@ -44,6 +44,7 @@ const requestHandler = (req, res) => {
     pathname.startsWith('/api/integrations/google-sheets') ||
     pathname.startsWith('/api/inngest') ||
     pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/custom') ||
     pathname.startsWith('/api/ai-agent') ||
     pathname.startsWith('/api/email') ||
     pathname.startsWith('/api/twilio') ||

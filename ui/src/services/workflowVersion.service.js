@@ -8,16 +8,28 @@ const API_BASE = '/api/full-workflows';
 
 export const workflowVersionService = {
   /**
-   * Get all versions for a workflow
+   * Get all versions for a workflow with pagination
    */
-  async getVersions(workflowId) {
-    const response = await fetch(`${API_BASE}/${workflowId}/versions`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  async getVersions(workflowId, options = {}) {
+    const limit = options.limit || 20;
+    const offset = options.offset || 0;
+
+    // eslint-disable-next-line no-undef
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
     });
+
+    const response = await fetch(
+      `${API_BASE}/${workflowId}/versions?${params.toString()}`,
+      {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     if (!response.ok) {
       const error = await response
@@ -27,7 +39,11 @@ export const workflowVersionService = {
     }
 
     const data = await response.json();
-    return data.data || [];
+    return {
+      versions: data.data || [],
+      total: data.total || 0,
+      hasMore: data.hasMore || false,
+    };
   },
 
   /**
