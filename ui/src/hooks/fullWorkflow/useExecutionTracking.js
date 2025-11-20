@@ -6,6 +6,7 @@ export function useExecutionTracking({
   workflowId,
   setNodes,
   pollIntervalMs = EXECUTION_POLL_INTERVAL_MS,
+  onExecutionComplete, // Callback when execution completes
 }) {
   const activeExecutionsRef = useRef(new Map()); // Map<eventId, executionData>
   const activeExecutionsPollingRef = useRef(new Map()); // Map<eventId, intervalId>
@@ -133,6 +134,11 @@ export function useExecutionTracking({
             activeExecutionsPollingRef.current.delete(eventId);
           }
 
+          // Call completion callback if provided
+          if (onExecutionComplete) {
+            onExecutionComplete(eventId, status);
+          }
+
           setTimeout(() => {
             activeExecutionsRef.current.delete(eventId);
             updateVisualizationFromActiveExecutions();
@@ -157,30 +163,52 @@ export function useExecutionTracking({
         return false;
       }
     },
-    [updateVisualizationFromActiveExecutions, workflowId]
+    [updateVisualizationFromActiveExecutions, workflowId, onExecutionComplete]
   );
 
   const startPollingExecution = useCallback(
     eventId => {
       if (!eventId) return;
+
       if (activeExecutionsPollingRef.current.has(eventId)) {
         return;
       }
 
+      if (!activeExecutionsRef.current.has(eventId)) {
+        activeExecutionsRef.current.set(eventId, {
+          status: 'pending',
+          timestamp: Date.now(),
+        });
+      }
+
       console.log('🔄 Starting polling for execution', { workflowId, eventId });
 
-      pollExecution(eventId).then(shouldContinue => {
-        if (shouldContinue) {
-          const intervalId = setInterval(async () => {
-            const stillRunning = await pollExecution(eventId);
-            if (!stillRunning) {
-              clearInterval(intervalId);
-              activeExecutionsPollingRef.current.delete(eventId);
-            }
-          }, pollIntervalMs);
-          activeExecutionsPollingRef.current.set(eventId, intervalId);
-        }
-      });
+      // mark as in-flight immediately to avoid duplicate bootstraps
+      activeExecutionsPollingRef.current.set(eventId, 'bootstrap');
+
+      pollExecution(eventId)
+        .then(shouldContinue => {
+          if (shouldContinue) {
+            const intervalId = setInterval(async () => {
+              const stillRunning = await pollExecution(eventId);
+              if (!stillRunning) {
+                clearInterval(intervalId);
+                activeExecutionsPollingRef.current.delete(eventId);
+              }
+            }, pollIntervalMs);
+            activeExecutionsPollingRef.current.set(eventId, intervalId);
+          } else {
+            activeExecutionsPollingRef.current.delete(eventId);
+          }
+        })
+        .catch(error => {
+          console.warn('Error bootstrapping execution polling', {
+            workflowId,
+            eventId,
+            error: error.message,
+          });
+          activeExecutionsPollingRef.current.delete(eventId);
+        });
     },
     [pollExecution, pollIntervalMs, workflowId]
   );

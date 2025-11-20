@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -10,16 +10,21 @@ import {
   Sparkles,
   Loader2,
   Clipboard,
+  LayoutGrid,
 } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
+  ControlButton,
   addEdge,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { edgeTypes } from '../components/full-workflow/edges/edgeTypes.js';
 import StartNode from '../components/nodes/StartNode';
 import IfNode from '../components/nodes/IfNode';
 import StepNode from '../components/nodes/StepNode';
@@ -32,6 +37,7 @@ import {
   setLastCallFlowId,
   clearLastCallFlowId,
 } from '../utils/callFlowStorage.js';
+import { computePyramidLayout } from '@/utils/layout/pyramidLayout';
 
 const nodeTypes = {
   start: StartNode,
@@ -40,7 +46,7 @@ const nodeTypes = {
   end: EndNode,
 };
 
-function WorkflowEditor() {
+function WorkflowEditorInner() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id;
@@ -54,6 +60,53 @@ function WorkflowEditor() {
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [compiledPrompt, setCompiledPrompt] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
+  const [isAutoLayouting, setIsAutoLayouting] = useState(false);
+  const reactFlowInstance = useReactFlow();
+
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: 'smoothstep',
+    }),
+    []
+  );
+
+  const handleAutoLayout = useCallback(() => {
+    if (!nodes.length) {
+      return;
+    }
+
+    setIsAutoLayouting(true);
+    const positions = computePyramidLayout(nodes, edges, {
+      triggerTypes: ['start'],
+      laneSpacing: 420,
+      levelSpacing: 240,
+      intraSpacing: 240,
+    });
+
+    if (!positions.size) {
+      setIsAutoLayouting(false);
+      return;
+    }
+
+    setNodes(prevNodes =>
+      prevNodes.map(node => {
+        const nextPosition = positions.get(node.id);
+        if (!nextPosition) {
+          return node;
+        }
+        return {
+          ...node,
+          position: nextPosition,
+          dragging: false,
+        };
+      })
+    );
+
+    requestAnimationFrame(() => {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
+      setIsAutoLayouting(false);
+    });
+  }, [nodes, edges, setNodes, reactFlowInstance]);
 
   useEffect(() => {
     if (!isNew) {
@@ -530,6 +583,7 @@ function WorkflowEditor() {
             height: '100%',
             boxSizing: 'border-box',
             background: 'transparent',
+            position: 'relative',
           }}
         >
           <ReactFlow
@@ -549,7 +603,9 @@ function WorkflowEditor() {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
+            defaultEdgeOptions={defaultEdgeOptions}
           >
             <Background
               variant="cross"
@@ -557,7 +613,19 @@ function WorkflowEditor() {
               size={5}
               color="hsl(var(--border))"
             />
-            <Controls />
+            <Controls>
+              <ControlButton
+                title="Auto layout"
+                onClick={handleAutoLayout}
+                disabled={isAutoLayouting}
+              >
+                {isAutoLayouting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <LayoutGrid className="w-4 h-4" />
+                )}
+              </ControlButton>
+            </Controls>
             <MiniMap
               nodeColor={node => {
                 switch (node.type) {
@@ -578,6 +646,14 @@ function WorkflowEditor() {
               zoomable={false}
             />
           </ReactFlow>
+          {isAutoLayouting && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
+              <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span>Re-arranging nodes…</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Node Sidebar - inside canvas container */}
@@ -709,4 +785,10 @@ function WorkflowEditor() {
   );
 }
 
-export default WorkflowEditor;
+export default function WorkflowEditor() {
+  return (
+    <ReactFlowProvider>
+      <WorkflowEditorInner />
+    </ReactFlowProvider>
+  );
+}

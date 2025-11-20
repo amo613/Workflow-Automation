@@ -216,14 +216,16 @@ function FullWorkflowList() {
                   <div className="col-span-2 flex items-center">Type</div>
                   <div className="col-span-2 flex items-center">Status</div>
                   <div className="col-span-2 flex items-center">Created</div>
-                  <div className="col-span-3 text-right flex items-center justify-end">Actions</div>
+                  <div className="col-span-3 text-right flex items-center justify-end">
+                    Actions
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {workflows.map((workflow, index) => (
                     <div
                       key={workflow.id}
                       className="cursor-pointer hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm flex items-center"
-                      style={{ 
+                      style={{
                         minHeight: '100px',
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                       }}
@@ -252,12 +254,16 @@ function FullWorkflowList() {
                             ) : (
                               <LinkIcon className="w-5 h-5 text-purple-400" />
                             )}
-                            <span className="flex items-center">{workflow.type || 'automation'}</span>
+                            <span className="flex items-center">
+                              {workflow.type || 'automation'}
+                            </span>
                           </Badge>
                         </div>
                         <div className="col-span-2 flex items-center justify-start">
                           <Badge
-                            variant={workflow.is_active ? 'default' : 'secondary'}
+                            variant={
+                              workflow.is_active ? 'default' : 'secondary'
+                            }
                             className={`gap-2.5 px-4 py-2 text-base flex items-center ${
                               workflow.is_active
                                 ? 'bg-green-500/20 border-green-500/30 text-green-300'
@@ -269,7 +275,9 @@ function FullWorkflowList() {
                             ) : (
                               <XCircle className="w-5 h-5 text-gray-400" />
                             )}
-                            <span className="flex items-center">{workflow.is_active ? 'Active' : 'Inactive'}</span>
+                            <span className="flex items-center">
+                              {workflow.is_active ? 'Active' : 'Inactive'}
+                            </span>
                           </Badge>
                         </div>
                         <div className="col-span-2 text-muted-foreground text-lg flex items-center">
@@ -289,7 +297,9 @@ function FullWorkflowList() {
                               className="gap-2.5 hover:scale-105 hover:bg-blue-500/10 hover:text-blue-300 transition-all px-5 py-2.5 text-base flex items-center"
                             >
                               <Power className="w-6 h-6" />
-                              <span className="flex items-center">{workflow.is_active ? 'Deactivate' : 'Activate'}</span>
+                              <span className="flex items-center">
+                                {workflow.is_active ? 'Deactivate' : 'Activate'}
+                              </span>
                             </Button>
                             <Button
                               variant="ghost"

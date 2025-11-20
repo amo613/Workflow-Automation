@@ -47,6 +47,17 @@ export function useFullWorkflowEditorLogic() {
     workflowId: id,
     setNodes,
     pollIntervalMs: EXECUTION_POLL_INTERVAL_MS,
+    onExecutionComplete: useCallback((eventId, status) => {
+      // Reset executing state when execution completes
+      setExecuting(false);
+      setExecutionStatus({
+        status: status === 'completed' ? 'success' : 'error',
+        message:
+          status === 'completed'
+            ? 'Workflow execution completed'
+            : 'Workflow execution failed',
+      });
+    }, []),
   });
 
   const statisticsState = useWorkflowStatistics({

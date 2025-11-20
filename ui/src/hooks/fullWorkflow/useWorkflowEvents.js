@@ -118,24 +118,21 @@ export function useWorkflowEvents({
           eventType,
           payload,
         });
-        pollExecution(payload.eventId).catch(error => {
-          console.warn('⚠️ Failed to poll execution after completion event', {
-            workflowId,
-            eventType,
-            eventId: payload.eventId,
-            error: error.message,
+        // DON'T call pollExecution here - it's already running via workflow.pending!
+        // Refresh the history with a small delay to ensure execution state is consistent
+        // This prevents the history from detecting the execution as "new" and starting duplicate polling
+        setTimeout(() => {
+          fetchExecutionHistory().catch(error => {
+            console.warn(
+              '⚠️ Failed to refresh execution history after completion event',
+              {
+                workflowId,
+                eventType,
+                error: error.message,
+              }
+            );
           });
-        });
-        fetchExecutionHistory().catch(error => {
-          console.warn(
-            '⚠️ Failed to refresh execution history after completion event',
-            {
-              workflowId,
-              eventType,
-              error: error.message,
-            }
-          );
-        });
+        }, 500); // 500ms delay to ensure execution state is updated
       };
 
       source.onopen = () => {

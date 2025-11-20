@@ -1,5 +1,14 @@
-import ReactFlow, { Background, Controls, MiniMap } from 'reactflow';
+import { useState, useMemo, useCallback } from 'react';
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  ControlButton,
+  useReactFlow,
+  ReactFlowProvider,
+} from 'reactflow';
 import 'reactflow/dist/style.css';
+import { edgeTypes } from './edges/edgeTypes.js';
 import StartNode from './nodes/StartNode';
 import EndNode from './nodes/EndNode';
 import WebhookNode from './nodes/WebhookNode';
@@ -49,7 +58,9 @@ import {
   Flag,
   Bot,
   Timer,
+  LayoutGrid,
 } from 'lucide-react';
+import { computePyramidLayout } from '@/utils/layout/pyramidLayout';
 
 const nodeTypes = {
   start: StartNode,
@@ -72,7 +83,7 @@ const nodeTypes = {
   merge: MergeNode,
 };
 
-function WorkflowEditorLayout({
+function WorkflowEditorLayoutInner({
   workflowId,
   isNew,
   name,
@@ -119,6 +130,10 @@ function WorkflowEditorLayout({
   historyState,
   handleClearPerformance,
 }) {
+  const [isAutoLayouting, setIsAutoLayouting] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState(null);
+  const reactFlowInstance = useReactFlow();
+
   const {
     statistics,
     statisticsLoading,
@@ -154,6 +169,147 @@ function WorkflowEditorLayout({
     setExpandedExecution,
     fetchExecutionHistory,
   } = historyState;
+
+  const defaultEdgeOptions = useMemo(
+    () => ({
+      type: 'smoothstep',
+    }),
+    []
+  );
+
+  const handleAutoLayout = useCallback(() => {
+    if (!nodes?.length) {
+      return;
+    }
+
+    setIsAutoLayouting(true);
+    const positions = computePyramidLayout(nodes, edges, {
+      triggerTypes: [
+        'call-trigger',
+        'webhook-trigger',
+        'schedule-trigger',
+        'google-sheets-trigger',
+        'start',
+      ],
+      laneSpacing: 480,
+      levelSpacing: 240,
+      intraSpacing: 260,
+    });
+
+    if (!positions.size) {
+      setIsAutoLayouting(false);
+      return;
+    }
+
+    setNodes(prevNodes =>
+      prevNodes.map(node => {
+        const nextPosition = positions.get(node.id);
+        if (!nextPosition) {
+          return node;
+        }
+        return {
+          ...node,
+          position: nextPosition,
+          dragging: false,
+        };
+      })
+    );
+
+    requestAnimationFrame(() => {
+      reactFlowInstance.fitView({ padding: 0.2, duration: 500 });
+      setIsAutoLayouting(false);
+    });
+  }, [nodes, edges, setNodes, reactFlowInstance]);
+
+  // Calculate edge offsets for parallel edges and z-index
+  const edgesWithOffset = useMemo(() => {
+    // Group edges by source-target pair
+    const edgeGroups = new Map();
+    edges.forEach((edge, index) => {
+      const key = `${edge.source}-${edge.target}`;
+      if (!edgeGroups.has(key)) {
+        edgeGroups.set(key, []);
+      }
+      edgeGroups.get(key).push({ edge, index });
+    });
+
+    // Calculate offset and z-index for each edge
+    return edges.map((edge, index) => {
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      const isFallbackEdge =
+        sourceNode?.data?.errorConfig?.onError === 'fallback' &&
+        sourceNode?.data?.errorConfig?.fallbackNodeId === edge.target;
+
+      const triggerEdgeColors = {
+        'webhook-trigger': '#3b82f6',
+        'schedule-trigger': '#22c55e',
+        'google-sheets-trigger': '#a855f7',
+        'call-trigger': '#10b981',
+        start: '#14b8a6',
+      };
+
+      const triggerColor = triggerEdgeColors[sourceNode?.type];
+      const isExecuted = executedEdges.includes(edge.id);
+
+      // Calculate offset for parallel edges
+      const key = `${edge.source}-${edge.target}`;
+      const group = edgeGroups.get(key) || [];
+      const edgeInGroup = group.find(e => e.index === index);
+      const groupIndex = group.indexOf(edgeInGroup);
+      const totalInGroup = group.length;
+
+      // Calculate offset: center edges around 0, spread them out
+      // Offset in pixels (20px spacing between parallel edges)
+      const offset =
+        totalInGroup > 1 ? (groupIndex - (totalInGroup - 1) / 2) * 20 : 0;
+
+      // Calculate z-index: newer edges on top, executed edges higher
+      const zIndex = isExecuted ? 1000 + index : 100 + index;
+
+      // Check if edge is connected to hovered node
+      const isConnectedToHovered =
+        hoveredNodeId &&
+        (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+
+      return {
+        ...edge,
+        type: isExecuted ? 'animated' : edge.type || 'default',
+        data: {
+          ...edge.data,
+          isExecuted,
+          offset, // Pass offset to edge component
+        },
+        style: {
+          ...edge.style,
+          stroke: isFallbackEdge
+            ? isExecuted
+              ? '#f59e0b'
+              : '#ef4444'
+            : isExecuted
+              ? triggerColor || '#10b981'
+              : edge.style?.stroke || '#b1b1b7',
+          strokeWidth: isExecuted
+            ? 3
+            : isFallbackEdge
+              ? 2.5
+              : edge.style?.strokeWidth || 2,
+          strokeDasharray: isFallbackEdge ? '5,5' : undefined,
+          zIndex,
+          opacity: hoveredNodeId && !isConnectedToHovered ? 0.3 : 1,
+          transition: 'opacity 0.2s ease',
+        },
+      };
+    });
+  }, [edges, nodes, executedEdges, hoveredNodeId]);
+
+  // Hover handlers for highlighting connected edges
+  const handleNodeMouseEnter = useCallback((event, node) => {
+    setHoveredNodeId(node.id);
+  }, []);
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
 
   const nodePaletteButtonStyle = {
     padding: '0.75rem',
@@ -2043,50 +2199,17 @@ function WorkflowEditorLayout({
         >
           <ReactFlow
             nodes={nodes}
-            edges={edges.map(edge => {
-              const sourceNode = nodes.find(n => n.id === edge.source);
-              const isFallbackEdge =
-                sourceNode?.data?.errorConfig?.onError === 'fallback' &&
-                sourceNode?.data?.errorConfig?.fallbackNodeId === edge.target;
-
-              const triggerEdgeColors = {
-                'webhook-trigger': '#3b82f6',
-                'schedule-trigger': '#22c55e',
-                'google-sheets-trigger': '#a855f7',
-                'call-trigger': '#10b981',
-                start: '#14b8a6',
-              };
-
-              const triggerColor = triggerEdgeColors[sourceNode?.type];
-              const isExecuted = executedEdges.includes(edge.id);
-
-              return {
-                ...edge,
-                style: {
-                  ...edge.style,
-                  stroke: isFallbackEdge
-                    ? isExecuted
-                      ? '#f59e0b'
-                      : '#ef4444'
-                    : isExecuted
-                      ? triggerColor || '#10b981'
-                      : edge.style?.stroke || '#b1b1b7',
-                  strokeWidth: isExecuted
-                    ? 3
-                    : isFallbackEdge
-                      ? 2.5
-                      : edge.style?.strokeWidth || 2,
-                  strokeDasharray: isFallbackEdge ? '5,5' : undefined,
-                },
-                animated: executedEdges.includes(edge.id),
-              };
-            })}
+            edges={edgesWithOffset}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onNodeMouseEnter={handleNodeMouseEnter}
+            onNodeMouseLeave={handleNodeMouseLeave}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
+            defaultEdgeOptions={defaultEdgeOptions}
           >
             <Background
               variant="cross"
@@ -2094,7 +2217,19 @@ function WorkflowEditorLayout({
               size={5}
               color="hsl(var(--border))"
             />
-            <Controls />
+            <Controls>
+              <ControlButton
+                title="Auto layout"
+                onClick={handleAutoLayout}
+                disabled={isAutoLayouting}
+              >
+                {isAutoLayouting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <LayoutGrid className="w-4 h-4" />
+                )}
+              </ControlButton>
+            </Controls>
             <MiniMap
               nodeColor={node => {
                 const colors = {
@@ -2122,6 +2257,14 @@ function WorkflowEditorLayout({
               nodeStrokeWidth={3}
             />
           </ReactFlow>
+          {isAutoLayouting && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
+              <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span>Re-arranging nodes…</span>
+              </div>
+            </div>
+          )}
 
           {selectedNode && (
             <NodeSidebarN8N
@@ -2234,4 +2377,10 @@ function WorkflowEditorLayout({
   );
 }
 
-export default WorkflowEditorLayout;
+export default function WorkflowEditorLayout(props) {
+  return (
+    <ReactFlowProvider>
+      <WorkflowEditorLayoutInner {...props} />
+    </ReactFlowProvider>
+  );
+}

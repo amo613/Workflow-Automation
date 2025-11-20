@@ -17,9 +17,14 @@ export function useWorkflowHistory({
   const [showExecutionHistory, setShowExecutionHistory] = useState(false);
   const [expandedExecution, setExpandedExecution] = useState(null);
   const lastExecutionTimestampRef = useRef(null);
+  const historyFetchInProgressRef = useRef(false);
 
   const fetchExecutionHistory = useCallback(async () => {
     if (!workflowId || isNewWorkflow || !autoRefreshReady) return;
+    if (historyFetchInProgressRef.current) {
+      return;
+    }
+    historyFetchInProgressRef.current = true;
     try {
       setHistoryLoading(true);
       setHistoryError(null);
@@ -46,11 +51,19 @@ export function useWorkflowHistory({
           return;
         }
 
+        // Update timestamp FIRST to prevent duplicate detection
+        // This ensures that if we've already seen this execution (via workflow.pending),
+        // we won't detect it as "new" when history refreshes
+        const previousTimestamp = lastExecutionTimestampRef.current;
+        if (latestTimestamp > previousTimestamp) {
+          lastExecutionTimestampRef.current = latestTimestamp;
+        }
+
         const newExecutions = history.filter(execution => {
           const execTimestamp = new Date(execution.timestamp).getTime();
           return (
             execution.eventId &&
-            execTimestamp > (lastExecutionTimestampRef.current || 0) &&
+            execTimestamp > previousTimestamp && // Use previousTimestamp, not current
             !activeExecutionsRef.current.has(execution.eventId) &&
             !activeExecutionsPollingRef.current.has(execution.eventId)
           );
@@ -61,13 +74,8 @@ export function useWorkflowHistory({
             workflowId,
             count: newExecutions.length,
             eventIds: newExecutions.map(e => e.eventId),
-            lastSeen: lastExecutionTimestampRef.current,
+            lastSeen: previousTimestamp,
           });
-
-          const latestNewTimestamp = Math.max(
-            ...newExecutions.map(e => new Date(e.timestamp).getTime())
-          );
-          lastExecutionTimestampRef.current = latestNewTimestamp;
 
           newExecutions.forEach(execution => {
             if (execution.eventId) {
@@ -82,18 +90,20 @@ export function useWorkflowHistory({
               startPollingExecution(execution.eventId);
             }
           });
-        } else if (latestTimestamp > (lastExecutionTimestampRef.current || 0)) {
+        } else if (latestTimestamp > previousTimestamp) {
+          // Fallback: if timestamp was updated but no new executions found,
+          // it means the execution was already being tracked
           const fallbackExecution = history[0];
           if (
             fallbackExecution.eventId &&
-            !activeExecutionsRef.current.has(fallbackExecution.eventId)
+            !activeExecutionsRef.current.has(fallbackExecution.eventId) &&
+            !activeExecutionsPollingRef.current.has(fallbackExecution.eventId)
           ) {
             console.log('🆕 New execution detected (fallback)', {
               workflowId,
               eventId: fallbackExecution.eventId,
               timestamp: latestTimestamp,
             });
-            lastExecutionTimestampRef.current = latestTimestamp;
             if (activeExecutionsRef.current.size === 0) {
               setNodes(nds =>
                 nds.map(node => ({
@@ -110,6 +120,7 @@ export function useWorkflowHistory({
       console.error('Error fetching execution history:', error);
       setHistoryError(error.message);
     } finally {
+      historyFetchInProgressRef.current = false;
       setHistoryLoading(false);
     }
   }, [
@@ -134,6 +145,10 @@ export function useWorkflowHistory({
     );
     return () => clearInterval(interval);
   }, [autoRefreshReady, fetchExecutionHistory, isNewWorkflow, workflowId]);
+
+  useEffect(() => {
+    historyFetchInProgressRef.current = false;
+  }, [workflowId]);
 
   return {
     executionHistory,
