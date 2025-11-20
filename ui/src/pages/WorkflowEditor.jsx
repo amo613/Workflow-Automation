@@ -577,15 +577,15 @@ function WorkflowEditorInner() {
           minWidth: 0,
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            boxSizing: 'border-box',
-            background: 'transparent',
-            position: 'relative',
-          }}
-        >
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          boxSizing: 'border-box',
+          background: 'transparent',
+          position: 'relative',
+        }}
+      >
           <ReactFlow
             nodes={nodes.map(node => {
               const nodeData = {
@@ -604,8 +604,8 @@ function WorkflowEditorInner() {
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            fitView
-            defaultEdgeOptions={defaultEdgeOptions}
+          fitView
+          defaultEdgeOptions={defaultEdgeOptions}
           >
             <Background
               variant="cross"
@@ -613,19 +613,19 @@ function WorkflowEditorInner() {
               size={5}
               color="hsl(var(--border))"
             />
-            <Controls>
-              <ControlButton
-                title="Auto layout"
-                onClick={handleAutoLayout}
-                disabled={isAutoLayouting}
-              >
-                {isAutoLayouting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <LayoutGrid className="w-4 h-4" />
-                )}
-              </ControlButton>
-            </Controls>
+          <Controls>
+            <ControlButton
+              title="Auto layout"
+              onClick={handleAutoLayout}
+              disabled={isAutoLayouting}
+            >
+              {isAutoLayouting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <LayoutGrid className="w-4 h-4" />
+              )}
+            </ControlButton>
+          </Controls>
             <MiniMap
               nodeColor={node => {
                 switch (node.type) {
@@ -646,14 +646,14 @@ function WorkflowEditorInner() {
               zoomable={false}
             />
           </ReactFlow>
-          {isAutoLayouting && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
-              <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span>Re-arranging nodes…</span>
-              </div>
+        {isAutoLayouting && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
+            <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span>Re-arranging nodes…</span>
             </div>
-          )}
+          </div>
+        )}
         </div>
 
         {/* Node Sidebar - inside canvas container */}
