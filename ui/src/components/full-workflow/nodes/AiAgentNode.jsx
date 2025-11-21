@@ -1,11 +1,25 @@
 import { Handle, Position } from 'reactflow';
+import { Bot } from 'lucide-react';
+import StatusBadge from '@/utils/StatusBadge';
 
 export default function AiAgentNode({ data, selected }) {
+  const status = data.status || 'idle';
+  const statusColor = {
+    running: '#3b82f6',
+    success: '#10b981',
+    failed: '#ef4444',
+    idle: null,
+  };
+
   return (
     <div
       style={{
         background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
-        border: `2px solid ${selected ? '#3b82f6' : '#3b82f6'}`,
+        border: `2px solid ${
+          status !== 'idle'
+            ? statusColor[status]
+            : '#3b82f6'
+        }`,
         borderRadius: '0.75rem',
         padding: '1.5rem',
         minWidth: '150px',
@@ -14,15 +28,17 @@ export default function AiAgentNode({ data, selected }) {
           : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
         textAlign: 'center',
+        position: 'relative',
       }}
     >
+      <StatusBadge status={status} />
       <div
         style={{
           fontSize: '2rem',
           marginBottom: '0.5rem',
         }}
       >
-        🤖
+        <Bot className="w-8 h-8" />
       </div>
       <div
         style={{

@@ -1,4 +1,6 @@
 import { Handle, Position } from 'reactflow';
+import { Clock } from 'lucide-react';
+import StatusBadge from '@/utils/StatusBadge';
 
 export default function ScheduleTriggerNode({ data, selected }) {
   const status = data.status || 'idle';
@@ -30,27 +32,7 @@ export default function ScheduleTriggerNode({ data, selected }) {
         position: 'relative',
       }}
     >
-      {status !== 'idle' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-8px',
-            right: '-8px',
-            width: '24px',
-            height: '24px',
-            borderRadius: '50%',
-            background: statusColor[status],
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            zIndex: 10,
-          }}
-        >
-          {status === 'running' ? '⏳' : status === 'success' ? '✅' : '❌'}
-        </div>
-      )}
+      <StatusBadge status={status} />
 
       <div
         style={{
@@ -73,7 +55,7 @@ export default function ScheduleTriggerNode({ data, selected }) {
             color: '#8b5cf6',
           }}
         >
-          ⏰
+          <Clock className="w-5 h-5" />
         </div>
         <div>
           <div

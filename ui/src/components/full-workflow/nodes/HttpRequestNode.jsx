@@ -1,4 +1,5 @@
 import BaseNode from './BaseNode';
+import { Globe } from 'lucide-react';
 
 export default function HttpRequestNode({ data, selected }) {
   return (
@@ -6,7 +7,7 @@ export default function HttpRequestNode({ data, selected }) {
       data={data}
       selected={selected}
       type="http-request"
-      icon="🌐"
+      icon={<Globe className="w-5 h-5" />}
       color="#3b82f6"
       label="HTTP Request"
     />

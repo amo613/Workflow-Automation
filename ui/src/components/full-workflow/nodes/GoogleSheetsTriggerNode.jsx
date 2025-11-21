@@ -1,5 +1,6 @@
 import { Handle, Position } from 'reactflow';
-import { Sheet, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Sheet } from 'lucide-react';
+import StatusBadge from '@/utils/StatusBadge';
 
 export default function GoogleSheetsTriggerNode({ data, selected }) {
   const status = data.status || 'idle';
@@ -31,33 +32,7 @@ export default function GoogleSheetsTriggerNode({ data, selected }) {
         position: 'relative',
       }}
     >
-      {status !== 'idle' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-8px',
-            right: '-8px',
-            width: '24px',
-            height: '24px',
-            borderRadius: '50%',
-            background: statusColor[status],
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            zIndex: 10,
-          }}
-        >
-          {status === 'running' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : status === 'success' ? (
-            <CheckCircle2 className="w-4 h-4" />
-          ) : (
-            <XCircle className="w-4 h-4" />
-          )}
-        </div>
-      )}
+      <StatusBadge status={status} />
 
       <div
         style={{

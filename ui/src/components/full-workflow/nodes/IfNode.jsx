@@ -1,11 +1,25 @@
 import { Handle, Position } from 'reactflow';
+import { HelpCircle } from 'lucide-react';
+import StatusBadge from '@/utils/StatusBadge';
 
 export default function IfNode({ data, selected }) {
+  const status = data.status || 'idle';
+  const statusColor = {
+    running: '#3b82f6',
+    success: '#10b981',
+    failed: '#ef4444',
+    idle: null,
+  };
+
   return (
     <div
       style={{
         background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
-        border: `2px solid ${selected ? '#f59e0b' : 'hsl(var(--border))'}`,
+        border: `2px solid ${
+          status !== 'idle'
+            ? statusColor[status]
+            : '#f59e0b'
+        }`,
         borderRadius: '0.75rem',
         padding: '1rem',
         minWidth: '200px',
@@ -13,8 +27,10 @@ export default function IfNode({ data, selected }) {
           ? '0 4px 12px rgba(245, 158, 11, 0.3)'
           : '0 2px 8px rgba(0, 0, 0, 0.2)',
         transition: 'all 0.2s ease',
+        position: 'relative',
       }}
     >
+      <StatusBadge status={status} />
       <Handle
         type="target"
         position={Position.Top}
@@ -34,7 +50,7 @@ export default function IfNode({ data, selected }) {
           marginBottom: '0.5rem',
         }}
       >
-        <div
+          <div
           style={{
             fontSize: '1.5rem',
             display: 'flex',
@@ -47,7 +63,7 @@ export default function IfNode({ data, selected }) {
             color: '#f59e0b',
           }}
         >
-          ❓
+          <HelpCircle className="w-5 h-5" />
         </div>
         <div>
           <div

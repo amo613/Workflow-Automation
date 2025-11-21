@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow';
+import StatusBadge from '@/utils/StatusBadge';
 
 /**
  * Base Node Component for Full Workflows
@@ -8,13 +9,6 @@ import { Handle, Position } from 'reactflow';
 export default function BaseNode({ data, selected, type, icon, color, label }) {
   // Status: 'idle' | 'running' | 'success' | 'failed'
   const status = data.status || 'idle';
-
-  const statusIcon = {
-    running: '⏳',
-    success: '✅',
-    failed: '❌',
-    idle: null,
-  };
 
   const statusColor = {
     running: '#3b82f6',
@@ -44,28 +38,7 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
         position: 'relative',
       }}
     >
-      {/* Status Badge */}
-      {status !== 'idle' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-8px',
-            right: '-8px',
-            width: '24px',
-            height: '24px',
-            borderRadius: '50%',
-            background: statusColor[status],
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            zIndex: 10,
-          }}
-        >
-          {statusIcon[status]}
-        </div>
-      )}
+      <StatusBadge status={status} />
       {/* Input Handle */}
       <Handle
         type="target"
