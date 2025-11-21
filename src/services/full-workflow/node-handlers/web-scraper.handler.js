@@ -12,6 +12,7 @@ export async function executeWebScraper(data, context) {
     extractType = 'text',
     selector,
     attribute,
+    searchText,
     waitForSelector,
     screenshot = false,
     stealthMode = false,
@@ -28,6 +29,9 @@ export async function executeWebScraper(data, context) {
   const resolvedSelector = selector ? resolveTemplate(selector, context) : null;
   const resolvedAttribute = attribute
     ? resolveTemplate(attribute, context)
+    : null;
+  const resolvedSearchText = searchText
+    ? resolveTemplate(searchText, context)
     : null;
   const resolvedWaitForSelector = waitForSelector
     ? resolveTemplate(waitForSelector, context)
@@ -62,6 +66,7 @@ export async function executeWebScraper(data, context) {
       extractType,
       selector: resolvedSelector,
       attribute: resolvedAttribute,
+      searchText: resolvedSearchText,
       waitForSelector: resolvedWaitForSelector,
       screenshot,
       stealthMode,

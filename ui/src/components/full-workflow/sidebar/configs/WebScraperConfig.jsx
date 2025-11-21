@@ -22,15 +22,18 @@ export default function WebScraperConfig({
 
   const handleExtractTypeChange = value => {
     handleUpdate('extractType', value);
-    // Clear selector-related fields when switching to all-links/all-images/google-maps/google-maps-search
+    // Clear selector-related fields when switching to modes that don't need selectors
     if (
       value === 'all-links' ||
       value === 'all-images' ||
       value === 'google-maps' ||
-      value === 'google-maps-search'
+      value === 'google-maps-search' ||
+      value === 'full-html' ||
+      value === 'smart-list'
     ) {
       handleUpdate('selector', '');
       handleUpdate('attribute', '');
+      handleUpdate('searchText', '');
     }
     // Auto-enable stealth mode for Google Maps
     if (value === 'google-maps' || value === 'google-maps-search') {
@@ -169,6 +172,41 @@ export default function WebScraperConfig({
             />
             <span className="text-sm">Google Maps (Search Results)</span>
           </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="radio"
+              name="extractType"
+              value="full-html"
+              checked={extractType === 'full-html'}
+              onChange={e => handleExtractTypeChange(e.target.value)}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">Full HTML (Debug/Explore)</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="radio"
+              name="extractType"
+              value="text-search"
+              checked={extractType === 'text-search'}
+              onChange={e => handleExtractTypeChange(e.target.value)}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">Text Search (Find by content)</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="radio"
+              name="extractType"
+              value="smart-list"
+              checked={extractType === 'smart-list'}
+              onChange={e => handleExtractTypeChange(e.target.value)}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">
+              Smart List (Auto-detect repeating items)
+            </span>
+          </label>
         </div>
       </div>
 
@@ -296,11 +334,140 @@ export default function WebScraperConfig({
         </div>
       )}
 
+      {extractType === 'full-html' && (
+        <div className="space-y-3">
+          <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-md">
+            <p className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-2">
+              📄 Full HTML Mode
+            </p>
+            <p className="text-sm text-purple-800 dark:text-purple-200 mb-3">
+              Returns the complete HTML source of the page. Useful for debugging
+              and exploring the page structure.
+              <strong className="block mt-2">
+                No selector needed - just paste a URL!
+              </strong>
+            </p>
+            <div className="mt-3 pt-3 border-t border-purple-300 dark:border-purple-700">
+              <p className="text-xs text-purple-800 dark:text-purple-200">
+                <strong>Note:</strong> This will return the entire HTML
+                document. Use this to inspect the page structure and find the
+                right selectors for other extraction modes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {extractType === 'text-search' && (
+        <div className="space-y-3">
+          <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+            <p className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
+              🔍 Text Search Mode
+            </p>
+            <p className="text-sm text-green-800 dark:text-green-200 mb-3">
+              Search for elements by their text content instead of using CSS
+              selectors.
+              <strong className="block mt-2">
+                Just enter the text you're looking for!
+              </strong>
+            </p>
+            <div className="mt-3 pt-3 border-t border-green-300 dark:border-green-700">
+              <p className="text-xs font-semibold text-green-900 dark:text-green-100 mb-2">
+                Example searches:
+              </p>
+              <ul className="text-xs text-green-800 dark:text-green-200 space-y-1 list-disc list-inside">
+                <li>"Preis" - finds all elements containing "Preis"</li>
+                <li>
+                  "Call-Center" - finds all elements containing "Call-Center"
+                </li>
+                <li>"Price" - finds all elements containing "Price"</li>
+              </ul>
+            </div>
+            <div className="mt-3 pt-3 border-t border-green-300 dark:border-green-700">
+              <p className="text-xs text-green-800 dark:text-green-200">
+                <strong>Output:</strong> Returns all matching elements. If only
+                one match is found, returns just the text. Otherwise returns an
+                array of matches.
+              </p>
+            </div>
+          </div>
+
+          <FormField
+            label="Search Text"
+            name="searchText"
+            value={localData.searchText || ''}
+            onChange={value => handleUpdate('searchText', value)}
+            placeholder="e.g., 'Preis', 'Price', 'Call-Center'"
+            availableVariables={availableVariables}
+            onDrop={(e, variableExpression) => {
+              const currentValue = localData.searchText || '';
+              const cursorPos = e.target.selectionStart || currentValue.length;
+              const newValue =
+                currentValue.substring(0, cursorPos) +
+                variableExpression +
+                currentValue.substring(cursorPos);
+              handleUpdate('searchText', newValue);
+            }}
+            onDragOver={e => e.preventDefault()}
+          />
+        </div>
+      )}
+
+      {extractType === 'smart-list' && (
+        <div className="space-y-3">
+          <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
+            <p className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-2">
+              🧠 Smart List Mode
+            </p>
+            <p className="text-sm text-orange-800 dark:text-orange-200 mb-3">
+              Automatically detects and extracts repeating list items (like
+              search results, product listings, etc.).
+              <strong className="block mt-2">
+                No selector needed - just paste a URL with a list!
+              </strong>
+            </p>
+            <div className="mt-3 pt-3 border-t border-orange-300 dark:border-orange-700">
+              <p className="text-xs font-semibold text-orange-900 dark:text-orange-100 mb-2">
+                Extracted Data (per item):
+              </p>
+              <ul className="text-xs text-orange-800 dark:text-orange-200 space-y-1 list-disc list-inside">
+                <li>Name (first line of text)</li>
+                <li>Full text content</li>
+                <li>Links (if any)</li>
+                <li>Images (if any)</li>
+                <li>Phone numbers (auto-detected)</li>
+                <li>Email addresses (auto-detected)</li>
+              </ul>
+            </div>
+            <div className="mt-3 pt-3 border-t border-orange-300 dark:border-orange-700">
+              <p className="text-xs text-orange-800 dark:text-orange-200">
+                <strong>How it works:</strong> Finds elements that appear
+                multiple times with similar structure (like list items, search
+                results, etc.) and extracts data from each one.
+              </p>
+            </div>
+            <div className="mt-3 pt-3 border-t border-orange-300 dark:border-orange-700">
+              <p className="text-xs text-orange-800 dark:text-orange-200">
+                <strong>Output Format:</strong> Returns an array of objects.
+                Access items like{' '}
+                <code className="bg-orange-100 dark:bg-orange-900 px-1 rounded">
+                  {'{{'}results.data[0].name{'}}'}
+                </code>{' '}
+                for the first item.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {extractType !== 'all-links' &&
         extractType !== 'all-images' &&
         extractType !== 'multiple' &&
         extractType !== 'google-maps' &&
-        extractType !== 'google-maps-search' && (
+        extractType !== 'google-maps-search' &&
+        extractType !== 'full-html' &&
+        extractType !== 'smart-list' &&
+        extractType !== 'text-search' && (
           <FormField
             label="Selector"
             name="selector"

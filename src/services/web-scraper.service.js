@@ -99,7 +99,10 @@ function needsPuppeteer(options) {
     options.waitForSelector ||
     options.screenshot ||
     options.stealthMode ||
-    options.extractType === 'multiple'
+    options.extractType === 'multiple' ||
+    options.extractType === 'full-html' ||
+    options.extractType === 'text-search' ||
+    options.extractType === 'smart-list'
   );
 }
 
@@ -200,6 +203,141 @@ function extractFromHTML(html, options) {
         });
       }
 
+      case 'full-html': {
+        // Return the entire HTML document
+        return html;
+      }
+
+      case 'text-search': {
+        // Search for text content instead of using a selector
+        const searchText = options.searchText || selector; // Use selector field as search text if searchText not provided
+        if (!searchText) {
+          throw new Error('Search text is required for text-search extraction');
+        }
+
+        // Find all elements containing the search text
+        const allElements = root.querySelectorAll('*');
+        const matches = [];
+
+        for (const element of allElements) {
+          const text = element.text.trim();
+          if (text && text.toLowerCase().includes(searchText.toLowerCase())) {
+            matches.push({
+              text,
+              tag: element.tagName.toLowerCase(),
+              html: element.innerHTML,
+            });
+          }
+        }
+
+        // If only one match, return just the text
+        if (matches.length === 1) {
+          return matches[0].text;
+        }
+
+        // Return all matches
+        return matches;
+      }
+
+      case 'smart-list': {
+        // Automatically detect repeating elements (like list items)
+        // Strategy: Find elements that appear multiple times with similar structure
+
+        // Get all container elements
+        const containers = root.querySelectorAll(
+          'div, article, section, li, tr'
+        );
+        const elementGroups = new Map();
+
+        // Group elements by their class/id pattern
+        for (const container of containers) {
+          const classes = container.className || '';
+          const id = container.id || '';
+          const tag = container.tagName.toLowerCase();
+
+          // Create a key based on tag and classes
+          const key = `${tag}:${classes.substring(0, 50)}`;
+
+          if (!elementGroups.has(key)) {
+            elementGroups.set(key, []);
+          }
+          elementGroups.get(key).push(container);
+        }
+
+        // Find the group with the most elements (likely the list)
+        let bestGroup = null;
+        let maxCount = 0;
+
+        for (const [key, elements] of elementGroups.entries()) {
+          if (elements.length > maxCount && elements.length >= 2) {
+            maxCount = elements.length;
+            bestGroup = elements;
+          }
+        }
+
+        if (!bestGroup || bestGroup.length < 2) {
+          throw new Error(
+            'Could not detect a repeating list pattern. Try using a specific selector instead.'
+          );
+        }
+
+        // Extract data from each item
+        const items = bestGroup.slice(0, 50).map((element, index) => {
+          const item = {
+            index: index + 1,
+            text: element.text.trim(),
+            html: element.innerHTML,
+          };
+
+          // Try to extract common fields
+          const links = element.querySelectorAll('a');
+          if (links.length > 0) {
+            item.links = Array.from(links).map(link => ({
+              text: link.text.trim(),
+              href: link.getAttribute('href') || '',
+            }));
+          }
+
+          const images = element.querySelectorAll('img');
+          if (images.length > 0) {
+            item.images = Array.from(images).map(img => ({
+              src: img.getAttribute('src') || '',
+              alt: img.getAttribute('alt') || '',
+            }));
+          }
+
+          // Try to extract structured data (name, address, phone, etc.)
+          const text = element.text.trim();
+          const lines = text
+            .split('\n')
+            .map(l => l.trim())
+            .filter(l => l);
+
+          // Common patterns
+          if (lines.length > 0) {
+            item.name = lines[0];
+          }
+
+          // Try to find phone numbers
+          const phoneMatch = text.match(/(\+?\d[\d\s\-\(\)]{7,}\d)/);
+          if (phoneMatch) {
+            item.phone = phoneMatch[1];
+          }
+
+          // Try to find email
+          const emailMatch = text.match(
+            /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/
+          );
+          if (emailMatch) {
+            item.email = emailMatch[1];
+          }
+
+          return item;
+        });
+
+        return items;
+      }
+
       default:
         throw new Error(`Unknown extract type: ${extractType}`);
     }
@@ -220,12 +358,11 @@ async function scrapeWithFetch(url, options) {
   logger.info('Scraping with fetch', { url, extractType: options.extractType });
 
   const timeout = (options.timeout || 30) * 1000;
-   
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-     
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
@@ -305,10 +442,143 @@ async function scrapeWithPuppeteer(url, options) {
 
       // Extract data based on type
       let data;
-      const { extractType, selector, attribute, multipleSelectors } = options;
+      const {
+        extractType,
+        selector,
+        attribute,
+        multipleSelectors,
+        searchText,
+      } = options;
 
-      if (extractType === 'all-links') {
-         
+      if (extractType === 'full-html') {
+        // Return the entire HTML document
+        data = await page.evaluate(() => {
+          return document.documentElement.outerHTML;
+        });
+      } else if (extractType === 'text-search') {
+        // Search for text content
+        const search = searchText || selector;
+        if (!search) {
+          throw new Error('Search text is required for text-search extraction');
+        }
+
+        data = await page.evaluate(searchText => {
+          const allElements = Array.from(document.querySelectorAll('*'));
+          const matches = [];
+
+          for (const element of allElements) {
+            const text = element.textContent.trim();
+            if (text && text.toLowerCase().includes(searchText.toLowerCase())) {
+              matches.push({
+                text,
+                tag: element.tagName.toLowerCase(),
+                html: element.innerHTML,
+              });
+            }
+          }
+
+          // If only one match, return just the text
+          if (matches.length === 1) {
+            return matches[0].text;
+          }
+
+          return matches;
+        }, search);
+      } else if (extractType === 'smart-list') {
+        // Automatically detect repeating elements
+        data = await page.evaluate(() => {
+          const containers = Array.from(
+            document.querySelectorAll('div, article, section, li, tr')
+          );
+          const elementGroups = new Map();
+
+          // Group elements by their class/id pattern
+          for (const container of containers) {
+            const classes = container.className || '';
+            const tag = container.tagName.toLowerCase();
+
+            // Create a key based on tag and classes
+            const key = `${tag}:${String(classes).substring(0, 50)}`;
+
+            if (!elementGroups.has(key)) {
+              elementGroups.set(key, []);
+            }
+            elementGroups.get(key).push(container);
+          }
+
+          // Find the group with the most elements (likely the list)
+          let bestGroup = null;
+          let maxCount = 0;
+
+          for (const [key, elements] of elementGroups.entries()) {
+            if (elements.length > maxCount && elements.length >= 2) {
+              maxCount = elements.length;
+              bestGroup = elements;
+            }
+          }
+
+          if (!bestGroup || bestGroup.length < 2) {
+            throw new Error(
+              'Could not detect a repeating list pattern. Try using a specific selector instead.'
+            );
+          }
+
+          // Extract data from each item
+          const items = bestGroup.slice(0, 50).map((element, index) => {
+            const item = {
+              index: index + 1,
+              text: element.textContent.trim(),
+              html: element.innerHTML,
+            };
+
+            // Try to extract common fields
+            const links = Array.from(element.querySelectorAll('a'));
+            if (links.length > 0) {
+              item.links = links.map(link => ({
+                text: link.textContent.trim(),
+                href: link.href || link.getAttribute('href') || '',
+              }));
+            }
+
+            const images = Array.from(element.querySelectorAll('img'));
+            if (images.length > 0) {
+              item.images = images.map(img => ({
+                src: img.src || img.getAttribute('src') || '',
+                alt: img.alt || img.getAttribute('alt') || '',
+              }));
+            }
+
+            // Try to extract structured data
+            const text = element.textContent.trim();
+            const lines = text
+              .split('\n')
+              .map(l => l.trim())
+              .filter(l => l);
+
+            if (lines.length > 0) {
+              item.name = lines[0];
+            }
+
+            // Try to find phone numbers
+            const phoneMatch = text.match(/(\+?\d[\d\s\-\(\)]{7,}\d)/);
+            if (phoneMatch) {
+              item.phone = phoneMatch[1];
+            }
+
+            // Try to find email
+            const emailMatch = text.match(
+              /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/
+            );
+            if (emailMatch) {
+              item.email = emailMatch[1];
+            }
+
+            return item;
+          });
+
+          return items;
+        });
+      } else if (extractType === 'all-links') {
         data = await page.evaluate(() => {
           const links = Array.from(document.querySelectorAll('a'));
           return links.map(link => ({
@@ -317,7 +587,6 @@ async function scrapeWithPuppeteer(url, options) {
           }));
         });
       } else if (extractType === 'all-images') {
-         
         data = await page.evaluate(() => {
           const images = Array.from(document.querySelectorAll('img'));
           return images.map(img => ({
@@ -326,7 +595,6 @@ async function scrapeWithPuppeteer(url, options) {
           }));
         });
       } else if (extractType === 'multiple') {
-         
         data = await page.evaluate(
           ({ multipleSelectors }) => {
             return multipleSelectors.map(sel => {
@@ -363,7 +631,6 @@ async function scrapeWithPuppeteer(url, options) {
           throw new Error('Selector is required');
         }
 
-         
         data = await page.evaluate(
           ({ selector, extractType, attribute }) => {
             const element = document.querySelector(selector);
@@ -604,7 +871,7 @@ async function scrapeGoogleMaps(url, options) {
       await page.waitForTimeout(3000);
 
       // Scroll down a bit to trigger lazy loading
-       
+
       await page.evaluate(() => {
         window.scrollTo(0, 300);
       });
@@ -660,9 +927,9 @@ async function scrapeGoogleMaps(url, options) {
           logger.info('Found address-related selector', { selector });
           foundSelector = true;
           break;
-          } catch {
-            // Continue to next selector
-          }
+        } catch {
+          // Continue to next selector
+        }
       }
 
       if (!foundSelector) {
@@ -673,7 +940,7 @@ async function scrapeGoogleMaps(url, options) {
       await page.waitForTimeout(3000);
 
       // Try to extract from JSON-LD schema first (most reliable)
-       
+
       let placeData = await page.evaluate(() => {
         try {
           const jsonLdScripts = document.querySelectorAll(
@@ -762,7 +1029,7 @@ async function scrapeGoogleMaps(url, options) {
         logger.info(
           'JSON-LD extraction failed or incomplete, falling back to DOM scraping'
         );
-         
+
         placeData = await page.evaluate(() => {
           const data = {};
 
@@ -812,9 +1079,9 @@ async function scrapeGoogleMaps(url, options) {
                   break;
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // If no name found, try to get from page title
@@ -914,9 +1181,9 @@ async function scrapeGoogleMaps(url, options) {
                   break;
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // Second try: find all Io6YTe elements and use the first one that looks like an address
@@ -1004,9 +1271,9 @@ async function scrapeGoogleMaps(url, options) {
                   }
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // Extract number of reviews - PRIORITIZE aria-label
@@ -1046,9 +1313,9 @@ async function scrapeGoogleMaps(url, options) {
                   }
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // Extract phone number - PRIORITIZE aria-label
@@ -1084,9 +1351,9 @@ async function scrapeGoogleMaps(url, options) {
                   break;
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // Extract website - PRIORITIZE aria-label
@@ -1117,9 +1384,9 @@ async function scrapeGoogleMaps(url, options) {
                   break;
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // Extract category/type - PRIORITIZE aria-label
@@ -1146,9 +1413,9 @@ async function scrapeGoogleMaps(url, options) {
                   break;
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
           // Extract hours (if available) - PRIORITIZE aria-label
@@ -1175,13 +1442,13 @@ async function scrapeGoogleMaps(url, options) {
                   break;
                 }
               }
-          } catch {
-            // Continue to next selector
-          }
+            } catch {
+              // Continue to next selector
+            }
           }
 
-        // Extract coordinates from URL or page
-        const urlParams = new URLSearchParams(window.location.search);
+          // Extract coordinates from URL or page
+          const urlParams = new URLSearchParams(window.location.search);
           const center = urlParams.get('center');
           if (center) {
             const [lat, lng] = center.split(',');
@@ -1208,23 +1475,19 @@ async function scrapeGoogleMaps(url, options) {
       // Debug: Log page title and URL to see what was actually loaded
       try {
         const pageInfo = await page.evaluate(() => {
-           
           return {
-             
             title: document.title,
-             
+
             url: window.location.href,
-             
+
             hasMainContent: !!document.querySelector('div[role="main"]'),
-             
+
             hasSidebar:
-               
               !!document.querySelector('[data-value="Address"]') ||
-               
               !!document.querySelector('.Io6YTe'),
-             
+
             allIo6YTeCount: document.querySelectorAll('.Io6YTe').length,
-             
+
             allButtonsCount: document.querySelectorAll('button[data-item-id]')
               .length,
           };
@@ -1457,31 +1720,31 @@ async function scrapeGoogleMapsSearch(url, options) {
       await page.waitForTimeout(3000);
 
       // Scroll to load more results
-       
+
       await page.evaluate(() => {
         window.scrollTo(0, 500);
       });
       await page.waitForTimeout(2000);
 
       // Scroll more to trigger lazy loading
-       
+
       await page.evaluate(() => {
         window.scrollTo(0, 1000);
       });
       await page.waitForTimeout(2000);
 
       // Scroll even more to load all results
-       
+
       await page.evaluate(() => {
         window.scrollTo(0, 1500);
       });
       await page.waitForTimeout(2000);
 
       // Extract search results
-       
+
       const results = await page.evaluate(() => {
         const items = [];
-        
+
         // Find all result items in the sidebar
         // Google Maps search results are typically in div[role="article"] or similar containers
         const resultSelectors = [
@@ -1490,7 +1753,7 @@ async function scrapeGoogleMapsSearch(url, options) {
           'a[data-value="Directions"]',
           'div[jsaction*="mouseover"]',
         ];
-        
+
         let resultElements = [];
         for (const selector of resultSelectors) {
           const elements = document.querySelectorAll(selector);
@@ -1521,7 +1784,7 @@ async function scrapeGoogleMapsSearch(url, options) {
         }
 
         // Extract data from each result (limit to 20 results)
-        resultElements.slice(0, 20).forEach((element) => {
+        resultElements.slice(0, 20).forEach(element => {
           try {
             const data = {};
 
@@ -1775,6 +2038,9 @@ export async function scrape(url, options = {}) {
     'multiple',
     'google-maps',
     'google-maps-search',
+    'full-html',
+    'text-search',
+    'smart-list',
   ];
 
   // Validate extract type - google-maps and google-maps-search are always valid
@@ -1822,9 +2088,15 @@ export async function scrape(url, options = {}) {
     options.extractType !== 'multiple' &&
     options.extractType !== 'google-maps' &&
     options.extractType !== 'google-maps-search' &&
-    !options.selector
+    options.extractType !== 'full-html' &&
+    options.extractType !== 'smart-list' &&
+    options.extractType !== 'text-search' &&
+    !options.selector &&
+    !options.searchText
   ) {
-    throw new Error('Selector is required for this extract type');
+    throw new Error(
+      'Selector or search text is required for this extract type'
+    );
   }
 
   // Validate attribute requirement
