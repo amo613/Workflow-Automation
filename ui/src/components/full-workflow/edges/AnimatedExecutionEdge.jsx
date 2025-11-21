@@ -1,4 +1,4 @@
-import { BaseEdge, EdgeProps, getSmoothStepPath } from 'reactflow';
+import { BaseEdge, getSmoothStepPath } from 'reactflow';
 
 export function AnimatedExecutionEdge({
   id,

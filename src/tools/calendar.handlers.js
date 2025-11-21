@@ -86,6 +86,9 @@ export async function handleCalendarToolCall(toolCall, context) {
       }
 
       case InternalFunctionName.GOOGLE_CALENDAR_CREATE_EVENT: {
+        // Normalize attendees - default to empty array if not provided
+        const attendees = args.attendees || [];
+
         const event = await googleCalendarService.createEvent(
           config.accessToken,
           config.refreshToken,
@@ -94,7 +97,7 @@ export async function handleCalendarToolCall(toolCall, context) {
             description: args.description,
             startDateTime: args.startDateTime,
             endDateTime: args.endDateTime,
-            attendees: args.attendees,
+            attendees, // Can be empty array or undefined
             timeZone: config.timeZone,
             email: config.email,
             minimumNoticeHours: config.minimumNoticeHours,

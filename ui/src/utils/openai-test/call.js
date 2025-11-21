@@ -69,6 +69,10 @@ export class CallManager {
       // Get config from form
       const config = this.getConfigFromForm();
 
+      // Extract fromNumber from config if present
+      const fromNumber =
+        config?.fromNumber || config?.from_phone_number || null;
+
       const response = await fetchWithCSRF('/api/test-openai/call', {
         method: 'POST',
         credentials: 'include',
@@ -77,6 +81,7 @@ export class CallManager {
         },
         body: JSON.stringify({
           toNumber,
+          fromNumber, // Send fromNumber separately
           config: { ...config, provider: 'openai' },
         }),
       });

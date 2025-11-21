@@ -248,17 +248,33 @@ export class GoogleCalendarService {
       // Continue anyway, let Google Calendar handle it
     }
 
-    // Create event
+    // Normalize attendees - accept any email format, just trim whitespace
+    const normalizedAttendees = [];
+    if (attendees && Array.isArray(attendees) && attendees.length > 0) {
+      for (const emailAddr of attendees) {
+        if (typeof emailAddr === 'string' && emailAddr.trim()) {
+          const trimmedEmail = emailAddr.trim();
+          // Don't add if it's the same as the calendar owner's email
+          if (trimmedEmail.toLowerCase() !== email.toLowerCase()) {
+            // Accept any email format - let Google Calendar API validate it
+            normalizedAttendees.push({ email: trimmedEmail });
+          }
+        }
+      }
+    }
+
+    // Create event - only include attendees if there are additional attendees besides the owner
     const event = {
       summary,
       description,
       start: { dateTime: startISO },
       end: { dateTime: endISO },
-      attendees: [
-        ...attendees.map(emailAddr => ({ email: emailAddr })),
-        { email },
-      ],
     };
+
+    // Only add attendees field if there are additional attendees (calendar owner is automatically added by Google)
+    if (normalizedAttendees.length > 0) {
+      event.attendees = normalizedAttendees;
+    }
 
     try {
       const response = await calendar.events.insert({
@@ -277,8 +293,18 @@ export class GoogleCalendarService {
         attendees: response.data.attendees?.map(a => a.email),
       };
     } catch (error) {
-      logger.error('Error creating calendar event:', error);
-      throw new Error(`Failed to create event: ${error.message}`);
+      logger.error('Error creating calendar event:', {
+        error: error.message,
+        errorDetails: error.response?.data,
+        eventSummary: summary,
+        hasAttendees: normalizedAttendees.length > 0,
+        attendeesCount: normalizedAttendees.length,
+      });
+
+      // Provide more detailed error message
+      const errorMessage =
+        error.response?.data?.error?.message || error.message;
+      throw new Error(`Failed to create calendar event: ${errorMessage}`);
     }
   }
 

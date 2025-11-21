@@ -6,10 +6,7 @@ import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 import { db } from '#config/database.js';
 import { knowledgeBaseEntries } from '#models/knowledge-base.model.js';
 import { eq, inArray, and } from 'drizzle-orm';
-import {
-  getUserTwilioCredentials,
-  decryptTwilioCredentials,
-} from '#services/twilio-credentials.service.js';
+import { getUserTwilioCredentials } from '#services/twilio-credentials.service.js';
 
 // Call Agent Node: Triggert einen Anruf über das BullMQ Job-System
 export async function executeCallAgent(data, context) {
@@ -218,49 +215,65 @@ ${knowledgeBaseText}`;
   try {
     const userId = context.userId || context.workflowInput?.userId;
 
+    // Resolve from_phone_number from node data - this is the "from" number
+    const fromPhoneNumber = resolveTemplate(
+      data.from_phone_number || '',
+      context
+    );
+
     // Load Twilio credentials from database
     let twilioCredentials = null;
-    if (userId) {
-      try {
-        const encryptedCredentials = await getUserTwilioCredentials(userId);
-        if (encryptedCredentials) {
-          twilioCredentials = decryptTwilioCredentials(encryptedCredentials);
-          // Add phone number from node data (resolved) - this is the "from" number
-          const fromPhoneNumber = resolveTemplate(
-            data.from_phone_number || '',
-            context
-          );
-          if (fromPhoneNumber) {
-            twilioCredentials.phoneNumber = fromPhoneNumber;
-          } else {
-            logger.warn(
-              'No from_phone_number set in node, Twilio call may fail',
-              {
-                userId,
-              }
-            );
-          }
-          logger.info('Loaded Twilio credentials from database', {
-            userId,
-            hasAccountSid: !!twilioCredentials.accountSid,
-            hasAuthToken: !!twilioCredentials.authToken,
-            hasPhoneNumber: !!twilioCredentials.phoneNumber,
-          });
-        } else {
-          logger.warn(
-            'No Twilio credentials found in database, falling back to .env',
-            {
-              userId,
-            }
-          );
-        }
-      } catch (error) {
-        logger.error('Failed to load Twilio credentials from database', {
-          error: error.message,
+    if (!userId) {
+      throw new Error('User ID not found. Cannot load Twilio credentials.');
+    }
+
+    try {
+      // getUserTwilioCredentials already decrypts the credentials
+      twilioCredentials = await getUserTwilioCredentials(userId);
+
+      if (!twilioCredentials) {
+        logger.error('No Twilio credentials found in database', {
           userId,
+          hasFromPhoneNumber: !!fromPhoneNumber,
         });
-        // Continue without credentials - will fall back to .env
+        throw new Error(
+          'Twilio credentials not configured. Please set up Twilio credentials in Settings.'
+        );
       }
+
+      // ALWAYS use from_phone_number from node if provided (overrides DB credentials)
+      if (fromPhoneNumber) {
+        twilioCredentials.phoneNumber = fromPhoneNumber;
+      } else {
+        logger.warn(
+          'No from_phone_number set in node, using credentials without phone number',
+          {
+            userId,
+          }
+        );
+      }
+
+      logger.info('Loaded Twilio credentials from database', {
+        userId,
+        hasAccountSid: !!twilioCredentials.accountSid,
+        hasAuthToken: !!twilioCredentials.authToken,
+        hasPhoneNumber: !!twilioCredentials.phoneNumber,
+        fromPhoneNumberSource: fromPhoneNumber ? 'node-data' : 'not-provided',
+      });
+    } catch (error) {
+      logger.error('Failed to load Twilio credentials from database', {
+        error: error.message,
+        stack: error.stack,
+        userId,
+      });
+      // Re-throw the error with original message if it's already our custom error
+      if (
+        error.message.includes('Twilio credentials') ||
+        error.message.includes('decrypt')
+      ) {
+        throw error;
+      }
+      throw new Error(`Failed to load Twilio credentials: ${error.message}`);
     }
 
     const job = await createJob(

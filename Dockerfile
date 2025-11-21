@@ -3,6 +3,20 @@
 # Upgraded to Node 20 for Inngest compatibility
 FROM node:20-alpine AS base
 
+# Install Chromium and dependencies for Puppeteer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    && rm -rf /var/cache/apk/*
+
+# Set Puppeteer to use installed Chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Set working directory
 WORKDIR /app
 

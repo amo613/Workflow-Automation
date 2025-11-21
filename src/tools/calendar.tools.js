@@ -13,7 +13,7 @@ const timeDescription = type =>
 export const createEventFunctionDeclaration = () => ({
   type: 'function',
   name: InternalFunctionName.GOOGLE_CALENDAR_CREATE_EVENT,
-  description: `Create a new calendar event. YOU CAN ONLY CREATE EVENT WHERE THE SLOT IS FREE. SO A CREATE CALL ALWAYS REQUIRE A VERIFICATION by calling ${InternalFunctionName.GOOGLE_CALENDAR_LIST_EVENTS} function.`,
+  description: `Create a new calendar event in the user's personal calendar. YOU CAN ONLY CREATE EVENT WHERE THE SLOT IS FREE. SO A CREATE CALL ALWAYS REQUIRE A VERIFICATION by calling ${InternalFunctionName.GOOGLE_CALENDAR_LIST_EVENTS} function. You can optionally add attendees by providing their email addresses. The calendar owner (the user) is automatically added as an attendee.`,
   parameters: {
     type: 'object',
     properties: {
@@ -23,7 +23,7 @@ export const createEventFunctionDeclaration = () => ({
       },
       description: {
         type: 'string',
-        description: 'Description of the event',
+        description: 'Description of the event (optional)',
       },
       startDateTime: {
         type: 'string',
@@ -38,10 +38,11 @@ export const createEventFunctionDeclaration = () => ({
         items: {
           type: 'string',
         },
-        description: 'List of attendee email addresses',
+        description:
+          'Optional: List of attendee email addresses. Any email address format is accepted. Example: ["user@example.com", "another@domain.com"] or omit this field if no additional attendees.',
       },
     },
-    required: ['summary', 'startDateTime', 'endDateTime', 'attendees'],
+    required: ['summary', 'startDateTime', 'endDateTime'],
   },
 });
 

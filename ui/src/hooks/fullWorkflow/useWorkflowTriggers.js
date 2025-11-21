@@ -8,7 +8,7 @@ export function useWorkflowTriggers({
   autoRefreshReady = true,
 }) {
   const [activeTriggers, setActiveTriggers] = useState([]);
-  const [showActiveTriggers, setShowActiveTriggers] = useState(true);
+  const [showActiveTriggers, setShowActiveTriggers] = useState(false);
   const [triggersLoading, setTriggersLoading] = useState(false);
   const [triggersError, setTriggersError] = useState(null);
 
@@ -26,9 +26,6 @@ export function useWorkflowTriggers({
       const data = await response.json();
       const triggers = data.data || [];
       setActiveTriggers(triggers);
-      if (triggers.length > 0) {
-        setShowActiveTriggers(true);
-      }
       console.log('Active triggers fetched:', triggers);
     } catch (error) {
       console.error('Error fetching active triggers:', error);

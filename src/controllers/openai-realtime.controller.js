@@ -115,18 +115,28 @@ export const twilioWebhook = async (req, res) => {
   const reply = res; // Fastify uses 'reply', Express uses 'res'
   const isFastifyRequest = isFastify(reply);
 
+  // Helper function to send TwiML error response
+  const sendTwiMLError = (message, statusCode = 500) => {
+    const errorTwiML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Reject reason="rejected"/>
+</Response>`;
+
+    if (isFastifyRequest) {
+      return reply.status(statusCode).type('text/xml').send(errorTwiML);
+    } else {
+      res.status(statusCode).type('text/xml');
+      return res.send(errorTwiML);
+    }
+  };
+
   try {
     const { CallSid, From, To, AccountSid, CallStatus, Direction } = req.body;
     const configParam = req.query?.config;
 
     if (!CallSid) {
       logger.error('Twilio webhook called without CallSid');
-      if (isFastifyRequest) {
-        reply.status(400).send('Missing CallSid');
-        throw new Error('Missing CallSid');
-      } else {
-        return res.status(400).send('Missing CallSid');
-      }
+      return sendTwiMLError('Missing CallSid', 400);
     }
 
     // Get ngrok URL for WebSocket endpoint
@@ -135,12 +145,7 @@ export const twilioWebhook = async (req, res) => {
       logger.error(
         'Ngrok URL not available, cannot establish proxy connection'
       );
-      if (isFastifyRequest) {
-        reply.status(503).send('Service temporarily unavailable');
-        throw new Error('Service temporarily unavailable');
-      } else {
-        return res.status(503).send('Service temporarily unavailable');
-      }
+      return sendTwiMLError('Service temporarily unavailable', 503);
     }
 
     // Convert HTTP(S) URL to WebSocket URL
@@ -200,20 +205,19 @@ export const twilioWebhook = async (req, res) => {
 
     // Set content type and status explicitly
     if (isFastifyRequest) {
-      reply.status(200).type('text/xml').send(twiml);
-      return;
+      return reply.status(200).type('text/xml').send(twiml);
     } else {
       res.status(200).type('text/xml');
       return res.send(twiml);
     }
   } catch (error) {
-    logger.error('Error handling Twilio webhook:', error);
-    if (isFastifyRequest) {
-      reply.status(500).send('Error processing webhook');
-      throw error;
-    } else {
-      return res.status(500).send('Error processing webhook');
-    }
+    logger.error('Error handling Twilio webhook:', {
+      error: error.message,
+      stack: error.stack,
+      callSid: req.body?.CallSid,
+    });
+    // Always return TwiML, even on error
+    return sendTwiMLError('Error processing webhook', 500);
   }
 };
 
@@ -230,7 +234,7 @@ export const makeOutboundCall = async (req, res) => {
   const isFastifyRequest = isFastify(reply);
 
   try {
-    const { toNumber, config, options } = req.body;
+    const { toNumber, config, options, fromNumber } = req.body; // Added fromNumber
 
     if (!toNumber) {
       const errorResponse = {
@@ -285,11 +289,85 @@ export const makeOutboundCall = async (req, res) => {
       configParams = { userId };
     }
 
+    // Load Twilio credentials from database (if userId is available)
+    let twilioCredentials = null;
+    if (userId) {
+      try {
+        const { getUserTwilioCredentials, decryptTwilioCredentials } =
+          await import('#services/twilio-credentials.service.js');
+        const encryptedCredentials = await getUserTwilioCredentials(userId);
+
+        if (encryptedCredentials) {
+          twilioCredentials = decryptTwilioCredentials(encryptedCredentials);
+
+          // Use fromNumber from request body if provided (overrides DB credentials)
+          if (fromNumber) {
+            twilioCredentials.phoneNumber = fromNumber;
+          }
+
+          logger.info('Loaded Twilio credentials from database', {
+            userId,
+            hasAccountSid: !!twilioCredentials.accountSid,
+            hasAuthToken: !!twilioCredentials.authToken,
+            hasPhoneNumber: !!twilioCredentials.phoneNumber,
+            fromNumberSource: fromNumber ? 'request-body' : 'not-provided',
+          });
+        } else {
+          logger.error(
+            'No Twilio credentials found in database. Please configure Twilio credentials in Settings.',
+            {
+              userId,
+              hasFromNumber: !!fromNumber,
+            }
+          );
+          const errorResponse = {
+            error: 'Twilio credentials not configured',
+            message:
+              'Please set up Twilio credentials in Settings before making calls.',
+          };
+          if (isFastifyRequest) {
+            reply.status(400).send(errorResponse);
+            throw new Error(errorResponse.message);
+          } else {
+            return res.status(400).json(errorResponse);
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to load Twilio credentials from database', {
+          error: error.message,
+          userId,
+        });
+        const errorResponse = {
+          error: 'Failed to load Twilio credentials',
+          message:
+            'Please check your Twilio credentials configuration in Settings.',
+        };
+        if (isFastifyRequest) {
+          reply.status(500).send(errorResponse);
+          throw new Error(errorResponse.message);
+        } else {
+          return res.status(500).json(errorResponse);
+        }
+      }
+    } else {
+      const errorResponse = {
+        error: 'Authentication required',
+        message: 'User ID not found. Please log in to make calls.',
+      };
+      if (isFastifyRequest) {
+        reply.status(401).send(errorResponse);
+        throw new Error(errorResponse.message);
+      } else {
+        return res.status(401).json(errorResponse);
+      }
+    }
+
     // Create phone-call job
     // CRITICAL: Ensure provider is set at top level, not just in config
     const jobData = {
       toNumber,
       ...(configParams ? { config: configParams } : {}),
+      ...(twilioCredentials ? { twilioCredentials } : {}), // Add twilioCredentials if available
       provider: 'openai', // Mark as OpenAI call - MUST be at top level!
     };
 
@@ -300,6 +378,13 @@ export const makeOutboundCall = async (req, res) => {
         ? `${toNumber.length} numbers`
         : toNumber,
       hasConfig: !!configParams,
+      hasFromNumber: !!fromNumber,
+      hasTwilioCredentials: !!twilioCredentials,
+      credentialsSource: twilioCredentials
+        ? userId
+          ? 'database'
+          : 'env'
+        : 'none',
       hasUserId: !!userId,
       userId,
       provider: jobData.provider,

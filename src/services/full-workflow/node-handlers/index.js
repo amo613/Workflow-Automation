@@ -18,6 +18,7 @@ import { executeEmail } from './email.handler.js';
 import { executeScheduleTrigger } from './schedule-trigger.handler.js';
 import { executeCallTrigger } from './call-trigger.handler.js';
 import { executeMerge } from './merge.handler.js';
+import { executeWebScraper } from './web-scraper.handler.js';
 import logger from '#config/logger.js';
 
 /**
@@ -100,6 +101,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'merge':
       return executeMerge(node, templateContext, variableContext);
+
+    case 'web-scraper':
+      return executeWebScraper(data, templateContext);
 
     default:
       throw new Error(`Unknown node type: ${type}`);

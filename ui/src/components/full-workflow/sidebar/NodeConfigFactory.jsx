@@ -22,6 +22,7 @@ import ScheduleTriggerConfig from './configs/ScheduleTriggerConfig.jsx';
 import MergeConfig from './configs/MergeConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
 import CallTriggerConfig from './configs/CallTriggerConfig.jsx';
+import WebScraperConfig from './configs/WebScraperConfig.jsx';
 
 const configMap = {
   webhook: WebhookConfig,
@@ -41,6 +42,7 @@ const configMap = {
   merge: MergeConfig,
   start: StartConfig,
   'call-trigger': CallTriggerConfig,
+  'web-scraper': WebScraperConfig,
 };
 
 export default function NodeConfigFactory({ nodeType, ...props }) {

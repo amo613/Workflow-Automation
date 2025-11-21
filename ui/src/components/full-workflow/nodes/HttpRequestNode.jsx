@@ -1,6 +1,5 @@
 import BaseNode from './BaseNode';
 import { Globe } from 'lucide-react';
-
 export default function HttpRequestNode({ data, selected }) {
   return (
     <BaseNode

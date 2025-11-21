@@ -622,10 +622,6 @@ npm install
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📝 License
-
-ISC
-
 ## 📞 Support
 
 For issues and questions:

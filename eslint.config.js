@@ -45,6 +45,12 @@ export default [
     },
   },
   {
+    files: ['src/services/web-scraper.service.js'],
+    rules: {
+      'no-undef': 'off',
+    },
+  },
+  {
     files: ['src/public/js/**/*.js', 'ui/src/**/*.js', 'ui/src/**/*.jsx'],
     languageOptions: {
       globals: {

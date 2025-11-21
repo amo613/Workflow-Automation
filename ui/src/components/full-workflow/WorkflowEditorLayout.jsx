@@ -27,6 +27,7 @@ import KnowledgeBaseQueryNode from './nodes/KnowledgeBaseQueryNode';
 import AiAgentNode from './nodes/AiAgentNode';
 import EmailNode from './nodes/EmailNode';
 import MergeNode from './nodes/MergeNode';
+import WebScraperNode from './nodes/WebScraperNode';
 import NodeSidebarN8N from './NodeSidebarN8N';
 import KnowledgeBaseManager from './KnowledgeBaseManager';
 import VersionHistory from './VersionHistory';
@@ -59,6 +60,7 @@ import {
   Bot,
   Timer,
   LayoutGrid,
+  Search,
 } from 'lucide-react';
 import { computePyramidLayout } from '@/utils/layout/pyramidLayout';
 
@@ -81,6 +83,7 @@ const nodeTypes = {
   'ai-agent': AiAgentNode,
   email: EmailNode,
   merge: MergeNode,
+  'web-scraper': WebScraperNode,
 };
 
 function WorkflowEditorLayoutInner({
@@ -2129,6 +2132,13 @@ function WorkflowEditorLayoutInner({
             >
               <Mail className="w-4 h-4" style={{ color: '#8b5cf6' }} />
               <span>Email</span>
+            </button>
+            <button
+              onClick={() => addNode('web-scraper')}
+              style={nodePaletteButtonStyle}
+            >
+              <Search className="w-4 h-4" style={{ color: '#3b82f6' }} />
+              <span>Web Scraper</span>
             </button>
           </div>
 
