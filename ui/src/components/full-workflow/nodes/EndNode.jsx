@@ -16,9 +16,7 @@ export default function EndNode({ data, selected }) {
       style={{
         background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${
-          status !== 'idle'
-            ? statusColor[status]
-            : '#ef4444'
+          status !== 'idle' ? statusColor[status] : '#ef4444'
         }`,
         borderRadius: '0.75rem',
         padding: '1.5rem',

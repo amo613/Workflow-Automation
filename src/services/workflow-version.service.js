@@ -1,7 +1,7 @@
 import { db } from '#config/database.js';
 import { workflowVersions } from '#models/workflow-version.model.js';
 import { fullWorkflows } from '#models/full-workflow.model.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
 import logger from '#config/logger.js';
 
 /**
@@ -55,10 +55,13 @@ export async function createWorkflowVersion(
 }
 
 /**
- * Get all versions for a workflow
+ * Get all versions for a workflow with pagination
  */
-export async function getWorkflowVersions(workflowId, userId) {
+export async function getWorkflowVersions(workflowId, userId, options = {}) {
   try {
+    const limit = options.limit || 20;
+    const offset = options.offset || 0;
+
     // Verify user has access to this workflow
     const [workflow] = await db
       .select()
@@ -74,14 +77,28 @@ export async function getWorkflowVersions(workflowId, userId) {
       throw new Error('Unauthorized');
     }
 
-    // Get all versions
+    // Get total count
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(workflowVersions)
+      .where(eq(workflowVersions.workflow_id, workflowId));
+
+    const total = totalResult?.count || 0;
+
+    // Get paginated versions
     const versions = await db
       .select()
       .from(workflowVersions)
       .where(eq(workflowVersions.workflow_id, workflowId))
-      .orderBy(desc(workflowVersions.version_number));
+      .orderBy(desc(workflowVersions.version_number))
+      .limit(limit)
+      .offset(offset);
 
-    return versions;
+    return {
+      versions,
+      total,
+      hasMore: offset + versions.length < total,
+    };
   } catch (error) {
     logger.error('Error getting workflow versions', {
       workflowId,

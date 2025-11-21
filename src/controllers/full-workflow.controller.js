@@ -230,9 +230,7 @@ export async function updateFullWorkflowHandler(req, reply) {
 
         // Unregister old custom paths that are no longer used
         for (const oldPath of existingCustomPaths) {
-          const stillExists = newCustomPaths.some(
-            np => np.path === oldPath
-          );
+          const stillExists = newCustomPaths.some(np => np.path === oldPath);
           if (!stillExists) {
             await unregisterCustomPath(oldPath);
             logger.info('Unregistered custom webhook path', {
@@ -271,10 +269,13 @@ export async function updateFullWorkflowHandler(req, reply) {
           // Workflow is inactive, unregister all custom paths
           for (const { path } of newCustomPaths) {
             await unregisterCustomPath(path);
-            logger.info('Unregistered custom webhook path (workflow inactive)', {
-              workflowId,
-              customPath: path,
-            });
+            logger.info(
+              'Unregistered custom webhook path (workflow inactive)',
+              {
+                workflowId,
+                customPath: path,
+              }
+            );
           }
         }
       } catch (error) {
@@ -330,10 +331,13 @@ export async function updateFullWorkflowHandler(req, reply) {
           const customPaths = await getCustomPathsForWorkflow(workflowId);
           for (const path of customPaths) {
             await unregisterCustomPath(path);
-            logger.info('Unregistered custom webhook path (workflow deactivated)', {
-              workflowId,
-              customPath: path,
-            });
+            logger.info(
+              'Unregistered custom webhook path (workflow deactivated)',
+              {
+                workflowId,
+                customPath: path,
+              }
+            );
           }
         } catch (error) {
           logger.error('Error unregistering custom paths on deactivation', {
@@ -443,8 +447,9 @@ export async function deleteFullWorkflowHandler(req, reply) {
 
     // Unregister custom webhook paths before deleting workflow
     try {
-      const { getCustomPathsForWorkflow, unregisterCustomPath } =
-        await import('#services/custom-webhook-path.service.js');
+      const { getCustomPathsForWorkflow, unregisterCustomPath } = await import(
+        '#services/custom-webhook-path.service.js'
+      );
       const customPaths = await getCustomPathsForWorkflow(workflowId);
       for (const path of customPaths) {
         await unregisterCustomPath(path);

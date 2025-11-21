@@ -54,7 +54,10 @@ async function checkRateLimit(identifier, limit, windowMs = 60000) {
       return { allowed: true, remaining: limit - 1, resetAt };
     }
   } catch (error) {
-    logger.warn('Redis rate limit error, falling back to memory:', error.message);
+    logger.warn(
+      'Redis rate limit error, falling back to memory:',
+      error.message
+    );
   }
 
   // Fallback to in-memory store
@@ -121,7 +124,9 @@ function validateBasicAuth(request, nodeConfig) {
 
   try {
     const base64Credentials = authHeader.substring(6).trim();
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    const credentials = Buffer.from(base64Credentials, 'base64').toString(
+      'utf-8'
+    );
     const [username, password] = credentials.split(':');
 
     if (!username || !password) {
@@ -519,7 +524,10 @@ async function webhookRoutes(fastify) {
   const customPathHandler = async (request, reply) => {
     try {
       // Extract path without query parameters
-      const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+      const url = new URL(
+        request.url,
+        `http://${request.headers.host || 'localhost'}`
+      );
       const customPath = url.pathname; // Path without query params
       const method = request.method;
 
@@ -560,9 +568,7 @@ async function webhookRoutes(fastify) {
 
       // Get workflow
       const { db } = await import('#config/database.js');
-      const { fullWorkflows } = await import(
-        '#models/full-workflow.model.js'
-      );
+      const { fullWorkflows } = await import('#models/full-workflow.model.js');
       const { eq } = await import('drizzle-orm');
 
       const [workflow] = await db
@@ -590,7 +596,10 @@ async function webhookRoutes(fastify) {
       const nodes = workflowJson.nodes || [];
       const selectedWebhookNode = nodes.find(node => node.id === nodeId);
 
-      if (!selectedWebhookNode || selectedWebhookNode.type !== 'webhook-trigger') {
+      if (
+        !selectedWebhookNode ||
+        selectedWebhookNode.type !== 'webhook-trigger'
+      ) {
         return reply.code(500).send({
           success: false,
           error: 'Webhook trigger node not found',

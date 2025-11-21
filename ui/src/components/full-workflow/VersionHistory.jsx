@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { workflowVersionService } from '../../services/workflowVersion.service.js';
 import {
   Dialog,
@@ -20,33 +20,89 @@ import {
   MessageSquare,
 } from 'lucide-react';
 
+const PAGE_SIZE = 20;
+
 export default function VersionHistory({ workflowId, onRestore }) {
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [restoring, setRestoring] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const observerTarget = useRef(null);
+  const scrollAreaRef = useRef(null);
+
+  const fetchVersions = useCallback(
+    async (currentOffset = 0, isInitial = false) => {
+      if (isInitial) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      setError(null);
+      try {
+        const result = await workflowVersionService.getVersions(workflowId, {
+          limit: PAGE_SIZE,
+          offset: currentOffset,
+        });
+
+        if (isInitial) {
+          setVersions(result.versions);
+        } else {
+          setVersions(prev => [...prev, ...result.versions]);
+        }
+
+        setTotal(result.total);
+        setHasMore(result.hasMore);
+        setOffset(currentOffset + result.versions.length);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching versions:', err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [workflowId]
+  );
 
   useEffect(() => {
     if (workflowId && isModalOpen) {
-      fetchVersions();
+      // Reset state when modal opens
+      setVersions([]);
+      setOffset(0);
+      setHasMore(false);
+      setTotal(0);
+      fetchVersions(0, true);
     }
-  }, [workflowId, isModalOpen]);
+  }, [workflowId, isModalOpen, fetchVersions]);
 
-  const fetchVersions = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await workflowVersionService.getVersions(workflowId);
-      setVersions(data);
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching versions:', err);
-    } finally {
-      setLoading(false);
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          fetchVersions(offset, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
     }
-  };
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loadingMore, loading, offset, fetchVersions]);
 
   const handleRestore = async version => {
     if (
@@ -66,7 +122,11 @@ export default function VersionHistory({ workflowId, onRestore }) {
       if (onRestore && restoredWorkflow.workflow_json) {
         onRestore(restoredWorkflow.workflow_json);
       }
-      await fetchVersions();
+      // Reset and reload versions after restore
+      setVersions([]);
+      setOffset(0);
+      setHasMore(false);
+      await fetchVersions(0, true);
       toast.success(
         `Workflow restored to version ${version.version_number} successfully!`
       );
@@ -108,7 +168,7 @@ export default function VersionHistory({ workflowId, onRestore }) {
         >
           <BookOpen className="w-4 h-4" />
           <span>Version History</span>
-          {versions.length > 0 && (
+          {total > 0 && (
             <Badge
               variant="secondary"
               className="ml-auto"
@@ -117,7 +177,7 @@ export default function VersionHistory({ workflowId, onRestore }) {
                 color: 'hsl(var(--muted-foreground))',
               }}
             >
-              {versions.length}
+              {total}
             </Badge>
           )}
         </Button>
@@ -143,8 +203,9 @@ export default function VersionHistory({ workflowId, onRestore }) {
                     Version History
                   </DialogTitle>
                   <DialogDescription className="mt-1">
-                    {versions.length} version{versions.length !== 1 ? 's' : ''}{' '}
-                    saved
+                    {total > 0
+                      ? `${total} version${total !== 1 ? 's' : ''} saved`
+                      : 'Loading...'}
                   </DialogDescription>
                 </div>
               </div>
@@ -152,6 +213,7 @@ export default function VersionHistory({ workflowId, onRestore }) {
           </DialogHeader>
 
           <ScrollArea
+            ref={scrollAreaRef}
             className="flex-1 px-6 py-4"
             style={{ maxHeight: 'calc(85vh - 120px)' }}
           >
@@ -302,6 +364,19 @@ export default function VersionHistory({ workflowId, onRestore }) {
                     </div>
                   );
                 })}
+
+                {/* Loading indicator for infinite scroll */}
+                {loadingMore && (
+                  <div className="text-center py-4 text-muted-foreground flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading more versions...</span>
+                  </div>
+                )}
+
+                {/* Intersection Observer target */}
+                {hasMore && !loadingMore && (
+                  <div ref={observerTarget} className="h-4" />
+                )}
               </div>
             )}
           </ScrollArea>

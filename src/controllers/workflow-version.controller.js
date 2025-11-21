@@ -7,7 +7,7 @@ import {
 } from '#services/workflow-version.service.js';
 
 /**
- * Get all versions for a workflow
+ * Get all versions for a workflow with pagination
  */
 export async function getWorkflowVersionsHandler(req, reply) {
   try {
@@ -15,11 +15,20 @@ export async function getWorkflowVersionsHandler(req, reply) {
     const { id } = req.params;
     const workflowId = parseInt(id, 10);
 
-    const versions = await getWorkflowVersions(workflowId, userId);
+    // Parse pagination parameters
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
+    const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
+
+    const result = await getWorkflowVersions(workflowId, userId, {
+      limit,
+      offset,
+    });
 
     return reply.code(200).send({
       success: true,
-      data: versions,
+      data: result.versions,
+      total: result.total,
+      hasMore: result.hasMore,
     });
   } catch (error) {
     logger.error('Error getting workflow versions', {

@@ -44,4 +44,3 @@ export default function StatusBadge({ status }) {
     </div>
   );
 }
-

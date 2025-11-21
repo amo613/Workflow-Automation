@@ -16,9 +16,7 @@ export default function StartNode({ data, selected }) {
       style={{
         background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${
-          status !== 'idle'
-            ? statusColor[status]
-            : '#10b981'
+          status !== 'idle' ? statusColor[status] : '#10b981'
         }`,
         borderRadius: '0.75rem',
         padding: '1.5rem',

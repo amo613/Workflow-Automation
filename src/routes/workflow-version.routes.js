@@ -13,6 +13,15 @@ export default async function workflowVersionRoutes(fastify) {
     '/api/full-workflows/:id/versions',
     {
       preHandler: [authenticateTokenFastify, csrfProtectionFastify],
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            limit: { type: 'string', pattern: '^[0-9]+$' },
+            offset: { type: 'string', pattern: '^[0-9]+$' },
+          },
+        },
+      },
     },
     getWorkflowVersionsHandler
   );

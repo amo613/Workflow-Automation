@@ -43,9 +43,10 @@ export default function WebhookTriggerConfig({
 
   // Determine webhook URL (custom path or default)
   // Important: check for null/undefined explicitly, not just falsy, to allow empty string
-  const customPath = localData.customPath !== undefined && localData.customPath !== null 
-    ? localData.customPath 
-    : null;
+  const customPath =
+    localData.customPath !== undefined && localData.customPath !== null
+      ? localData.customPath
+      : null;
   // useCustomPath is true if customPath exists (even if empty string, meaning toggle is on)
   const useCustomPath = customPath !== null && customPath !== undefined;
   const webhookId = workflowId || localData.webhookId || '';
@@ -57,12 +58,12 @@ export default function WebhookTriggerConfig({
 
   const requireSecret = Boolean(localData.requireSecret);
   const secretValue = localData.webhookSecret || '';
-  
+
   // Basic Auth
   const requireBasicAuth = Boolean(localData.requireBasicAuth);
   const basicAuthUsername = localData.basicAuthUsername || '';
   const basicAuthPassword = localData.basicAuthPassword || '';
-  
+
   // Rate Limiting
   const rateLimit = localData.rateLimit || {};
   const customRateLimit = rateLimit.custom || { enabled: false };
@@ -136,12 +137,15 @@ export default function WebhookTriggerConfig({
     }
   };
 
-  const handleToggleCustomPath = (e) => {
+  const handleToggleCustomPath = e => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    
-    console.log('Toggle custom path clicked', { useCustomPath, currentCustomPath: customPath });
-    
+
+    console.log('Toggle custom path clicked', {
+      useCustomPath,
+      currentCustomPath: customPath,
+    });
+
     if (useCustomPath) {
       // Disable: set to null
       console.log('Disabling custom path');
@@ -153,24 +157,28 @@ export default function WebhookTriggerConfig({
     }
   };
 
-  const handleCustomPathChange = (value) => {
+  const handleCustomPathChange = value => {
     // Validation: no spaces, allow alphanumeric, /, -, _
     if (value === '') {
       // Keep as empty string to maintain toggle state
       handleUpdate('customPath', '');
       return;
     }
-    
+
     // Remove spaces and validate characters
     const cleaned = value.replace(/\s/g, '');
     const validPattern = /^[a-zA-Z0-9\/\-_]+$/;
-    
+
     if (validPattern.test(cleaned)) {
       // Normalize: ensure it starts with /api/custom/
       let normalizedPath = cleaned;
       if (!normalizedPath.startsWith('/api/custom/')) {
         if (normalizedPath.startsWith('/api/custom')) {
-          normalizedPath = '/api/custom' + (normalizedPath === '/api/custom' ? '/' : normalizedPath.substring('/api/custom'.length));
+          normalizedPath =
+            '/api/custom' +
+            (normalizedPath === '/api/custom'
+              ? '/'
+              : normalizedPath.substring('/api/custom'.length));
         } else if (normalizedPath.startsWith('/')) {
           normalizedPath = '/api/custom' + normalizedPath;
         } else {
@@ -338,7 +346,37 @@ export default function WebhookTriggerConfig({
                 lineHeight: 1.5,
               }}
             >
-              Enter path after <code style={{ background: '#2a2a2a', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>/api/custom/</code>. Will be automatically prefixed. Only alphanumeric, <code style={{ background: '#2a2a2a', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>-</code>, <code style={{ background: '#2a2a2a', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>_</code> allowed.
+              Enter path after{' '}
+              <code
+                style={{
+                  background: '#2a2a2a',
+                  padding: '0.1rem 0.3rem',
+                  borderRadius: '3px',
+                }}
+              >
+                /api/custom/
+              </code>
+              . Will be automatically prefixed. Only alphanumeric,{' '}
+              <code
+                style={{
+                  background: '#2a2a2a',
+                  padding: '0.1rem 0.3rem',
+                  borderRadius: '3px',
+                }}
+              >
+                -
+              </code>
+              ,{' '}
+              <code
+                style={{
+                  background: '#2a2a2a',
+                  padding: '0.1rem 0.3rem',
+                  borderRadius: '3px',
+                }}
+              >
+                _
+              </code>{' '}
+              allowed.
             </div>
             {customPath && (
               <div
@@ -520,7 +558,8 @@ export default function WebhookTriggerConfig({
                 marginBottom: '0.5rem',
               }}
             >
-              ⚠️ Username and password will be stored in the workflow configuration.
+              ⚠️ Username and password will be stored in the workflow
+              configuration.
             </div>
             <Label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
               Username
@@ -553,7 +592,9 @@ export default function WebhookTriggerConfig({
               }}
             />
             {basicAuthUsername && basicAuthPassword && (
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div
+                style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}
+              >
                 <Button
                   type="button"
                   variant="secondary"
@@ -571,7 +612,16 @@ export default function WebhookTriggerConfig({
                 lineHeight: 1.5,
               }}
             >
-              Clients must send: <code style={{ background: '#2a2a2a', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>Authorization: Basic base64(username:password)</code>
+              Clients must send:{' '}
+              <code
+                style={{
+                  background: '#2a2a2a',
+                  padding: '0.1rem 0.3rem',
+                  borderRadius: '3px',
+                }}
+              >
+                Authorization: Basic base64(username:password)
+              </code>
             </div>
           </div>
         )}
@@ -597,7 +647,7 @@ export default function WebhookTriggerConfig({
         >
           Rate Limiting
         </div>
-        
+
         {/* Custom Rate Limiting */}
         <label
           style={{
@@ -627,20 +677,30 @@ export default function WebhookTriggerConfig({
               paddingLeft: '1.5rem',
             }}
           >
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Label style={{ fontSize: '0.75rem', color: '#94a3b8', minWidth: '140px' }}>
+            <div
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+            >
+              <Label
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#94a3b8',
+                  minWidth: '140px',
+                }}
+              >
                 Requests per minute:
               </Label>
               <Input
                 type="number"
                 value={customRateLimit.requestsPerMinute || 100}
-                onChange={e => handleUpdate('rateLimit', {
-                  ...rateLimit,
-                  custom: {
-                    ...customRateLimit,
-                    requestsPerMinute: parseInt(e.target.value, 10) || 100,
-                  },
-                })}
+                onChange={e =>
+                  handleUpdate('rateLimit', {
+                    ...rateLimit,
+                    custom: {
+                      ...customRateLimit,
+                      requestsPerMinute: parseInt(e.target.value, 10) || 100,
+                    },
+                  })
+                }
                 min="1"
                 style={{
                   width: '100px',
@@ -650,20 +710,30 @@ export default function WebhookTriggerConfig({
                 }}
               />
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <Label style={{ fontSize: '0.75rem', color: '#94a3b8', minWidth: '140px' }}>
+            <div
+              style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+            >
+              <Label
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#94a3b8',
+                  minWidth: '140px',
+                }}
+              >
                 Window (minutes):
               </Label>
               <Input
                 type="number"
                 value={customRateLimit.windowMinutes || 1}
-                onChange={e => handleUpdate('rateLimit', {
-                  ...rateLimit,
-                  custom: {
-                    ...customRateLimit,
-                    windowMinutes: parseInt(e.target.value, 10) || 1,
-                  },
-                })}
+                onChange={e =>
+                  handleUpdate('rateLimit', {
+                    ...rateLimit,
+                    custom: {
+                      ...customRateLimit,
+                      windowMinutes: parseInt(e.target.value, 10) || 1,
+                    },
+                  })
+                }
                 min="1"
                 style={{
                   width: '100px',
@@ -680,7 +750,8 @@ export default function WebhookTriggerConfig({
                 lineHeight: 1.5,
               }}
             >
-              Max. {customRateLimit.requestsPerMinute || 100} requests per {customRateLimit.windowMinutes || 1} minute(s)
+              Max. {customRateLimit.requestsPerMinute || 100} requests per{' '}
+              {customRateLimit.windowMinutes || 1} minute(s)
             </div>
           </div>
         )}
@@ -725,13 +796,15 @@ export default function WebhookTriggerConfig({
               <input
                 type="checkbox"
                 checked={arcjetRateLimit.botDetection !== false}
-                onChange={e => handleUpdate('rateLimit', {
-                  ...rateLimit,
-                  arcjet: {
-                    ...arcjetRateLimit,
-                    botDetection: e.target.checked,
-                  },
-                })}
+                onChange={e =>
+                  handleUpdate('rateLimit', {
+                    ...rateLimit,
+                    arcjet: {
+                      ...arcjetRateLimit,
+                      botDetection: e.target.checked,
+                    },
+                  })
+                }
                 style={{ width: '14px', height: '14px' }}
               />
               Bot Detection
@@ -748,13 +821,15 @@ export default function WebhookTriggerConfig({
               <input
                 type="checkbox"
                 checked={arcjetRateLimit.shield !== false}
-                onChange={e => handleUpdate('rateLimit', {
-                  ...rateLimit,
-                  arcjet: {
-                    ...arcjetRateLimit,
-                    shield: e.target.checked,
-                  },
-                })}
+                onChange={e =>
+                  handleUpdate('rateLimit', {
+                    ...rateLimit,
+                    arcjet: {
+                      ...arcjetRateLimit,
+                      shield: e.target.checked,
+                    },
+                  })
+                }
                 style={{ width: '14px', height: '14px' }}
               />
               Shield Protection

@@ -16,9 +16,7 @@ export default function AiAgentNode({ data, selected }) {
       style={{
         background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
         border: `2px solid ${
-          status !== 'idle'
-            ? statusColor[status]
-            : '#3b82f6'
+          status !== 'idle' ? statusColor[status] : '#3b82f6'
         }`,
         borderRadius: '0.75rem',
         padding: '1.5rem',
