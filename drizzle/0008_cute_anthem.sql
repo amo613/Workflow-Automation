@@ -1,0 +1,1 @@
+ALTER TABLE "user_openai_keys" ALTER COLUMN "encrypted_api_key" SET DATA TYPE text;

@@ -1,0 +1,1 @@
+ALTER TABLE "workflows" ADD COLUMN "trigger_config" jsonb;
