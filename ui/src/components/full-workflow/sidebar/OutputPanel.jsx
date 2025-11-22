@@ -13,6 +13,10 @@ export default function OutputPanel({
 }) {
   const [view, setView] = useState(outputView || 'table');
 
+  // Check if screenshot exists in outputData
+  const hasScreenshot =
+    outputData?.screenshot && typeof outputData.screenshot === 'string';
+
   // Sync with parent view state
   useEffect(() => {
     if (setOutputView && view !== outputView) {
@@ -34,9 +38,28 @@ export default function OutputPanel({
     );
   }
 
+  // Handle screenshot download
+  const handleDownloadScreenshot = () => {
+    if (!hasScreenshot) return;
+
+    const link = document.createElement('a');
+    link.href = `data:image/png;base64,${outputData.screenshot}`;
+    link.download = `screenshot-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ padding: '0.75rem', overflow: 'auto', flex: 1 }}>
-      <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.25rem' }}>
+      <div
+        style={{
+          marginBottom: '0.5rem',
+          display: 'flex',
+          gap: '0.25rem',
+          flexWrap: 'wrap',
+        }}
+      >
         <button
           onClick={() => {
             setView('table');
@@ -102,6 +125,30 @@ export default function OutputPanel({
         >
           Schema
         </button>
+        {hasScreenshot && (
+          <button
+            onClick={() => {
+              setView('screenshot');
+              if (setOutputView) setOutputView('screenshot');
+            }}
+            style={{
+              padding: '0.25rem 0.5rem',
+              background:
+                view === 'screenshot' ? 'hsl(var(--primary))' : 'transparent',
+              border: '1px solid hsl(var(--border))',
+              color:
+                view === 'screenshot'
+                  ? 'hsl(var(--primary-foreground))'
+                  : 'hsl(var(--foreground))',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              borderRadius: '4px',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            📷 Screenshot
+          </button>
+        )}
       </div>
       {view === 'table' ? (
         <DataTable data={outputData} />
@@ -118,6 +165,64 @@ export default function OutputPanel({
         >
           {JSON.stringify(outputData, null, 2)}
         </pre>
+      ) : view === 'screenshot' && hasScreenshot ? (
+        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--foreground))' }}>
+          <div
+            style={{
+              marginBottom: '0.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ fontWeight: 500 }}>Page Screenshot</span>
+            <button
+              onClick={handleDownloadScreenshot}
+              style={{
+                padding: '0.25rem 0.75rem',
+                background: 'hsl(var(--primary))',
+                color: 'hsl(var(--primary-foreground))',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => {
+                e.target.style.opacity = '0.9';
+              }}
+              onMouseLeave={e => {
+                e.target.style.opacity = '1';
+              }}
+            >
+              ⬇ Download
+            </button>
+          </div>
+          <div
+            style={{
+              background: 'hsl(var(--muted))',
+              padding: '0.5rem',
+              borderRadius: '4px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              overflow: 'auto',
+              maxHeight: '600px',
+            }}
+          >
+            <img
+              src={`data:image/png;base64,${outputData.screenshot}`}
+              alt="Page screenshot"
+              style={{
+                maxWidth: '100%',
+                height: 'auto',
+                borderRadius: '4px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+              }}
+            />
+          </div>
+        </div>
       ) : (
         <div style={{ fontSize: '0.75rem', color: 'hsl(var(--foreground))' }}>
           <pre

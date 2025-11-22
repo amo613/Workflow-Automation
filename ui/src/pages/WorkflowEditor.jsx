@@ -318,6 +318,13 @@ function WorkflowEditorInner() {
       // Clean nodes and edges before saving - remove React Flow internal fields and callbacks
       const cleanNodes = nodes.map(({ id, type, position, data }) => {
         const { onNodeUpdate, label, ...cleanData } = data || {};
+
+        // Remove screenshot from output if it exists (screenshots are too large for storage)
+        if (cleanData.output?.screenshot) {
+          cleanData.output = { ...cleanData.output };
+          delete cleanData.output.screenshot;
+        }
+
         // Ensure all data properties are preserved, even if they're empty strings
         return { id, type, position, data: cleanData || {} };
       });

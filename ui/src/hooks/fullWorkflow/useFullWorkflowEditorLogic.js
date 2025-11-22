@@ -446,12 +446,21 @@ export function useFullWorkflowEditorLogic() {
       setSaving(true);
 
       const workflowJson = {
-        nodes: nodes.map(({ id: nodeId, type, position, data }) => ({
-          id: nodeId,
-          type,
-          position,
-          data,
-        })),
+        nodes: nodes.map(({ id: nodeId, type, position, data }) => {
+          // Remove screenshot from output if it exists (screenshots are too large for storage)
+          const cleanedData = { ...data };
+          if (cleanedData.output?.screenshot) {
+            cleanedData.output = { ...cleanedData.output };
+            delete cleanedData.output.screenshot;
+          }
+
+          return {
+            id: nodeId,
+            type,
+            position,
+            data: cleanedData,
+          };
+        }),
         edges: edges.map((edge, index) => {
           const edgeId =
             edge.id ||
