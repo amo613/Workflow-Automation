@@ -361,6 +361,220 @@ export default function SettingsTab({
     );
   }
 
+  if (nodeType === 'hubspot') {
+    // HubSpot Integration State
+    const [hubspotConnected, setHubspotConnected] = useState(false);
+    const [hubspotEmail, setHubspotEmail] = useState(null);
+    const [checkingHubspot, setCheckingHubspot] = useState(true);
+
+    // HubSpot Integration Functions
+    const refreshHubspotStatus = async () => {
+      try {
+        setCheckingHubspot(true);
+        const res = await fetch('/api/integrations/hubspot/status', {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setHubspotConnected(data.connected || false);
+          setHubspotEmail(data.email || null);
+        } else {
+          setHubspotConnected(false);
+          setHubspotEmail(null);
+        }
+      } catch (error) {
+        console.error('Error checking HubSpot status:', error);
+        setHubspotConnected(false);
+        setHubspotEmail(null);
+      } finally {
+        setCheckingHubspot(false);
+      }
+    };
+
+    // Load HubSpot status on mount
+    useEffect(() => {
+      refreshHubspotStatus();
+    }, []);
+
+    // Handle URL params for HubSpot callback
+    useEffect(() => {
+      if (window.location.search.includes('hubspot=connected')) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('hubspot');
+        window.history.replaceState({}, '', url);
+        setTimeout(refreshHubspotStatus, 500);
+      }
+    }, []);
+
+    // Handle connect HubSpot
+    const handleConnectHubspot = async () => {
+      try {
+        const workflowId = window.location.pathname.includes('/fullWorkflows/')
+          ? window.location.pathname.split('/fullWorkflows/')[1]?.split('/')[0]
+          : null;
+        const returnUrl = workflowId
+          ? `/fullWorkflows/${workflowId}`
+          : '/fullWorkflows';
+        const url = `/api/integrations/hubspot/auth?returnUrl=${encodeURIComponent(returnUrl)}${workflowId ? `&workflowId=${workflowId}` : ''}`;
+
+        const res = await fetchWithCSRF(url);
+        if (!res.ok) {
+          const data = await res
+            .json()
+            .catch(() => ({ error: 'Failed to start OAuth' }));
+          throw new Error(data.error || 'Failed to start OAuth');
+        }
+        const data = await res.json();
+        if (data.authUrl) {
+          window.location.href = data.authUrl;
+        } else {
+          alert('Failed to get auth URL');
+        }
+      } catch (e) {
+        console.error('Error connecting HubSpot:', e);
+        alert(e.message || 'Failed to connect HubSpot');
+      }
+    };
+
+    // Handle disconnect HubSpot
+    const handleDisconnectHubspot = async () => {
+      if (!confirm('Are you sure you want to disconnect HubSpot?')) {
+        return;
+      }
+      try {
+        const res = await fetchWithCSRF('/api/integrations/hubspot', {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          setHubspotConnected(false);
+          setHubspotEmail(null);
+          alert('HubSpot disconnected successfully');
+          setTimeout(refreshHubspotStatus, 500);
+        } else {
+          let errorMessage = 'Failed to disconnect';
+          try {
+            const data = await res.json();
+            errorMessage = data.error || data.message || errorMessage;
+          } catch {
+            errorMessage = res.statusText || `HTTP ${res.status}`;
+          }
+          throw new Error(errorMessage);
+        }
+      } catch (e) {
+        console.error('Error disconnecting HubSpot:', e);
+        alert(e.message || 'Failed to disconnect HubSpot');
+      }
+    };
+
+    return (
+      <>
+        {/* HubSpot CRM Integration */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+              marginBottom: '1rem',
+            }}
+          >
+            HubSpot Connection
+          </div>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: '#94a3b8',
+              marginBottom: '1rem',
+            }}
+          >
+            Connect your HubSpot account to manage contacts and leads
+          </div>
+          {checkingHubspot ? (
+            <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+              Checking connection status...
+            </div>
+          ) : hubspotConnected ? (
+            <div
+              style={{
+                padding: '1rem',
+                background: '#2a2a2a',
+                borderRadius: '8px',
+                border: '1px solid #10b981',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                <span
+                  style={{
+                    color: '#10b981',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Connected
+                </span>
+              </div>
+              {hubspotEmail && (
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#94a3b8',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  Account: {hubspotEmail}
+                </div>
+              )}
+              <button
+                onClick={handleDisconnectHubspot}
+                style={{
+                  background: '#ef4444',
+                  border: 'none',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                }}
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleConnectHubspot}
+              style={{
+                background: '#ff7a59',
+                border: 'none',
+                color: 'white',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>🔗</span>
+              <span>Connect HubSpot</span>
+            </button>
+          )}
+        </div>
+      </>
+    );
+  }
+
   if (nodeType === 'email') {
     return (
       <>
@@ -407,6 +621,7 @@ export default function SettingsTab({
     );
   }
 
+  // Default: No settings available
   return (
     <div style={{ color: '#94a3b8' }}>
       No settings available for this node type
@@ -593,6 +808,7 @@ function CallAgentSettings({
       setTimeout(refreshGcalStatus, 500);
     }
   }, []);
+
 
   return (
     <>
@@ -973,6 +1189,7 @@ function CallAgentSettings({
           </div>
         )}
       </div>
+
 
       {/* Email Credentials */}
       {(nodeType === 'call-agent' || nodeType === 'email') && (

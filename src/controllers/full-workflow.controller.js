@@ -348,6 +348,158 @@ export async function updateFullWorkflowHandler(req, reply) {
         }
       }
 
+      // Handle HubSpot webhook subscriptions
+      try {
+        const hubspotTriggerNodes = nodes.filter(
+          node => node.type === 'hubspot-trigger'
+        );
+
+        if (hubspotTriggerNodes.length > 0) {
+          const { hubspotService } = await import('#services/hubspot.service.js');
+          const { hubspotWebhookService } = await import(
+            '#services/hubspot-webhook.service.js'
+          );
+
+          // Get HubSpot integration for user
+          let accessToken = null;
+          try {
+            const { accessToken: token } =
+              await hubspotService.getAuthenticatedClient(userId);
+            accessToken = token;
+          } catch (error) {
+            logger.warn('HubSpot not connected, skipping subscription management', {
+              userId,
+              workflowId,
+              error: error.message,
+            });
+            // Continue - don't fail the save operation
+          }
+
+          if (accessToken) {
+            const frontendUrl =
+              process.env.FRONTEND_URL || 'http://localhost:5173';
+            const baseUrl = frontendUrl.replace(/\/$/, '');
+
+            for (const hubspotNode of hubspotTriggerNodes) {
+              const eventTypes = hubspotNode.data?.eventTypes || [];
+              const existingSubscriptionIds =
+                hubspotNode.data?.subscriptionIds || [];
+
+              // Delete old subscriptions
+              if (existingSubscriptionIds.length > 0) {
+                try {
+                  await hubspotWebhookService.deleteMultipleSubscriptions(
+                    accessToken,
+                    existingSubscriptionIds
+                  );
+                  logger.info('Deleted old HubSpot subscriptions', {
+                    workflowId,
+                    nodeId: hubspotNode.id,
+                    subscriptionIds: existingSubscriptionIds,
+                  });
+                } catch (error) {
+                  logger.warn('Error deleting old HubSpot subscriptions', {
+                    workflowId,
+                    nodeId: hubspotNode.id,
+                    error: error.message,
+                  });
+                  // Continue - try to create new ones anyway
+                }
+              }
+
+              // Create new subscriptions if workflow is active and events are selected
+              if (
+                is_active !== false &&
+                workflow.is_active &&
+                eventTypes.length > 0
+              ) {
+                const webhookUrl = `${baseUrl}/api/integrations/hubspot/webhook?workflowId=${workflowId}`;
+
+                try {
+                  const result =
+                    await hubspotWebhookService.createMultipleSubscriptions(
+                      accessToken,
+                      eventTypes,
+                      webhookUrl
+                    );
+
+                  // Update node data with new subscription IDs
+                  const newSubscriptionIds = result.subscriptions.map(
+                    sub => sub.subscriptionId
+                  );
+                  hubspotNode.data = {
+                    ...hubspotNode.data,
+                    subscriptionIds: newSubscriptionIds,
+                  };
+
+                  // Update the node in the workflow JSON
+                  const nodeIndex = nodes.findIndex(
+                    n => n.id === hubspotNode.id
+                  );
+                  if (nodeIndex !== -1) {
+                    nodes[nodeIndex] = hubspotNode;
+                  }
+
+                  logger.info('Created HubSpot subscriptions', {
+                    workflowId,
+                    nodeId: hubspotNode.id,
+                    eventTypes,
+                    subscriptionIds: newSubscriptionIds,
+                  });
+                } catch (error) {
+                  logger.error('Error creating HubSpot subscriptions', {
+                    workflowId,
+                    nodeId: hubspotNode.id,
+                    error: error.message,
+                  });
+                  // Continue - don't fail the save operation
+                }
+              } else if (
+                is_active === false ||
+                (is_active !== undefined && !is_active)
+              ) {
+                // Workflow is inactive, clear subscription IDs from node data
+                hubspotNode.data = {
+                  ...hubspotNode.data,
+                  subscriptionIds: [],
+                };
+
+                // Update the node in the workflow JSON
+                const nodeIndex = nodes.findIndex(
+                  n => n.id === hubspotNode.id
+                );
+                if (nodeIndex !== -1) {
+                  nodes[nodeIndex] = hubspotNode;
+                }
+              }
+            }
+
+            // Update workflow JSON with updated node data (if subscriptions were created/deleted)
+            if (hubspotTriggerNodes.some(n => n.data?.subscriptionIds !== undefined)) {
+              const updatedWorkflowJson = {
+                ...workflowJson,
+                nodes,
+              };
+
+              // Save updated workflow JSON back to database
+              await db
+                .update(fullWorkflows)
+                .set({
+                  workflow_json: updatedWorkflowJson,
+                  updated_at: new Date(),
+                })
+                .where(eq(fullWorkflows.id, workflowId));
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Error managing HubSpot webhook subscriptions', {
+          workflowId,
+          error: error.message,
+        });
+        // Don't fail the save operation if subscription management fails
+      }
+
       // Schedule new triggers if workflow is active
       if (is_active !== false && workflow.is_active) {
         for (const triggerNode of triggerNodes) {
@@ -464,6 +616,68 @@ export async function deleteFullWorkflowHandler(req, reply) {
         error: error.message,
       });
       // Don't fail the delete operation if custom path cleanup fails
+    }
+
+    // Delete HubSpot webhook subscriptions before deleting workflow
+    try {
+      // Load workflow to get node data
+      const workflow = await getFullWorkflow(workflowId, userId);
+      const workflowJson = workflow.workflow_json || {};
+      const nodes = workflowJson.nodes || [];
+      const hubspotTriggerNodes = nodes.filter(
+        node => node.type === 'hubspot-trigger'
+      );
+
+      if (hubspotTriggerNodes.length > 0) {
+        const { hubspotService } = await import('#services/hubspot.service.js');
+        const { hubspotWebhookService } = await import(
+          '#services/hubspot-webhook.service.js'
+        );
+
+        // Get HubSpot integration for user
+        try {
+          const { accessToken } =
+            await hubspotService.getAuthenticatedClient(userId);
+
+          // Delete subscriptions for all HubSpot trigger nodes
+          for (const hubspotNode of hubspotTriggerNodes) {
+            const subscriptionIds = hubspotNode.data?.subscriptionIds || [];
+            if (subscriptionIds.length > 0) {
+              try {
+                await hubspotWebhookService.deleteMultipleSubscriptions(
+                  accessToken,
+                  subscriptionIds
+                );
+                logger.info('Deleted HubSpot subscriptions (workflow deleted)', {
+                  workflowId,
+                  nodeId: hubspotNode.id,
+                  subscriptionIds,
+                });
+              } catch (error) {
+                logger.warn('Error deleting HubSpot subscriptions', {
+                  workflowId,
+                  nodeId: hubspotNode.id,
+                  error: error.message,
+                });
+                // Continue - try to delete other subscriptions
+              }
+            }
+          }
+        } catch (error) {
+          logger.warn('HubSpot not connected, skipping subscription cleanup', {
+            userId,
+            workflowId,
+            error: error.message,
+          });
+          // Continue - don't fail the delete operation
+        }
+      }
+    } catch (error) {
+      logger.error('Error deleting HubSpot subscriptions on workflow deletion', {
+        workflowId,
+        error: error.message,
+      });
+      // Don't fail the delete operation if subscription cleanup fails
     }
 
     await deleteFullWorkflow(workflowId, userId);

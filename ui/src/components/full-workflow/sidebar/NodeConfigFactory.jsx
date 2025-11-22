@@ -23,6 +23,8 @@ import MergeConfig from './configs/MergeConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
 import CallTriggerConfig from './configs/CallTriggerConfig.jsx';
 import WebScraperConfig from './configs/WebScraperConfig.jsx';
+import HubspotConfig from './configs/HubspotConfig.jsx';
+import HubspotTriggerConfig from './configs/HubspotTriggerConfig.jsx';
 
 const configMap = {
   webhook: WebhookConfig,
@@ -43,9 +45,17 @@ const configMap = {
   start: StartConfig,
   'call-trigger': CallTriggerConfig,
   'web-scraper': WebScraperConfig,
+  hubspot: HubspotConfig,
+  'hubspot-trigger': HubspotTriggerConfig,
 };
 
-export default function NodeConfigFactory({ nodeType, ...props }) {
+export default function NodeConfigFactory({
+  nodeType,
+  hubspot,
+  onHubspotAuth,
+  onHubspotDisconnect,
+  ...props
+}) {
   const ConfigComponent = configMap[nodeType];
 
   if (!ConfigComponent) {
@@ -56,5 +66,15 @@ export default function NodeConfigFactory({ nodeType, ...props }) {
     );
   }
 
-  return <ConfigComponent {...props} />;
+  // Pass HubSpot props to HubspotConfig and HubspotTriggerConfig
+  const hubspotProps =
+    nodeType === 'hubspot' || nodeType === 'hubspot-trigger'
+      ? {
+          hubspot,
+          onHubspotAuth,
+          onHubspotDisconnect,
+        }
+      : {};
+
+  return <ConfigComponent {...props} {...hubspotProps} />;
 }

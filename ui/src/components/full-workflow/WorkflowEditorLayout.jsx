@@ -28,6 +28,8 @@ import AiAgentNode from './nodes/AiAgentNode';
 import EmailNode from './nodes/EmailNode';
 import MergeNode from './nodes/MergeNode';
 import WebScraperNode from './nodes/WebScraperNode';
+import HubspotNode from './nodes/HubspotNode';
+import HubspotTriggerNode from './nodes/HubspotTriggerNode';
 import NodeSidebarN8N from './NodeSidebarN8N';
 import KnowledgeBaseManager from './KnowledgeBaseManager';
 import VersionHistory from './VersionHistory';
@@ -61,6 +63,7 @@ import {
   Timer,
   LayoutGrid,
   Search,
+  Building2,
 } from 'lucide-react';
 import { computePyramidLayout } from '@/utils/layout/pyramidLayout';
 
@@ -84,6 +87,8 @@ const nodeTypes = {
   email: EmailNode,
   merge: MergeNode,
   'web-scraper': WebScraperNode,
+  hubspot: HubspotNode,
+  'hubspot-trigger': HubspotTriggerNode,
 };
 
 function WorkflowEditorLayoutInner({
@@ -248,6 +253,7 @@ function WorkflowEditorLayoutInner({
         'schedule-trigger': '#22c55e',
         'google-sheets-trigger': '#a855f7',
         'call-trigger': '#10b981',
+        'hubspot-trigger': '#ff7a59',
         start: '#14b8a6',
       };
 
@@ -1817,6 +1823,15 @@ function WorkflowEditorLayoutInner({
                                 />
                                 <span>Call Trigger</span>
                               </>
+                            ) : trigger.triggerConfig?.type ===
+                              'hubspot-trigger' ? (
+                              <>
+                                <Zap
+                                  className="w-4 h-4"
+                                  style={{ color: '#ff7a59' }}
+                                />
+                                <span>HubSpot Trigger</span>
+                              </>
                             ) : (
                               <>
                                 <Rocket
@@ -1913,6 +1928,58 @@ function WorkflowEditorLayoutInner({
                                 {typeof window !== 'undefined'
                                   ? `${window.location.origin}${trigger.triggerConfig.webhookUrl}`
                                   : trigger.triggerConfig.webhookUrl}
+                              </code>
+                            </div>
+                          </>
+                        )}
+                        {trigger.triggerConfig?.type === 'hubspot-trigger' && (
+                          <>
+                            {trigger.triggerConfig.eventTypes &&
+                              trigger.triggerConfig.eventTypes.length > 0 && (
+                                <div
+                                  style={{
+                                    color: 'hsl(var(--muted-foreground))',
+                                    fontSize: '0.7rem',
+                                    marginBottom: '0.25rem',
+                                  }}
+                                >
+                                  Events:{' '}
+                                  {trigger.triggerConfig.eventTypes.join(', ')}
+                                </div>
+                              )}
+                            {trigger.triggerConfig.subscriptionIds &&
+                              trigger.triggerConfig.subscriptionIds.length >
+                                0 && (
+                                <div
+                                  style={{
+                                    color: 'hsl(var(--muted-foreground))',
+                                    fontSize: '0.7rem',
+                                    marginBottom: '0.25rem',
+                                  }}
+                                >
+                                  Subscriptions:{' '}
+                                  {trigger.triggerConfig.subscriptionIds.length}{' '}
+                                  active
+                                </div>
+                              )}
+                            <div
+                              style={{
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.25rem',
+                                wordBreak: 'break-all',
+                              }}
+                            >
+                              Webhook URL:{' '}
+                              <code
+                                style={{
+                                  background: 'hsl(var(--muted))',
+                                  padding: '0.125rem 0.25rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.65rem',
+                                }}
+                              >
+                                {trigger.triggerConfig.webhookUrl}
                               </code>
                             </div>
                           </>
@@ -2067,6 +2134,13 @@ function WorkflowEditorLayoutInner({
               <PhoneIncoming className="w-4 h-4" style={{ color: '#10b981' }} />
               <span>Call Trigger</span>
             </button>
+            <button
+              onClick={() => addNode('hubspot-trigger')}
+              style={nodePaletteButtonStyle}
+            >
+              <Zap className="w-4 h-4" style={{ color: '#ff7a59' }} />
+              <span>HubSpot Trigger</span>
+            </button>
           </div>
 
           <h3
@@ -2139,6 +2213,13 @@ function WorkflowEditorLayoutInner({
             >
               <Search className="w-4 h-4" style={{ color: '#3b82f6' }} />
               <span>Web Scraper</span>
+            </button>
+            <button
+              onClick={() => addNode('hubspot')}
+              style={nodePaletteButtonStyle}
+            >
+              <Building2 className="w-4 h-4" style={{ color: '#ff7a59' }} />
+              <span>HubSpot CRM</span>
             </button>
           </div>
 

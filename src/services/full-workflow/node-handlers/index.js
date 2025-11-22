@@ -12,6 +12,7 @@ import { executeDatabaseQuery } from './database-query.handler.js';
 import { executeGoogleSheets } from './google-sheets.handler.js';
 import { executeGoogleSheetsTrigger } from './google-sheets-trigger.handler.js';
 import { executeWebhookTrigger } from './webhook-trigger.handler.js';
+import { executeHubspotTrigger } from './hubspot-trigger.handler.js';
 import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
 import { executeAiAgent } from './ai-agent.handler.js';
 import { executeEmail } from './email.handler.js';
@@ -19,6 +20,7 @@ import { executeScheduleTrigger } from './schedule-trigger.handler.js';
 import { executeCallTrigger } from './call-trigger.handler.js';
 import { executeMerge } from './merge.handler.js';
 import { executeWebScraper } from './web-scraper.handler.js';
+import { executeHubspot } from './hubspot.handler.js';
 import logger from '#config/logger.js';
 
 /**
@@ -84,6 +86,9 @@ export async function executeNode(node, templateContext, variableContext) {
     case 'webhook-trigger':
       return executeWebhookTrigger(data, templateContext);
 
+    case 'hubspot-trigger':
+      return executeHubspotTrigger(data, templateContext);
+
     case 'knowledge-base-query':
       return executeKnowledgeBaseQuery(data, templateContext);
 
@@ -104,6 +109,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'web-scraper':
       return executeWebScraper(data, templateContext);
+
+    case 'hubspot':
+      return executeHubspot(data, templateContext);
 
     default:
       throw new Error(`Unknown node type: ${type}`);

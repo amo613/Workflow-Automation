@@ -8,6 +8,7 @@ import DocsTab from './sidebar/DocsTab.jsx';
 import TestingTab from './sidebar/TestingTab.jsx';
 import { nodeExecutionService } from '../../services/nodeExecution.service.js';
 import { googleSheetsService } from '../../services/googleSheets.service.js';
+import { useHubspot } from '../../hooks/useHubspot.js';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,11 @@ export default function NodeSidebarN8N({
     outputData,
   } = viewModel;
 
+  // HubSpot integration hook (for both hubspot and hubspot-trigger nodes)
+  const hubspot = useHubspot(
+    selectedNode?.type === 'hubspot' || selectedNode?.type === 'hubspot-trigger'
+  );
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Handle drop on input field
@@ -129,16 +135,51 @@ export default function NodeSidebarN8N({
     }
   };
 
+  // Handle HubSpot authentication
+  const handleHubspotAuth = async () => {
+    try {
+      const returnUrl = workflowId
+        ? `/fullWorkflows/${workflowId}`
+        : '/fullWorkflows';
+      await hubspot.authenticate(returnUrl, workflowId);
+    } catch (error) {
+      console.error('Error initiating HubSpot auth:', error);
+      toast.error(
+        `Failed to initiate HubSpot authentication: ${error.message || 'Unknown error'}`
+      );
+    }
+  };
+
+  // Handle HubSpot disconnect
+  const handleHubspotDisconnect = async () => {
+    try {
+      await hubspot.disconnect();
+      hubspot.fetchStatus();
+      toast.success('HubSpot disconnected successfully');
+    } catch (error) {
+      console.error('Error disconnecting HubSpot:', error);
+      toast.error('Failed to disconnect HubSpot: ' + error.message);
+    }
+  };
+
   // Handle single node execution
   const handleExecuteNode = async () => {
     if (!selectedNode) return;
     setExecutingSingleNode(true);
     try {
-      const result = await nodeExecutionService.executeNode(
-        { ...selectedNode, data: { ...selectedNode.data, ...localData } },
-        edges,
-        inputData || {}
-      );
+      // Remove output and status from node data before sending to backend
+      // (they can be very large and cause 413 errors, and are not used by the backend)
+      const { output, status, ...nodeDataWithoutOutput } = { ...selectedNode.data, ...localData };
+      const nodeToExecute = {
+        ...selectedNode,
+        data: nodeDataWithoutOutput,
+      };
+
+const result = await nodeExecutionService.executeNode(
+  nodeToExecute,
+  edges,
+  inputData || {}
+);
       if (result.success && result.data?.output) {
         const newOutput = result.data.output;
         setLocalData(prev => ({
@@ -365,6 +406,7 @@ export default function NodeSidebarN8N({
                   setShowSheetModal={viewModel.setShowSheetModal}
                   nodes={nodes}
                   currentNodeId={selectedNode?.id}
+                  hubspot={hubspot}
                 />
               </TabsContent>
 
@@ -377,6 +419,9 @@ export default function NodeSidebarN8N({
                   knowledgeBaseEntries={knowledgeBaseEntries}
                   onGoogleSheetsAuth={handleGoogleSheetsAuth}
                   onGoogleSheetsDisconnect={handleGoogleSheetsDisconnect}
+                  hubspot={hubspot}
+                  onHubspotAuth={handleHubspotAuth}
+                  onHubspotDisconnect={handleHubspotDisconnect}
                 />
               </TabsContent>
 

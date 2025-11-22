@@ -1027,11 +1027,40 @@ export async function getActiveTriggers(workflowId) {
       });
     }
 
+    // Also check for hubspot-trigger nodes (passive triggers, not BullMQ jobs)
+    const hubspotTriggerNodes = workflowNodes.filter(
+      node => node.type === 'hubspot-trigger'
+    );
+
+    for (const hubspotTriggerNode of hubspotTriggerNodes) {
+      // Get webhook URL for HubSpot trigger
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const baseUrl = frontendUrl.replace(/\/$/, '');
+      const webhookUrl = `${baseUrl}/api/integrations/hubspot/webhook?workflowId=${workflowId}`;
+      const eventTypes = hubspotTriggerNode.data?.eventTypes || [];
+      const subscriptionIds = hubspotTriggerNode.data?.subscriptionIds || [];
+
+      validTriggers.push({
+        id: `hubspot-trigger:${workflowId}:${hubspotTriggerNode.id}`,
+        workflowId,
+        triggerNodeId: hubspotTriggerNode.id,
+        triggerConfig: {
+          type: 'hubspot-trigger',
+          webhookUrl,
+          eventTypes,
+          subscriptionIds,
+        },
+        nextRun: null, // HubSpot triggers are passive, no scheduled runs
+        state: 'active', // Always active for HubSpot triggers (if workflow is active and subscriptions exist)
+      });
+    }
+
     logger.info('Returning active triggers', {
       workflowId,
       triggerCount: validTriggers.length,
       webhookTriggerCount: webhookTriggerNodes.length,
       callTriggerCount: callTriggerNodes.length,
+      hubspotTriggerCount: hubspotTriggerNodes.length,
       source: workflowJobs.length > 0 ? 'direct_queue' : 'repeatable_jobs',
     });
 

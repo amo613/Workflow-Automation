@@ -74,6 +74,7 @@ export async function executeWorkflow(
         startNode &&
         (startNode.type === 'google-sheets-trigger' ||
           startNode.type === 'webhook-trigger' ||
+          startNode.type === 'hubspot-trigger' ||
           startNode.type === 'schedule-trigger' ||
           startNode.type === 'call-trigger' ||
           startNode.type === 'start')
@@ -105,6 +106,7 @@ export async function executeWorkflow(
         node =>
           node.type === 'google-sheets-trigger' ||
           node.type === 'webhook-trigger' ||
+          node.type === 'hubspot-trigger' ||
           node.type === 'schedule-trigger' ||
           node.type === 'call-trigger' ||
           node.type === 'start'

@@ -42,6 +42,7 @@ const requestHandler = (req, res) => {
     pathname.startsWith('/api/test-openai') ||
     pathname.startsWith('/api/integrations/google-calendar') ||
     pathname.startsWith('/api/integrations/google-sheets') ||
+    pathname.startsWith('/api/integrations/hubspot') ||
     pathname.startsWith('/api/inngest') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/custom') ||
@@ -192,6 +193,9 @@ server.on('upgrade', (request, socket, head) => {
       );
       logger.info(
         `   - /api/integrations/google-sheets/* → Fastify (migrated)`
+      );
+      logger.info(
+        `   - /api/integrations/hubspot/* → Fastify (migrated)`
       );
       logger.info(`   - /api/ai-agent/* → Fastify (migrated)`);
       logger.info(`   - /, /api, /login → Fastify (migrated)`);
