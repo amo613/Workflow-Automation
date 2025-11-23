@@ -14,7 +14,6 @@ export const workflowVersionService = {
     const limit = options.limit || 20;
     const offset = options.offset || 0;
 
-    // eslint-disable-next-line no-undef
     const params = new URLSearchParams({
       limit: limit.toString(),
       offset: offset.toString(),

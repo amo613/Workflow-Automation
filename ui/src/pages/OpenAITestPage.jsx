@@ -14,6 +14,7 @@ import './OpenAITestPage.css';
 import googleLogo from '@/lib/assets/Google__G__logo.svg';
 import openaiLogo from '@/lib/assets/openai-svgrepo-com.svg';
 import twilioLogo from '@/lib/assets/twilio-icon.svg';
+import hubspotLogo from '@/lib/assets/hubspot-seeklogo.png';
 
 function OpenAITestPage() {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ function OpenAITestPage() {
     googleSheets: { connected: false, email: null },
     email: { configured: false },
     twilio: { configured: false },
+    hubspot: { connected: false },
   });
 
   // API Keys state
@@ -170,6 +172,24 @@ function OpenAITestPage() {
       } catch (error) {
         console.error('Error fetching Twilio status:', error);
       }
+
+      // HubSpot
+      try {
+        const hubspotRes = await fetch('/api/integrations/hubspot/status', {
+          credentials: 'include',
+        });
+        if (hubspotRes.ok) {
+          const hubspotData = await hubspotRes.json();
+          setIntegrations(prev => ({
+            ...prev,
+            hubspot: {
+              connected: hubspotData.connected || false,
+            },
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching HubSpot status:', error);
+      }
     };
 
     fetchIntegrations();
@@ -274,13 +294,33 @@ function OpenAITestPage() {
     }
   };
 
+  const handleConnectHubSpot = async () => {
+    try {
+      const res = await fetch('/api/integrations/hubspot/auth', {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to start OAuth');
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      }
+    } catch (error) {
+      alert(error.message || 'Failed to connect HubSpot');
+    }
+  };
+
   // Handle URL params for OAuth callbacks
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('googleCalendar') || urlParams.has('googleSheets')) {
+    if (
+      urlParams.has('googleCalendar') ||
+      urlParams.has('googleSheets') ||
+      urlParams.has('hubspot')
+    ) {
       const url = new URL(window.location.href);
       url.searchParams.delete('googleCalendar');
       url.searchParams.delete('googleSheets');
+      url.searchParams.delete('hubspot');
       window.history.replaceState({}, '', url);
       // Refresh integrations after a delay
       setTimeout(() => {
@@ -626,6 +666,56 @@ function OpenAITestPage() {
                       style={{ marginTop: '1rem' }}
                     >
                       Go to Workflows
+                    </button>
+                  </div>
+
+                  {/* HubSpot */}
+                  <div
+                    className="integration-item glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10"
+                    style={{ marginTop: '1.5rem' }}
+                  >
+                    <div className="integration-header">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 border border-border/50">
+                          <img
+                            src={hubspotLogo}
+                            alt="HubSpot"
+                            className="w-5 h-5"
+                            style={{ width: '20px', height: '20px' }}
+                          />
+                        </div>
+                        <span>HubSpot</span>
+                      </div>
+                      <span
+                        className={
+                          integrations.hubspot.connected
+                            ? 'status-badge success'
+                            : 'status-badge error'
+                        }
+                      >
+                        {integrations.hubspot.connected
+                          ? '✓ Connected'
+                          : '✗ Disconnected'}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      Connect your HubSpot account to manage contacts,
+                      companies, and lists in your workflows
+                    </p>
+                    <button
+                      className="btn-secondary"
+                      onClick={handleConnectHubSpot}
+                      style={{ marginTop: '1rem' }}
+                    >
+                      {integrations.hubspot.connected
+                        ? 'Manage'
+                        : 'Connect HubSpot'}
                     </button>
                   </div>
 

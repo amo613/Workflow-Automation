@@ -28,9 +28,7 @@ export const hubspotService = {
     });
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `Failed to fetch lists: ${response.status} ${errorText}`
-      );
+      throw new Error(`Failed to fetch lists: ${response.status} ${errorText}`);
     }
     const data = await response.json();
     return Array.isArray(data.data)
@@ -114,9 +112,7 @@ export const hubspotService = {
     });
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `Failed to disconnect: ${response.status} ${errorText}`
-      );
+      throw new Error(`Failed to disconnect: ${response.status} ${errorText}`);
     }
     return await response.json();
   },
@@ -181,4 +177,3 @@ export const hubspotService = {
     return Array.isArray(data.data) ? data.data : [];
   },
 };
-
