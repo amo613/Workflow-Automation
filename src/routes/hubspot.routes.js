@@ -229,7 +229,10 @@ export const hubspotRoutesFastify = async fastify => {
         return await createWebhookSubscription(request, reply);
       } catch (error) {
         if (!reply.sent) {
-          logger.error('Error in HubSpot createWebhookSubscription route:', error);
+          logger.error(
+            'Error in HubSpot createWebhookSubscription route:',
+            error
+          );
           return reply.status(500).send({
             error: 'Failed to create subscriptions',
             message: error.message || 'Unknown error',
@@ -253,7 +256,10 @@ export const hubspotRoutesFastify = async fastify => {
         return await deleteWebhookSubscription(request, reply);
       } catch (error) {
         if (!reply.sent) {
-          logger.error('Error in HubSpot deleteWebhookSubscription route:', error);
+          logger.error(
+            'Error in HubSpot deleteWebhookSubscription route:',
+            error
+          );
           return reply.status(500).send({
             error: 'Failed to delete subscriptions',
             message: error.message || 'Unknown error',
@@ -276,7 +282,10 @@ export const hubspotRoutesFastify = async fastify => {
         return await getWebhookSubscriptions(request, reply);
       } catch (error) {
         if (!reply.sent) {
-          logger.error('Error in HubSpot getWebhookSubscriptions route:', error);
+          logger.error(
+            'Error in HubSpot getWebhookSubscriptions route:',
+            error
+          );
           return reply.status(500).send({
             error: 'Failed to get subscriptions',
             message: error.message || 'Unknown error',
@@ -286,4 +295,3 @@ export const hubspotRoutesFastify = async fastify => {
     }
   );
 };
-

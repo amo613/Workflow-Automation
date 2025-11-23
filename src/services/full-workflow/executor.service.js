@@ -290,7 +290,32 @@ async function executeNodeRecursive(
       hasOutput: !!nodeOutput,
     });
 
+    // Mark outgoing edges as executed IMMEDIATELY after node execution
+    // This ensures edges are visualized as soon as the node completes
+    // (moved here from later in the function to fix delayed edge visualization)
+    const nextNodes = adjacencyList[nodeId] || [];
+    if (nextNodes.length > 0) {
+      nextNodes.forEach(nextNode => {
+        const matchingEdge = edges.find(
+          edge => edge.source === nodeId && edge.target === nextNode.target
+        );
+        if (matchingEdge) {
+          const edgeId =
+            matchingEdge.id ||
+            `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
+          executedEdges.add(edgeId);
+        } else {
+          logger.warn('Could not find matching edge', {
+            source: nodeId,
+            target: nextNode.target,
+            nodeType: node.type,
+          });
+        }
+      });
+    }
+
     // Update cache incrementally after each node (non-blocking)
+    // This now includes the edges we just marked above
     if (incrementalCacheUpdater) {
       try {
         incrementalCacheUpdater({
@@ -611,29 +636,11 @@ async function executeNodeRecursive(
   }
 
   // Continue to next nodes
+  // Note: Edges are already marked as executed earlier (after node execution completes)
+  // This ensures immediate visualization in the UI
   const nextNodes = adjacencyList[nodeId] || [];
 
   if (nextNodes.length > 0) {
-    // Mark ALL outgoing edges as executed (for UI visualization)
-    nextNodes.forEach(nextNode => {
-      const matchingEdge = edges.find(
-        edge => edge.source === nodeId && edge.target === nextNode.target
-      );
-      if (matchingEdge) {
-        // Ensure edge has an ID before adding to executedEdges
-        const edgeId =
-          matchingEdge.id ||
-          `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
-        executedEdges.add(edgeId);
-      } else {
-        logger.warn('Could not find matching edge', {
-          source: nodeId,
-          target: nextNode.target,
-          nodeType: node.type,
-        });
-      }
-    });
-
     // Handle parallel execution for multiple outgoing edges
     if (nextNodes.length > 1) {
       // Multiple outgoing edges - execute all branches in parallel

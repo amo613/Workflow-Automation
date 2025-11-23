@@ -169,17 +169,20 @@ export default function NodeSidebarN8N({
     try {
       // Remove output and status from node data before sending to backend
       // (they can be very large and cause 413 errors, and are not used by the backend)
-      const { output, status, ...nodeDataWithoutOutput } = { ...selectedNode.data, ...localData };
+      const { output, status, ...nodeDataWithoutOutput } = {
+        ...selectedNode.data,
+        ...localData,
+      };
       const nodeToExecute = {
         ...selectedNode,
         data: nodeDataWithoutOutput,
       };
 
-const result = await nodeExecutionService.executeNode(
-  nodeToExecute,
-  edges,
-  inputData || {}
-);
+      const result = await nodeExecutionService.executeNode(
+        nodeToExecute,
+        edges,
+        inputData || {}
+      );
       if (result.success && result.data?.output) {
         const newOutput = result.data.output;
         setLocalData(prev => ({

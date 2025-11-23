@@ -125,8 +125,14 @@ export default function HubspotConfig({
                         handleUpdate('contactId', selectedContact.id);
                         handleUpdate('email', selectedContact.email);
                         // Pre-fill fields if contact is selected
-                        handleUpdate('firstName', selectedContact.firstName || '');
-                        handleUpdate('lastName', selectedContact.lastName || '');
+                        handleUpdate(
+                          'firstName',
+                          selectedContact.firstName || ''
+                        );
+                        handleUpdate(
+                          'lastName',
+                          selectedContact.lastName || ''
+                        );
                         handleUpdate('phone', selectedContact.phone || '');
                         handleUpdate('company', selectedContact.company || '');
                       }
@@ -607,7 +613,9 @@ export default function HubspotConfig({
                     color: 'hsl(var(--foreground))',
                     marginBottom: '0.5rem',
                     opacity: !hubspot?.status?.connected ? 0.5 : 1,
-                    cursor: !hubspot?.status?.connected ? 'not-allowed' : 'pointer',
+                    cursor: !hubspot?.status?.connected
+                      ? 'not-allowed'
+                      : 'pointer',
                   }}
                 >
                   <option value="">
@@ -637,7 +645,13 @@ export default function HubspotConfig({
                 </div>
               </>
             ) : (
-              <div style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  color: '#94a3b8',
+                  fontSize: '0.875rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 {!hubspot?.status?.connected
                   ? 'Connect HubSpot to load companies'
                   : hubspot.loading
@@ -889,4 +903,3 @@ export default function HubspotConfig({
     </>
   );
 }
-

@@ -5,7 +5,6 @@ import logger from '#config/logger.js';
  * Execute Webhook Node
  * Triggers a webhook with the configured payload
  */
-/* global fetch */
 export async function executeWebhook(data, context) {
   const { url, method = 'POST', body_template } = data;
 

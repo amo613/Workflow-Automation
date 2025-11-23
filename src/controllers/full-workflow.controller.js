@@ -32,6 +32,7 @@ import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 import { getWorkflow } from '#services/workflow.service.js';
 import { db } from '#config/database.js';
 import { knowledgeBaseEntries } from '#models/knowledge-base.model.js';
+import { fullWorkflows } from '#models/full-workflow.model.js';
 import { eq, inArray, and } from 'drizzle-orm';
 
 /**
@@ -195,6 +196,7 @@ export async function updateFullWorkflowHandler(req, reply) {
     // Handle trigger scheduling if workflow_json is updated
     if (workflow_json && workflow_json.nodes) {
       const nodes = workflow_json.nodes || [];
+      const workflowJson = workflow_json; // Store for later use
 
       // Handle Custom Webhook Paths
       try {
@@ -355,7 +357,9 @@ export async function updateFullWorkflowHandler(req, reply) {
         );
 
         if (hubspotTriggerNodes.length > 0) {
-          const { hubspotService } = await import('#services/hubspot.service.js');
+          const { hubspotService } = await import(
+            '#services/hubspot.service.js'
+          );
           const { hubspotWebhookService } = await import(
             '#services/hubspot-webhook.service.js'
           );
@@ -367,11 +371,14 @@ export async function updateFullWorkflowHandler(req, reply) {
               await hubspotService.getAuthenticatedClient(userId);
             accessToken = token;
           } catch (error) {
-            logger.warn('HubSpot not connected, skipping subscription management', {
-              userId,
-              workflowId,
-              error: error.message,
-            });
+            logger.warn(
+              'HubSpot not connected, skipping subscription management',
+              {
+                userId,
+                workflowId,
+                error: error.message,
+              }
+            );
             // Continue - don't fail the save operation
           }
 
@@ -465,9 +472,7 @@ export async function updateFullWorkflowHandler(req, reply) {
                 };
 
                 // Update the node in the workflow JSON
-                const nodeIndex = nodes.findIndex(
-                  n => n.id === hubspotNode.id
-                );
+                const nodeIndex = nodes.findIndex(n => n.id === hubspotNode.id);
                 if (nodeIndex !== -1) {
                   nodes[nodeIndex] = hubspotNode;
                 }
@@ -475,7 +480,11 @@ export async function updateFullWorkflowHandler(req, reply) {
             }
 
             // Update workflow JSON with updated node data (if subscriptions were created/deleted)
-            if (hubspotTriggerNodes.some(n => n.data?.subscriptionIds !== undefined)) {
+            if (
+              hubspotTriggerNodes.some(
+                n => n.data?.subscriptionIds !== undefined
+              )
+            ) {
               const updatedWorkflowJson = {
                 ...workflowJson,
                 nodes,
@@ -648,11 +657,14 @@ export async function deleteFullWorkflowHandler(req, reply) {
                   accessToken,
                   subscriptionIds
                 );
-                logger.info('Deleted HubSpot subscriptions (workflow deleted)', {
-                  workflowId,
-                  nodeId: hubspotNode.id,
-                  subscriptionIds,
-                });
+                logger.info(
+                  'Deleted HubSpot subscriptions (workflow deleted)',
+                  {
+                    workflowId,
+                    nodeId: hubspotNode.id,
+                    subscriptionIds,
+                  }
+                );
               } catch (error) {
                 logger.warn('Error deleting HubSpot subscriptions', {
                   workflowId,
@@ -673,10 +685,13 @@ export async function deleteFullWorkflowHandler(req, reply) {
         }
       }
     } catch (error) {
-      logger.error('Error deleting HubSpot subscriptions on workflow deletion', {
-        workflowId,
-        error: error.message,
-      });
+      logger.error(
+        'Error deleting HubSpot subscriptions on workflow deletion',
+        {
+          workflowId,
+          error: error.message,
+        }
+      );
       // Don't fail the delete operation if subscription cleanup fails
     }
 

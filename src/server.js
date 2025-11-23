@@ -194,9 +194,7 @@ server.on('upgrade', (request, socket, head) => {
       logger.info(
         `   - /api/integrations/google-sheets/* → Fastify (migrated)`
       );
-      logger.info(
-        `   - /api/integrations/hubspot/* → Fastify (migrated)`
-      );
+      logger.info(`   - /api/integrations/hubspot/* → Fastify (migrated)`);
       logger.info(`   - /api/ai-agent/* → Fastify (migrated)`);
       logger.info(`   - /, /api, /login → Fastify (migrated)`);
       logger.info(

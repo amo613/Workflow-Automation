@@ -5,7 +5,6 @@ import logger from '#config/logger.js';
  * Execute HTTP Request Node
  * Makes an HTTP request to the configured endpoint
  */
-/* global fetch */
 export async function executeHttpRequest(data, context) {
   const { url, method = 'GET', headers, body, query_params } = data;
 

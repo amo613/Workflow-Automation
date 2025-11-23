@@ -809,7 +809,6 @@ function CallAgentSettings({
     }
   }, []);
 
-
   return (
     <>
       {/* Knowledge Base Configuration - Show for call-agent and call-trigger */}
@@ -1189,7 +1188,6 @@ function CallAgentSettings({
           </div>
         )}
       </div>
-
 
       {/* Email Credentials */}
       {(nodeType === 'call-agent' || nodeType === 'email') && (

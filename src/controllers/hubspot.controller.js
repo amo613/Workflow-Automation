@@ -5,7 +5,10 @@ import { hubspotWebhookService } from '#services/hubspot-webhook.service.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
-import { getIntegration, updateIntegration } from '#services/integration.service.js';
+import {
+  getIntegration,
+  updateIntegration,
+} from '#services/integration.service.js';
 
 // Helper: Detect if this is Fastify (has reply) or Express (has res)
 const isFastify = reply =>
@@ -87,7 +90,6 @@ export const initiateAuth = async (req, res) => {
 
 export const handleCallback = async (req, res) => {
   const reply = res;
-  const isFastifyRequest = isFastify(reply);
   try {
     const { code, state } = req.query;
     if (!code) {
@@ -296,9 +298,8 @@ export const getLists = async (req, res) => {
     }
 
     try {
-      const { accessToken } = await hubspotService.getAuthenticatedClient(
-        userId
-      );
+      const { accessToken } =
+        await hubspotService.getAuthenticatedClient(userId);
       const lists = await hubspotService.getLists(accessToken);
 
       logger.info('HubSpot lists retrieved', {
@@ -387,9 +388,8 @@ export const getContacts = async (req, res) => {
     }
 
     try {
-      const { accessToken } = await hubspotService.getAuthenticatedClient(
-        userId
-      );
+      const { accessToken } =
+        await hubspotService.getAuthenticatedClient(userId);
       const contacts = await hubspotService.getContacts(accessToken, limit);
 
       logger.info('HubSpot contacts retrieved', {
@@ -402,7 +402,9 @@ export const getContacts = async (req, res) => {
         data: contacts.map(contact => ({
           id: contact.id,
           email: contact.properties.email,
-          displayName: `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim() || contact.properties.email,
+          displayName:
+            `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim() ||
+            contact.properties.email,
         })),
       };
 
@@ -483,9 +485,8 @@ export const getCompanies = async (req, res) => {
     }
 
     try {
-      const { accessToken } = await hubspotService.getAuthenticatedClient(
-        userId
-      );
+      const { accessToken } =
+        await hubspotService.getAuthenticatedClient(userId);
       const companies = await hubspotService.getCompanies(accessToken, limit);
 
       logger.info('HubSpot companies retrieved', {
@@ -561,12 +562,15 @@ export const handleWebhook = async (req, res) => {
         'content-type': req.headers?.['content-type'],
         'user-agent': req.headers?.['user-agent'],
         'x-hubspot-signature': req.headers?.['x-hubspot-signature'],
-        'x-hubspot-request-timestamp': req.headers?.['x-hubspot-request-timestamp'],
+        'x-hubspot-request-timestamp':
+          req.headers?.['x-hubspot-request-timestamp'],
       },
       query: req.query || {},
       bodyType: Array.isArray(webhookPayload) ? 'array' : typeof webhookPayload,
       bodyIsArray: Array.isArray(webhookPayload),
-      bodyLength: Array.isArray(webhookPayload) ? webhookPayload.length : Object.keys(webhookPayload).length,
+      bodyLength: Array.isArray(webhookPayload)
+        ? webhookPayload.length
+        : Object.keys(webhookPayload).length,
       bodyPreview: JSON.stringify(webhookPayload).substring(0, 1000),
     });
 
@@ -591,13 +595,18 @@ export const handleWebhook = async (req, res) => {
         eventCount: events.length,
         workflowId,
       });
-    } else if (webhookPayload.subscriptionId || webhookPayload.subscriptionType || webhookPayload.eventType) {
+    } else if (
+      webhookPayload.subscriptionId ||
+      webhookPayload.subscriptionType ||
+      webhookPayload.eventType
+    ) {
       // Single event object
       events = [webhookPayload];
       logger.info('HubSpot webhook contains single event', {
         workflowId,
         subscriptionId: webhookPayload.subscriptionId,
-        subscriptionType: webhookPayload.subscriptionType || webhookPayload.eventType,
+        subscriptionType:
+          webhookPayload.subscriptionType || webhookPayload.eventType,
       });
     } else {
       // Try to find events in nested structure
@@ -700,10 +709,12 @@ export const handleWebhook = async (req, res) => {
       // Normalize event structure - HubSpot might send different formats
       const normalizedEvent = {
         subscriptionId: event.subscriptionId || event.subscription?.id,
-        subscriptionType: event.subscriptionType || event.eventType || event.type,
+        subscriptionType:
+          event.subscriptionType || event.eventType || event.type,
         objectId: event.objectId || event.object?.id,
         properties: event.properties || event.object?.properties || {},
-        occurredAt: event.occurredAt || event.timestamp || new Date().toISOString(),
+        occurredAt:
+          event.occurredAt || event.timestamp || new Date().toISOString(),
         portalId: event.portalId || event.portal?.id,
         changeFlag: event.changeFlag,
         changeSource: event.changeSource,
@@ -731,16 +742,18 @@ export const handleWebhook = async (req, res) => {
         objectId: normalizedEvent.objectId,
       });
 
-      return triggerWorkflow(parseInt(workflowId, 10), userId, triggerInput).catch(
-        error => {
-          logger.error('Error triggering workflow from HubSpot webhook', {
-            workflowId,
-            eventIndex: index,
-            error: error.message,
-            errorStack: error.stack,
-          });
-        }
-      );
+      return triggerWorkflow(
+        parseInt(workflowId, 10),
+        userId,
+        triggerInput
+      ).catch(error => {
+        logger.error('Error triggering workflow from HubSpot webhook', {
+          workflowId,
+          eventIndex: index,
+          error: error.message,
+          errorStack: error.stack,
+        });
+      });
     });
 
     // Wait for all triggers (but don't block the response)
@@ -980,9 +993,8 @@ export const getWebhookSubscriptions = async (req, res) => {
     const { accessToken } = await hubspotService.getAuthenticatedClient(userId);
 
     // Get subscriptions
-    const subscriptions = await hubspotWebhookService.getSubscriptions(
-      accessToken
-    );
+    const subscriptions =
+      await hubspotWebhookService.getSubscriptions(accessToken);
 
     logger.info('HubSpot webhook subscriptions retrieved', {
       userId,

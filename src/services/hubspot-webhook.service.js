@@ -1,5 +1,4 @@
 import logger from '#config/logger.js';
-import { hubspotService } from './hubspot.service.js';
 
 /**
  * HubSpot Webhook Subscription Service
@@ -256,4 +255,3 @@ export class HubSpotWebhookService {
 }
 
 export const hubspotWebhookService = new HubSpotWebhookService();
-

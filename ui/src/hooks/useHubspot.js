@@ -25,10 +25,7 @@ export function useHubspot(shouldFetch = false) {
           const listsData = await hubspotService.fetchLists();
           setLists(listsData || []);
         } catch (listsErr) {
-          console.error(
-            'Error fetching lists after status check:',
-            listsErr
-          );
+          console.error('Error fetching lists after status check:', listsErr);
           setLists([]);
         }
       } else {
@@ -102,7 +99,7 @@ export function useHubspot(shouldFetch = false) {
     }
   };
 
-  const deleteSubscriptions = async (subscriptionIds) => {
+  const deleteSubscriptions = async subscriptionIds => {
     try {
       await hubspotService.deleteWebhookSubscriptions(subscriptionIds);
       await fetchSubscriptions(); // Refresh list
@@ -157,4 +154,3 @@ export function useHubspot(shouldFetch = false) {
     disconnect,
   };
 }
-

@@ -302,4 +302,3 @@ export async function executeHubspot(data, context) {
     throw error;
   }
 }
-

@@ -216,9 +216,7 @@ export class HubSpotService {
         status: response.status,
         error: errorText,
       });
-      throw new Error(
-        `Failed to get contact: ${response.status} ${errorText}`
-      );
+      throw new Error(`Failed to get contact: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
@@ -471,9 +469,7 @@ export class HubSpotService {
         error: errorText,
         companyId,
       });
-      throw new Error(
-        `Failed to get company: ${response.status} ${errorText}`
-      );
+      throw new Error(`Failed to get company: ${response.status} ${errorText}`);
     }
 
     return await response.json();
@@ -565,4 +561,3 @@ export class HubSpotService {
 }
 
 export const hubspotService = new HubSpotService();
-
