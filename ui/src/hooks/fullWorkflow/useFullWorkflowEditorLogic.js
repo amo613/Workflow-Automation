@@ -99,6 +99,7 @@ export function useFullWorkflowEditorLogic() {
           if (node.id === nodeId) {
             const updatedData = { ...node.data, ...newData };
             const updatedNode = { ...node, data: updatedData };
+
             if (selectedNode && selectedNode.id === nodeId) {
               setSelectedNode({ ...updatedNode });
             }
@@ -284,6 +285,16 @@ export function useFullWorkflowEditorLogic() {
 
   const addNode = useCallback(
     nodeType => {
+      // Set initial data based on node type
+      let initialData = {};
+
+      if (nodeType === 'switch') {
+        initialData = {
+          cases: [],
+          hasDefault: true,
+        };
+      }
+
       const newNode = {
         id: `${nodeType}-${Date.now()}`,
         type: nodeType,
@@ -291,7 +302,7 @@ export function useFullWorkflowEditorLogic() {
           x: Math.random() * 400 + 100,
           y: Math.random() * 400 + 100,
         },
-        data: {},
+        data: initialData,
       };
       setNodes(nds => [...nds, newNode]);
     },

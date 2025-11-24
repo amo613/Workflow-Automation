@@ -293,25 +293,28 @@ async function executeNodeRecursive(
     // Mark outgoing edges as executed IMMEDIATELY after node execution
     // This ensures edges are visualized as soon as the node completes
     // (moved here from later in the function to fix delayed edge visualization)
-    const nextNodes = adjacencyList[nodeId] || [];
-    if (nextNodes.length > 0) {
-      nextNodes.forEach(nextNode => {
-        const matchingEdge = edges.find(
-          edge => edge.source === nodeId && edge.target === nextNode.target
-        );
-        if (matchingEdge) {
-          const edgeId =
-            matchingEdge.id ||
-            `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
-          executedEdges.add(edgeId);
-        } else {
-          logger.warn('Could not find matching edge', {
-            source: nodeId,
-            target: nextNode.target,
-            nodeType: node.type,
-          });
-        }
-      });
+    // NOTE: Skip this for if/switch nodes - they handle edge marking themselves
+    if (node.type !== 'if' && node.type !== 'switch') {
+      const nextNodes = adjacencyList[nodeId] || [];
+      if (nextNodes.length > 0) {
+        nextNodes.forEach(nextNode => {
+          const matchingEdge = edges.find(
+            edge => edge.source === nodeId && edge.target === nextNode.target
+          );
+          if (matchingEdge) {
+            const edgeId =
+              matchingEdge.id ||
+              `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
+            executedEdges.add(edgeId);
+          } else {
+            logger.warn('Could not find matching edge', {
+              source: nodeId,
+              target: nextNode.target,
+              nodeType: node.type,
+            });
+          }
+        });
+      }
     }
 
     // Update cache incrementally after each node (non-blocking)
@@ -595,16 +598,30 @@ async function executeNodeRecursive(
 
     // Mark the executed edge
     if (matchingEdge) {
-      // Ensure edge has an ID before adding to executedEdges
+      // Generate unique edge ID including sourceHandle to avoid conflicts
+      // when multiple edges go from same source to same target
       const edgeId =
         matchingEdge.id ||
-        `reactflow__edge-${matchingEdge.source}-${matchingEdge.target}`;
+        `reactflow__edge-${matchingEdge.source}-${matchingEdge.sourceHandle || 'default'}-${matchingEdge.target}`;
       executedEdges.add(edgeId);
       logger.debug('If node condition evaluated', {
         nodeId,
         conditionResult,
         handleId,
         nextNodeId,
+        edgeId,
+      });
+    } else {
+      logger.warn('If node: Could not find matching edge', {
+        nodeId,
+        handleId,
+        availableEdges: edges
+          .filter(e => e.source === nodeId)
+          .map(e => ({
+            id: e.id,
+            sourceHandle: e.sourceHandle,
+            target: e.target,
+          })),
       });
     }
 
@@ -622,6 +639,102 @@ async function executeNodeRecursive(
         workflowId,
         incrementalCacheUpdater
       );
+    }
+
+    return nodeOutput;
+  }
+
+  // Handle switch node (multi-way conditional branching)
+  if (node.type === 'switch') {
+    const cases = node.data.cases || [];
+    const hasDefault = node.data.hasDefault !== false;
+
+    // Find the first matching case
+    // Each case has its own condition (condition1, operator, condition2)
+    let matchedCase = null;
+    for (const caseItem of cases) {
+      if (
+        evaluateCondition(
+          caseItem.condition1,
+          caseItem.operator || '==',
+          caseItem.condition2,
+          templateContext
+        )
+      ) {
+        matchedCase = caseItem;
+        break;
+      }
+    }
+
+    // Determine handle ID - use stable handleId from case
+    const handleId = matchedCase
+      ? matchedCase.handleId ||
+        (matchedCase.id
+          ? `case-${matchedCase.id}`
+          : `case-${cases.indexOf(matchedCase)}`)
+      : hasDefault
+        ? 'default'
+        : null;
+
+    if (handleId) {
+      // Find the edge that matches the handle
+      const matchingEdge = edges.find(
+        edge => edge.source === nodeId && edge.sourceHandle === handleId
+      );
+
+      const nextNodeId = findNextNode(nodeId, adjacencyList, handleId, edges);
+
+      // Mark the executed edge
+      if (matchingEdge) {
+        // Generate unique edge ID including sourceHandle to avoid conflicts
+        // when multiple edges go from same source to same target
+        const edgeId =
+          matchingEdge.id ||
+          `reactflow__edge-${matchingEdge.source}-${matchingEdge.sourceHandle || 'default'}-${matchingEdge.target}`;
+        executedEdges.add(edgeId);
+        logger.debug('Switch node case matched', {
+          nodeId,
+          matchedCase: matchedCase
+            ? `${matchedCase.condition1} ${matchedCase.operator} ${matchedCase.condition2}`
+            : 'default',
+          handleId,
+          nextNodeId,
+          edgeId,
+        });
+      } else {
+        logger.warn('Switch node: Could not find matching edge', {
+          nodeId,
+          handleId,
+          availableEdges: edges
+            .filter(e => e.source === nodeId)
+            .map(e => ({
+              id: e.id,
+              sourceHandle: e.sourceHandle,
+              target: e.target,
+            })),
+        });
+      }
+
+      // Only execute the matching path
+      if (nextNodeId) {
+        return executeNodeRecursive(
+          nextNodeId,
+          nodeMap,
+          adjacencyList,
+          context,
+          edges,
+          new Set(visited), // Reset visited for new branch
+          executionLog,
+          executedEdges,
+          workflowId,
+          incrementalCacheUpdater
+        );
+      }
+    } else {
+      logger.warn('Switch node: No matching case and no default output', {
+        nodeId,
+        casesCount: cases.length,
+      });
     }
 
     return nodeOutput;
@@ -836,7 +949,22 @@ function findNextNode(nodeId, adjacencyList, handleId, edges) {
  * @returns {boolean} - Condition result
  */
 function evaluateCondition(condition1, operator, condition2, context) {
-  if (!condition1 || !condition2) {
+  // Handle 'exists' operator - doesn't need condition2
+  if (operator === 'exists') {
+    if (!condition1) {
+      return false;
+    }
+    const resolvedCondition1 = resolveTemplate(condition1, context);
+    // Check if value exists (not null, undefined, or empty string)
+    return (
+      resolvedCondition1 !== null &&
+      resolvedCondition1 !== undefined &&
+      resolvedCondition1 !== ''
+    );
+  }
+
+  // For other operators, both conditions are required
+  if (!condition1 || condition2 === undefined || condition2 === null) {
     return false;
   }
 
@@ -893,6 +1021,27 @@ function evaluateCondition(condition1, operator, condition2, context) {
         return value1 <= value2;
       case 'contains':
         return String(value1).includes(String(value2));
+      case 'startsWith':
+        return String(value1).startsWith(String(value2));
+      case 'endsWith':
+        return String(value1).endsWith(String(value2));
+      case 'regex': {
+        // Remove leading/trailing slashes if present
+        let pattern = String(value2);
+        if (pattern.startsWith('/') && pattern.endsWith('/')) {
+          pattern = pattern.slice(1, -1);
+        }
+        try {
+          const regex = new RegExp(pattern);
+          return regex.test(String(value1));
+        } catch (error) {
+          logger.warn('Invalid regex pattern', {
+            pattern,
+            error: error.message,
+          });
+          return false;
+        }
+      }
       default:
         logger.warn('Unknown operator', { operator });
         return false;
@@ -902,6 +1051,98 @@ function evaluateCondition(condition1, operator, condition2, context) {
       condition1: resolvedCondition1,
       condition2: resolvedCondition2,
       operator,
+      error: error.message,
+    });
+    return false;
+  }
+}
+
+
+function matchCase(value, caseItem, context) {
+  if (!caseItem || !caseItem.value) {
+    return false;
+  }
+
+  const matchType = caseItem.matchType || 'exact';
+  const caseValue = resolveTemplate(caseItem.value, context);
+
+  try {
+    switch (matchType) {
+      case 'exact':
+        return String(value) === String(caseValue);
+
+      case 'contains':
+        return String(value).includes(String(caseValue));
+
+      case 'startsWith':
+        return String(value).startsWith(String(caseValue));
+
+      case 'endsWith':
+        return String(value).endsWith(String(caseValue));
+
+      case 'regex': {
+        // Remove leading/trailing slashes if present
+        let pattern = String(caseValue);
+        if (pattern.startsWith('/') && pattern.endsWith('/')) {
+          pattern = pattern.slice(1, -1);
+        }
+        try {
+          const regex = new RegExp(pattern);
+          return regex.test(String(value));
+        } catch (error) {
+          logger.warn('Invalid regex pattern in switch case', {
+            pattern,
+            error: error.message,
+          });
+          return false;
+        }
+      }
+
+      case 'greater': {
+        const num1 = parseFloat(value);
+        const num2 = parseFloat(caseValue);
+        if (isNaN(num1) || isNaN(num2)) {
+          return false;
+        }
+        return num1 > num2;
+      }
+
+      case 'less': {
+        const num1 = parseFloat(value);
+        const num2 = parseFloat(caseValue);
+        if (isNaN(num1) || isNaN(num2)) {
+          return false;
+        }
+        return num1 < num2;
+      }
+
+      case 'range': {
+        // Parse range like "0-100" or "10-20"
+        const rangeMatch = String(caseValue).match(
+          /^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/
+        );
+        if (!rangeMatch) {
+          logger.warn('Invalid range format in switch case', { caseValue });
+          return false;
+        }
+        const num = parseFloat(value);
+        if (isNaN(num)) {
+          return false;
+        }
+        const min = parseFloat(rangeMatch[1]);
+        const max = parseFloat(rangeMatch[2]);
+        return num >= min && num <= max;
+      }
+
+      default:
+        logger.warn('Unknown match type in switch case', { matchType });
+        return false;
+    }
+  } catch (error) {
+    logger.warn('Failed to match switch case', {
+      value,
+      caseValue,
+      matchType,
       error: error.message,
     });
     return false;

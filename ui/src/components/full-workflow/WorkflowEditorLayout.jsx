@@ -17,6 +17,7 @@ import CallAgentNode from './nodes/CallAgentNode';
 import CallTriggerNode from './nodes/CallTriggerNode';
 import VariableSetNode from './nodes/VariableSetNode';
 import IfNode from './nodes/IfNode';
+import SwitchNode from './nodes/SwitchNode';
 import WaitNode from './nodes/WaitNode';
 import DatabaseQueryNode from './nodes/DatabaseQueryNode';
 import GoogleSheetsNode from './nodes/GoogleSheetsNode';
@@ -76,6 +77,7 @@ const nodeTypes = {
   'call-trigger': CallTriggerNode,
   'variable-set': VariableSetNode,
   if: IfNode,
+  switch: SwitchNode,
   wait: WaitNode,
   'database-query': DatabaseQueryNode,
   'google-sheets': GoogleSheetsNode,
@@ -2245,6 +2247,13 @@ function WorkflowEditorLayoutInner({
             >
               <GitBranch className="w-4 h-4" style={{ color: '#f59e0b' }} />
               <span>If (Condition)</span>
+            </button>
+            <button
+              onClick={() => addNode('switch')}
+              style={nodePaletteButtonStyle}
+            >
+              <GitBranch className="w-4 h-4" style={{ color: '#8b5cf6' }} />
+              <span>Switch/Case</span>
             </button>
             <button
               onClick={() => addNode('merge')}

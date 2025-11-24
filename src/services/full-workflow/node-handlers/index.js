@@ -21,6 +21,7 @@ import { executeCallTrigger } from './call-trigger.handler.js';
 import { executeMerge } from './merge.handler.js';
 import { executeWebScraper } from './web-scraper.handler.js';
 import { executeHubspot } from './hubspot.handler.js';
+import { executeSwitch } from './switch.handler.js';
 import logger from '#config/logger.js';
 
 /**
@@ -70,6 +71,10 @@ export async function executeNode(node, templateContext, variableContext) {
     case 'if':
       // If node is handled in executor (conditional branching)
       return { condition: data.condition };
+
+    case 'switch':
+      // Switch node is handled in executor (conditional branching)
+      return executeSwitch(data, templateContext);
 
     case 'wait':
       return executeWait(data);

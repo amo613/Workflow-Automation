@@ -141,11 +141,63 @@ function extractArrayField(arr, fieldName) {
 }
 
 /**
+ * Parse path to handle array index access (e.g., "user[0].userName" -> ["user", "0", "userName"])
+ * @param {string} pathStr - Path string
+ * @returns {Array<string>} - Array of path parts
+ */
+function parsePath(pathStr) {
+  const parts = [];
+  let current = '';
+  let i = 0;
+
+  while (i < pathStr.length) {
+    const char = pathStr[i];
+
+    if (char === '[') {
+      // Save current part if any
+      if (current) {
+        parts.push(current);
+        current = '';
+      }
+      // Find the closing bracket
+      i++;
+      let index = '';
+      while (i < pathStr.length && pathStr[i] !== ']') {
+        index += pathStr[i];
+        i++;
+      }
+      if (pathStr[i] === ']') {
+        parts.push(index);
+        i++;
+      }
+    } else if (char === '.') {
+      // Save current part if any
+      if (current) {
+        parts.push(current);
+        current = '';
+      }
+      i++;
+    } else {
+      current += char;
+      i++;
+    }
+  }
+
+  // Add remaining part
+  if (current) {
+    parts.push(current);
+  }
+
+  return parts;
+}
+
+/**
  * Get nested value from object using dot notation
  * Supports array extraction: if path is 'data.username' and data is an array,
  * returns array of all 'username' values
+ * Also supports array index access: 'data[0].username'
  * @param {Object} obj - Object to get value from
- * @param {string} path - Dot notation path (e.g., 'user.name' or 'data.username' for array extraction)
+ * @param {string} path - Dot notation path (e.g., 'user.name' or 'data.username' or 'data[0].username')
  * @returns {*} - Value or undefined
  */
 function getNestedValue(obj, path) {
@@ -153,7 +205,8 @@ function getNestedValue(obj, path) {
     return undefined;
   }
 
-  const parts = path.split('.');
+  // Parse path to handle array index access (e.g., "user[0].userName" -> ["user", "0", "userName"])
+  const parts = parsePath(path);
   let current = obj;
 
   // Navigate through the path
@@ -165,13 +218,23 @@ function getNestedValue(obj, path) {
       return undefined;
     }
 
-    // Handle array index access: data[0]
+    // Handle array index access: if part is a number, treat as array index
     if (Array.isArray(current) && !isNaN(part)) {
       current = current[parseInt(part, 10)];
     } else if (Array.isArray(current) && isLastPart && isNaN(part)) {
       // Special case: if current is an array and we're at the last part with a field name,
       // extract that field from all array items (e.g., 'data.username' where data is an array)
       return extractArrayField(current, part);
+    } else if (!isNaN(part)) {
+      // Part is a number but current is not an array - might be object with numeric key
+      // or we're accessing an array element from an object property
+      if (Array.isArray(current)) {
+        current = current[parseInt(part, 10)];
+      } else if (current[part] !== undefined) {
+        current = current[part];
+      } else {
+        return undefined;
+      }
     } else if (current[part] !== undefined) {
       current = current[part];
     } else {

@@ -10,6 +10,7 @@ import HttpRequestConfig from './configs/HttpRequestConfig.jsx';
 import CallAgentConfig from './configs/CallAgentConfig.jsx';
 import VariableSetConfig from './configs/VariableSetConfig.jsx';
 import IfConfig from './configs/IfConfig.jsx';
+import SwitchConfig from './configs/SwitchConfig.jsx';
 import WaitConfig from './configs/WaitConfig.jsx';
 import DatabaseQueryConfig from './configs/DatabaseQueryConfig.jsx';
 import GoogleSheetsConfig from './configs/GoogleSheetsConfig.jsx';
@@ -32,6 +33,7 @@ const configMap = {
   'call-agent': CallAgentConfig,
   'variable-set': VariableSetConfig,
   if: IfConfig,
+  switch: SwitchConfig,
   wait: WaitConfig,
   'database-query': DatabaseQueryConfig,
   'google-sheets': GoogleSheetsConfig,
