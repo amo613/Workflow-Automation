@@ -649,10 +649,9 @@ async function executeNodeRecursive(
     const cases = node.data.cases || [];
     const hasDefault = node.data.hasDefault !== false;
 
-    // Find the first matching case
-    // Each case has its own condition (condition1, operator, condition2)
-    let matchedCase = null;
-    for (const caseItem of cases) {
+    // Collect all matching cases (allow multiple matches)
+    const matchedCases = [];
+    cases.forEach((caseItem, index) => {
       if (
         evaluateCondition(
           caseItem.condition1,
@@ -661,83 +660,90 @@ async function executeNodeRecursive(
           templateContext
         )
       ) {
-        matchedCase = caseItem;
-        break;
+        const handleId =
+          caseItem.handleId ||
+          (caseItem.id ? `case-${caseItem.id}` : `case-${index}`);
+        matchedCases.push({
+          caseItem,
+          handleId,
+        });
       }
+    });
+
+    if (matchedCases.length === 0 && hasDefault) {
+      matchedCases.push({
+        caseItem: null,
+        handleId: 'default',
+      });
     }
 
-    // Determine handle ID - use stable handleId from case
-    const handleId = matchedCase
-      ? matchedCase.handleId ||
-        (matchedCase.id
-          ? `case-${matchedCase.id}`
-          : `case-${cases.indexOf(matchedCase)}`)
-      : hasDefault
-        ? 'default'
-        : null;
-
-    if (handleId) {
-      // Find the edge that matches the handle
-      const matchingEdge = edges.find(
-        edge => edge.source === nodeId && edge.sourceHandle === handleId
-      );
-
-      const nextNodeId = findNextNode(nodeId, adjacencyList, handleId, edges);
-
-      // Mark the executed edge
-      if (matchingEdge) {
-        // Generate unique edge ID including sourceHandle to avoid conflicts
-        // when multiple edges go from same source to same target
-        const edgeId =
-          matchingEdge.id ||
-          `reactflow__edge-${matchingEdge.source}-${matchingEdge.sourceHandle || 'default'}-${matchingEdge.target}`;
-        executedEdges.add(edgeId);
-        logger.debug('Switch node case matched', {
-          nodeId,
-          matchedCase: matchedCase
-            ? `${matchedCase.condition1} ${matchedCase.operator} ${matchedCase.condition2}`
-            : 'default',
-          handleId,
-          nextNodeId,
-          edgeId,
-        });
-      } else {
-        logger.warn('Switch node: Could not find matching edge', {
-          nodeId,
-          handleId,
-          availableEdges: edges
-            .filter(e => e.source === nodeId)
-            .map(e => ({
-              id: e.id,
-              sourceHandle: e.sourceHandle,
-              target: e.target,
-            })),
-        });
-      }
-
-      // Only execute the matching path
-      if (nextNodeId) {
-        return executeNodeRecursive(
-          nextNodeId,
-          nodeMap,
-          adjacencyList,
-          context,
-          edges,
-          new Set(visited), // Reset visited for new branch
-          executionLog,
-          executedEdges,
-          workflowId,
-          incrementalCacheUpdater
-        );
-      }
-    } else {
+    if (matchedCases.length === 0) {
       logger.warn('Switch node: No matching case and no default output', {
         nodeId,
         casesCount: cases.length,
       });
+      return nodeOutput;
     }
 
-    return nodeOutput;
+    const matchedBranches = [];
+
+    matchedCases.forEach(({ caseItem, handleId }) => {
+      const matchingEdges = edges.filter(
+        edge => edge.source === nodeId && edge.sourceHandle === handleId
+      );
+
+      if (matchingEdges.length === 0) {
+        logger.warn('Switch node: No edges found for handle', {
+          nodeId,
+          handleId,
+        });
+        return;
+      }
+
+      matchingEdges.forEach(matchingEdge => {
+        const edgeId =
+          matchingEdge.id ||
+          `reactflow__edge-${matchingEdge.source}-${matchingEdge.sourceHandle || 'default'}-${matchingEdge.target}`;
+        executedEdges.add(edgeId);
+
+        logger.debug('Switch node case matched', {
+          nodeId,
+          matchedCase: caseItem
+            ? `${caseItem.condition1} ${caseItem.operator} ${caseItem.condition2}`
+            : 'default',
+          handleId,
+          nextNodeId: matchingEdge.target,
+          edgeId,
+        });
+
+        matchedBranches.push({
+          target: matchingEdge.target,
+          sourceHandle: matchingEdge.sourceHandle,
+        });
+      });
+    });
+
+    if (matchedBranches.length === 0) {
+      logger.warn('Switch node: No executable branches found after matching', {
+        nodeId,
+        matchedCaseCount: matchedCases.length,
+      });
+      return nodeOutput;
+    }
+
+    return executeOutgoingBranches(
+      nodeId,
+      matchedBranches,
+      nodeMap,
+      adjacencyList,
+      context,
+      edges,
+      visited,
+      executionLog,
+      executedEdges,
+      workflowId,
+      incrementalCacheUpdater
+    );
   }
 
   // Handle wait node
@@ -754,167 +760,19 @@ async function executeNodeRecursive(
   const nextNodes = adjacencyList[nodeId] || [];
 
   if (nextNodes.length > 0) {
-    // Handle parallel execution for multiple outgoing edges
-    if (nextNodes.length > 1) {
-      // Multiple outgoing edges - execute all branches in parallel
-      logger.info('Executing multiple branches in parallel', {
-        nodeId,
-        nodeType: node.type,
-        branchCount: nextNodes.length,
-        targets: nextNodes.map(n => n.target),
-      });
-
-      // Execute all branches in parallel with isolated contexts
-      // Store branch contexts so we can copy their outputs later
-      const branchContexts = [];
-      const parallelExecutions = nextNodes.map((nextNode, index) => {
-        // Clone context for each branch to avoid conflicts
-        const branchContext = context.clone();
-        branchContexts[index] = branchContext; // Store for later
-        // Create isolated visited set for each branch (prevents cycle detection issues)
-        const branchVisited = new Set(visited);
-
-        return executeNodeRecursive(
-          nextNode.target,
-          nodeMap,
-          adjacencyList,
-          branchContext,
-          edges,
-          branchVisited,
-          executionLog,
-          executedEdges,
-          workflowId,
-          incrementalCacheUpdater
-        ).catch(error => {
-          // Log error but don't fail entire parallel execution
-          logger.error('Error in parallel branch execution', {
-            sourceNodeId: nodeId,
-            targetNodeId: nextNode.target,
-            error: error.message,
-          });
-          // Return error info instead of throwing
-          return {
-            error: true,
-            errorMessage: error.message,
-            nodeId: nextNode.target,
-          };
-        });
-      });
-
-      // Wait for all parallel executions to complete
-      const results = await Promise.all(parallelExecutions);
-
-      // IMPORTANT: Copy node outputs from all branch contexts to main context
-      // This ensures merge nodes can access outputs from all parallel branches
-      nextNodes.forEach((nextNode, index) => {
-        const branchContext = branchContexts[index];
-        const branchResult = results[index];
-
-        logger.info('Copying outputs from parallel branch', {
-          branchIndex: index,
-          targetNodeId: nextNode.target,
-          hasBranchContext: !!branchContext,
-          hasBranchResult: !!branchResult,
-          branchResultError: branchResult?.error,
-          branchOutputsCount: branchContext?.nodeOutputs?.size || 0,
-        });
-
-        if (branchContext) {
-          // Copy all node outputs from branch context to main context
-          // This includes outputs from all nodes in the branch, not just the final result
-          // IMPORTANT: Don't overwrite existing outputs - only copy if not already present
-          branchContext.nodeOutputs.forEach((output, outputNodeId) => {
-            // Only set if not already present (to avoid overwriting outputs from other branches)
-            if (!context.nodeOutputs.has(outputNodeId)) {
-              context.setNodeOutput(outputNodeId, output);
-              logger.debug('Copied node output from branch to main context', {
-                branchIndex: index,
-                sourceNodeId: outputNodeId,
-                targetNodeId: nextNode.target,
-                hasOutput: !!output,
-                outputType: typeof output,
-              });
-            } else {
-              logger.debug('Skipped copying output (already exists)', {
-                branchIndex: index,
-                sourceNodeId: outputNodeId,
-                existingOutputType:
-                  typeof context.nodeOutputs.get(outputNodeId),
-              });
-            }
-          });
-        }
-
-        // DON'T overwrite the first node's output with branchResult
-        // The branchResult is the result of the entire branch execution (last node's output)
-        // All individual node outputs have already been copied from branchContext above
-        // Only store branchResult if the first node doesn't have an output yet
-        if (branchResult && !branchResult.error) {
-          // Check if the first node in the branch already has an output
-          if (!context.nodeOutputs.has(nextNode.target)) {
-            // If not, store the branch result (which is the last node's output in the branch)
-            // But this should rarely happen since we copied all outputs above
-            if (branchResult.parallel && branchResult.results) {
-              // This branch itself returned parallel results - store the last result
-              const lastResult =
-                branchResult.results[branchResult.results.length - 1];
-              context.setNodeOutput(nextNode.target, lastResult);
-            } else {
-              // Store the direct result
-              context.setNodeOutput(nextNode.target, branchResult);
-            }
-            logger.debug(
-              'Stored branch result for first node (no existing output)',
-              {
-                branchIndex: index,
-                targetNodeId: nextNode.target,
-              }
-            );
-          }
-        } else if (branchResult?.error) {
-          // Store error info only if node doesn't have output yet
-          if (!context.nodeOutputs.has(nextNode.target)) {
-            logger.warn('Branch execution had error', {
-              branchIndex: index,
-              targetNodeId: nextNode.target,
-              error: branchResult.errorMessage,
-            });
-            context.setNodeOutput(nextNode.target, branchResult);
-          }
-        }
-      });
-
-      logger.info(
-        'Copied node outputs from parallel branches to main context',
-        {
-          nodeId,
-          branchCount: nextNodes.length,
-          totalOutputsCopied: Array.from(context.nodeOutputs.keys()).length,
-        }
-      );
-
-      // Return results array (can be used by merge nodes or other nodes that need all results)
-      return {
-        parallel: true,
-        results,
-        count: results.length,
-      };
-    } else {
-      // Single outgoing edge - execute sequentially (as before)
-      const nextNode = nextNodes[0];
-      return executeNodeRecursive(
-        nextNode.target,
-        nodeMap,
-        adjacencyList,
-        context,
-        edges,
-        visited,
-        executionLog,
-        executedEdges,
-        workflowId,
-        incrementalCacheUpdater
-      );
-    }
+    return executeOutgoingBranches(
+      nodeId,
+      nextNodes,
+      nodeMap,
+      adjacencyList,
+      context,
+      edges,
+      visited,
+      executionLog,
+      executedEdges,
+      workflowId,
+      incrementalCacheUpdater
+    );
   }
 
   return nodeOutput;
@@ -1057,7 +915,158 @@ function evaluateCondition(condition1, operator, condition2, context) {
   }
 }
 
+async function executeOutgoingBranches(
+  nodeId,
+  nextNodes,
+  nodeMap,
+  adjacencyList,
+  context,
+  edges,
+  visited,
+  executionLog,
+  executedEdges,
+  workflowId,
+  incrementalCacheUpdater
+) {
+  if (!nextNodes || nextNodes.length === 0) {
+    return null;
+  }
 
+  if (nextNodes.length === 1) {
+    const nextNode = nextNodes[0];
+    return executeNodeRecursive(
+      nextNode.target,
+      nodeMap,
+      adjacencyList,
+      context,
+      edges,
+      visited,
+      executionLog,
+      executedEdges,
+      workflowId,
+      incrementalCacheUpdater
+    );
+  }
+
+  logger.info('Executing multiple branches in parallel', {
+    nodeId,
+    branchCount: nextNodes.length,
+    targets: nextNodes.map(n => n.target),
+  });
+
+  const branchContexts = [];
+  const parallelExecutions = nextNodes.map((nextNode, index) => {
+    const branchContext = context.clone();
+    branchContexts[index] = branchContext;
+    const branchVisited = new Set(visited);
+
+    return executeNodeRecursive(
+      nextNode.target,
+      nodeMap,
+      adjacencyList,
+      branchContext,
+      edges,
+      branchVisited,
+      executionLog,
+      executedEdges,
+      workflowId,
+      incrementalCacheUpdater
+    ).catch(error => {
+      logger.error('Error in parallel branch execution', {
+        sourceNodeId: nodeId,
+        targetNodeId: nextNode.target,
+        error: error.message,
+      });
+      return {
+        error: true,
+        errorMessage: error.message,
+        nodeId: nextNode.target,
+      };
+    });
+  });
+
+  const results = await Promise.all(parallelExecutions);
+
+  nextNodes.forEach((nextNode, index) => {
+    const branchContext = branchContexts[index];
+    const branchResult = results[index];
+
+    logger.info('Copying outputs from parallel branch', {
+      branchIndex: index,
+      targetNodeId: nextNode.target,
+      hasBranchContext: !!branchContext,
+      hasBranchResult: !!branchResult,
+      branchResultError: branchResult?.error,
+      branchOutputsCount: branchContext?.nodeOutputs?.size || 0,
+    });
+
+    if (branchContext) {
+      branchContext.nodeOutputs.forEach((output, outputNodeId) => {
+        if (!context.nodeOutputs.has(outputNodeId)) {
+          context.setNodeOutput(outputNodeId, output);
+          logger.debug('Copied node output from branch to main context', {
+            branchIndex: index,
+            sourceNodeId: outputNodeId,
+            targetNodeId: nextNode.target,
+            hasOutput: !!output,
+            outputType: typeof output,
+          });
+        } else {
+          logger.debug('Skipped copying output (already exists)', {
+            branchIndex: index,
+            sourceNodeId: outputNodeId,
+            existingOutputType: typeof context.nodeOutputs.get(outputNodeId),
+          });
+        }
+      });
+    }
+
+    if (branchResult && !branchResult.error) {
+      if (!context.nodeOutputs.has(nextNode.target)) {
+        if (branchResult.parallel && branchResult.results) {
+          const lastResult =
+            branchResult.results[branchResult.results.length - 1];
+          context.setNodeOutput(nextNode.target, lastResult);
+        } else {
+          context.setNodeOutput(nextNode.target, branchResult);
+        }
+        logger.debug('Stored branch result for first node (no existing output)', {
+          branchIndex: index,
+          targetNodeId: nextNode.target,
+        });
+      }
+    } else if (branchResult?.error) {
+      if (!context.nodeOutputs.has(nextNode.target)) {
+        logger.warn('Branch execution had error', {
+          branchIndex: index,
+          targetNodeId: nextNode.target,
+          error: branchResult.errorMessage,
+        });
+        context.setNodeOutput(nextNode.target, branchResult);
+      }
+    }
+  });
+
+  logger.info('Copied node outputs from parallel branches to main context', {
+    nodeId,
+    branchCount: nextNodes.length,
+    totalOutputsCopied: Array.from(context.nodeOutputs.keys()).length,
+  });
+
+  return {
+    parallel: true,
+    results,
+    count: results.length,
+  };
+}
+
+/**
+ * Match a value against a switch case
+ * @param {*} value - Value to match
+ * @param {Object} caseItem - Case configuration
+ * @param {Object} context - Template context
+ * @returns {boolean} - Whether the case matches
+ */
 function matchCase(value, caseItem, context) {
   if (!caseItem || !caseItem.value) {
     return false;
