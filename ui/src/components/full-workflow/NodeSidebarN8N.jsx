@@ -10,6 +10,7 @@ import { nodeExecutionService } from '../../services/nodeExecution.service.js';
 import { googleSheetsService } from '../../services/googleSheets.service.js';
 import { useHubspot } from '../../hooks/useHubspot.js';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
+import { getMinimalInputData } from '../../utils/variableExtraction.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -178,10 +179,27 @@ export default function NodeSidebarN8N({
         data: nodeDataWithoutOutput,
       };
 
+      // Use getMinimalInputData to send only necessary parts of previous node outputs
+      // This prevents "request body too large" errors
+      // getMinimalInputData now returns { minimalData, nodeOutputsMap } with ALL nodes in chain
+      const { minimalData, nodeOutputsMap: extractedNodeOutputsMap } =
+        getMinimalInputData(nodeToExecute, nodes, edges);
+
+      // Remove outputs from all nodes before sending to prevent "request body too large"
+      const nodesWithoutOutputs = nodes.map(n => {
+        const { output, status, ...dataWithoutOutput } = n.data || {};
+        return {
+          ...n,
+          data: dataWithoutOutput,
+        };
+      });
+
       const result = await nodeExecutionService.executeNode(
         nodeToExecute,
         edges,
-        inputData || {}
+        minimalData, // Send minimal merged data
+        nodesWithoutOutputs, // Send nodes without outputs
+        extractedNodeOutputsMap // Send minimal outputs per node ID (ALL nodes in chain)
       );
       if (result.success && result.data?.output) {
         const newOutput = result.data.output;

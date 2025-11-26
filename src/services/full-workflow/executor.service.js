@@ -1030,10 +1030,13 @@ async function executeOutgoingBranches(
         } else {
           context.setNodeOutput(nextNode.target, branchResult);
         }
-        logger.debug('Stored branch result for first node (no existing output)', {
-          branchIndex: index,
-          targetNodeId: nextNode.target,
-        });
+        logger.debug(
+          'Stored branch result for first node (no existing output)',
+          {
+            branchIndex: index,
+            targetNodeId: nextNode.target,
+          }
+        );
       }
     } else if (branchResult?.error) {
       if (!context.nodeOutputs.has(nextNode.target)) {

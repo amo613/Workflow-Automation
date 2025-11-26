@@ -79,11 +79,30 @@ export function resolveTemplate(template, context = {}) {
     // 4. Try to resolve as previous.output.field if not found as direct variable
     // This handles cases like {{data.userId}} which should resolve to previous.output.data.userId
     if (value === null || value === undefined) {
-      // First try previous node output (most common case)
-      if (context.previousNodeOutput) {
+      // CRITICAL: Try workflowInput FIRST, because it contains all merged node outputs
+      // This ensures variables like {{updatedRows}} are found even if they're from nodes
+      // earlier in the chain (e.g., Trigger -> Google Sheets -> HTTP Request)
+      if (context.workflowInput) {
+        value = getNestedValue(context.workflowInput, trimmedPath);
+      }
+
+      // If not found in workflowInput, try previous node output (most common case)
+      if (
+        (value === null || value === undefined) &&
+        context.previousNodeOutput
+      ) {
         // Try to find the value in previous node output using the path directly
         // e.g., {{data.userId}} -> previousNodeOutput.data.userId
         value = getNestedValue(context.previousNodeOutput, trimmedPath);
+
+        // Also check nested data object
+        if (
+          (value === null || value === undefined) &&
+          context.previousNodeOutput.data &&
+          typeof context.previousNodeOutput.data === 'object'
+        ) {
+          value = getNestedValue(context.previousNodeOutput.data, trimmedPath);
+        }
       }
 
       // 5. If still not found, try to find in any node output
@@ -92,18 +111,24 @@ export function resolveTemplate(template, context = {}) {
         // Try each node output to find the value
         for (const [, nodeOutput] of Object.entries(context.nodeOutputs)) {
           if (nodeOutput && typeof nodeOutput === 'object') {
-            const foundValue = getNestedValue(nodeOutput, trimmedPath);
+            // First try direct path
+            let foundValue = getNestedValue(nodeOutput, trimmedPath);
+
+            // Also check nested data object
+            if (
+              (foundValue === null || foundValue === undefined) &&
+              nodeOutput.data &&
+              typeof nodeOutput.data === 'object'
+            ) {
+              foundValue = getNestedValue(nodeOutput.data, trimmedPath);
+            }
+
             if (foundValue !== undefined && foundValue !== null) {
               value = foundValue;
               break;
             }
           }
         }
-      }
-
-      // 6. Also try in workflow input as fallback
-      if ((value === null || value === undefined) && context.workflowInput) {
-        value = getNestedValue(context.workflowInput, trimmedPath);
       }
     }
 

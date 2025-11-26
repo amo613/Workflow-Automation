@@ -843,21 +843,33 @@ export async function executeSingleNodeHandler(req, reply) {
     }
 
     const userId = req.user.id;
-    const { node, edges = [], input = {} } = req.body;
-
-    if (!node) {
-      return reply.code(400).send({
-        success: false,
-        error: 'Node is required',
-      });
-    }
+    const {
+      node,
+      edges = [],
+      input = {},
+      nodes: allNodes = [],
+      nodeOutputsMap = {},
+    } = req.body;
 
     // Create a minimal context for single node execution
     const context = new VariableContext();
     context.setWorkflowInput({ ...input, userId });
     context.setVariable('userId', userId);
 
+    // CRITICAL: Extract node outputs from nodeOutputsMap (minimal data per node sent from frontend)
+    // Frontend sends minimal extracted data per node in nodeOutputsMap
+    // This includes ALL nodes in the chain, not just directly connected ones
+    // Example: Webhook → Switch → Google Sheets
+    // nodeOutputsMap contains outputs from both Webhook AND Switch
+    if (nodeOutputsMap && Object.keys(nodeOutputsMap).length > 0) {
+      // Set node outputs for ALL nodes in the chain (not just directly connected)
+      Object.entries(nodeOutputsMap).forEach(([nodeId, output]) => {
+        context.setNodeOutput(nodeId, output);
+      });
+    }
+
     // Build template context from previous nodes if available
+    // This will merge all node outputs into workflowInput
     const templateContext = context.getContext(node.id, edges);
 
     // Ensure userId is in templateContext for node handlers

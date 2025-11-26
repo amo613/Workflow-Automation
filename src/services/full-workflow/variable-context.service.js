@@ -70,7 +70,10 @@ class VariableContext {
    */
   getPreviousNodeOutput(currentNodeId, edges) {
     // Find the node that connects to current node
-    const incomingEdge = edges.find(edge => edge.target === currentNodeId);
+    // Skip self-referencing edges (source === target)
+    const incomingEdge = edges.find(
+      edge => edge.target === currentNodeId && edge.source !== currentNodeId
+    );
     if (!incomingEdge) {
       return undefined;
     }
@@ -103,6 +106,38 @@ class VariableContext {
       if (previousOutput !== undefined) {
         context.previousNodeOutput = previousOutput;
       }
+
+      // CRITICAL: Merge ALL node outputs into workflowInput
+      // This ensures variables like {{updatedRows}} are found even if they're
+      // from nodes earlier in the chain (e.g., Trigger -> Google Sheets -> HTTP Request)
+      const mergedOutputs = { ...(this.workflowInput || {}) };
+
+      // Merge ALL node outputs from ALL previously executed nodes
+      for (const [nodeId, nodeOutput] of this.nodeOutputs.entries()) {
+        if (
+          nodeOutput !== undefined &&
+          nodeOutput !== null &&
+          typeof nodeOutput === 'object' &&
+          !Array.isArray(nodeOutput)
+        ) {
+          // Merge the entire output object
+          Object.assign(mergedOutputs, nodeOutput);
+
+          // CRITICAL: Flatten nested 'data' objects to top level
+          // Google Sheets returns: { success: true, data: { updatedRows: 1, updatedColumns: 2 } }
+          // We need: { success: true, data: {...}, updatedRows: 1, updatedColumns: 2 }
+          if (
+            nodeOutput.data &&
+            typeof nodeOutput.data === 'object' &&
+            !Array.isArray(nodeOutput.data)
+          ) {
+            Object.assign(mergedOutputs, nodeOutput.data);
+          }
+        }
+      }
+
+      // Update workflowInput with merged outputs
+      context.workflowInput = mergedOutputs;
     }
 
     return context;
