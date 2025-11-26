@@ -843,13 +843,14 @@ export async function executeSingleNodeHandler(req, reply) {
     }
 
     const userId = req.user.id;
-    const {
-      node,
-      edges = [],
-      input = {},
-      nodes: allNodes = [],
-      nodeOutputsMap = {},
-    } = req.body;
+    const { node, edges = [], input = {}, nodes: allNodes = [], nodeOutputsMap = {} } = req.body;
+
+    if (!node) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Node is required',
+      });
+    }
 
     // Create a minimal context for single node execution
     const context = new VariableContext();
