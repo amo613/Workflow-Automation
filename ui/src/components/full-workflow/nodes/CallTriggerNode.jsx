@@ -1,6 +1,7 @@
 import { Handle, Position } from 'reactflow';
 import { PhoneIncoming, Database } from 'lucide-react';
 import StatusBadge from '@/utils/StatusBadge';
+import ElectricBorder from './ElectricBorder';
 
 export default function CallTriggerNode({ data, selected }) {
   const status = data.status || 'idle';
@@ -14,28 +15,32 @@ export default function CallTriggerNode({ data, selected }) {
   const hasKnowledgeBase =
     data?.knowledge_base_ids && data.knowledge_base_ids.length > 0;
 
+  // Chaos: 0.1 for idle, 0.5 for running
+  const chaos = status === 'running' ? 0.6 : 0.3;
+  const nodeColor = '#10b981';
+
   return (
     <div style={{ position: 'relative' }}>
-      <div
-        style={{
-          background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
-          border: `2px solid ${
-            status !== 'idle'
-              ? statusColor[status]
-              : selected
-                ? '#10b981'
-                : 'hsl(var(--border))'
-          }`,
-          borderRadius: '0.75rem',
-          padding: '1rem',
-          minWidth: '200px',
-          boxShadow: selected
-            ? '0 4px 12px rgba(16, 185, 129, 0.3)'
-            : '0 2px 8px rgba(0, 0, 0, 0.2)',
-          transition: 'all 0.2s ease',
-          position: 'relative',
-        }}
+      <ElectricBorder
+        color={nodeColor}
+        chaos={chaos}
+        speed={1}
+        thickness={2}
+        style={{ borderRadius: '0.75rem' }}
       >
+        <div
+          style={{
+            background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+            borderRadius: '0.75rem',
+            padding: '1rem',
+            minWidth: '200px',
+            boxShadow: selected
+              ? '0 4px 12px rgba(16, 185, 129, 0.3)'
+              : '0 2px 8px rgba(0, 0, 0, 0.2)',
+            transition: 'all 0.2s ease',
+            position: 'relative',
+          }}
+        >
         <StatusBadge status={status} />
 
         <div
@@ -111,7 +116,8 @@ export default function CallTriggerNode({ data, selected }) {
             border: '2px solid hsl(var(--card))',
           }}
         />
-      </div>
+        </div>
+      </ElectricBorder>
 
       {/* Knowledge Base Sub-Node */}
       {hasKnowledgeBase && (

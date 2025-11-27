@@ -35,6 +35,7 @@ import NodeSidebarN8N from './NodeSidebarN8N';
 import KnowledgeBaseManager from './KnowledgeBaseManager';
 import VersionHistory from './VersionHistory';
 import WorkflowImportModal from './WorkflowImportModal';
+import { Button } from '@/components/ui/button';
 import {
   Database,
   Download,
@@ -482,66 +483,30 @@ function WorkflowEditorLayoutInner({
             <Upload className="w-4 h-4" />
             Import
           </button>
-          <button
+          <Button
             onClick={handleSave}
+            animated
+            loading={saving}
             disabled={saving}
-            style={{
-              padding: '0.5rem 1.5rem',
-              background: 'hsl(var(--primary))',
-              color: 'hsl(var(--primary-foreground))',
-              border: '1px solid hsl(var(--primary))',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.5 : 1,
-              transition: 'all 0.2s ease',
-            }}
+            className="gap-2"
           >
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-1" />
-                Save
-              </>
-            )}
-          </button>
+            <Save className="w-4 h-4" />
+            Save
+          </Button>
           {!isNew && (
-            <button
+            <Button
               onClick={handleExecute}
+              animated
+              loading={executing}
               disabled={executing || saving}
+              className="gap-2"
               style={{
-                padding: '0.5rem 1.5rem',
-                background: executing ? '#10b981' : 'hsl(var(--primary))',
-                color: 'hsl(var(--primary-foreground))',
-                border: '1px solid hsl(var(--primary))',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                cursor: executing || saving ? 'not-allowed' : 'pointer',
-                opacity: executing || saving ? 0.5 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s ease',
+                background: executing ? '#10b981' : undefined,
               }}
             >
-              {executing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                  <span>Executing...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-1" />
-                  <span>Execute</span>
-                </>
-              )}
-            </button>
+              <Play className="w-4 h-4" />
+              Execute
+            </Button>
           )}
         </div>
       </div>

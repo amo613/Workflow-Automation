@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
 import { GitBranch } from 'lucide-react';
 import StatusBadge from '@/utils/StatusBadge';
+import ElectricBorder from './ElectricBorder';
 
 /**
  * Switch/Case Node Component
@@ -45,23 +46,31 @@ export default function SwitchNode({ data, selected, id }) {
     return `hsl(${hue}, 70%, 50%)`;
   };
 
+  // Chaos: 0.1 for idle, 0.5 for running
+  const chaos = status === 'running' ? 0.6 : 0.3;
+  const nodeColor = '#8b5cf6';
+
   return (
-    <div
-      style={{
-        background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
-        border: `2px solid ${
-          status !== 'idle' ? statusColor[status] : '#8b5cf6'
-        }`,
-        borderRadius: '0.75rem',
-        padding: '1rem',
-        minWidth: '220px',
-        boxShadow: selected
-          ? '0 4px 12px rgba(139, 92, 246, 0.3)'
-          : '0 2px 8px rgba(0, 0, 0, 0.2)',
-        transition: 'all 0.2s ease',
-        position: 'relative',
-      }}
+    <ElectricBorder
+      color={nodeColor}
+      chaos={chaos}
+      speed={1}
+      thickness={2}
+      style={{ borderRadius: '0.75rem' }}
     >
+      <div
+        style={{
+          background: selected ? 'hsl(var(--accent))' : 'hsl(var(--card))',
+          borderRadius: '0.75rem',
+          padding: '1rem',
+          minWidth: '220px',
+          boxShadow: selected
+            ? '0 4px 12px rgba(139, 92, 246, 0.3)'
+            : '0 2px 8px rgba(0, 0, 0, 0.2)',
+          transition: 'all 0.2s ease',
+          position: 'relative',
+        }}
+      >
       <StatusBadge status={status} />
 
       {/* Input Handle */}
@@ -262,6 +271,7 @@ export default function SwitchNode({ data, selected, id }) {
           No cases configured
         </div>
       )}
-    </div>
+      </div>
+    </ElectricBorder>
   );
 }

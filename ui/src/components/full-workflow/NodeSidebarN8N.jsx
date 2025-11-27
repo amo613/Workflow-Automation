@@ -347,25 +347,19 @@ export default function NodeSidebarN8N({
             >
               <Button
                 size="sm"
+                variant="default"
+                animated
+                loading={executingSingleNode}
                 onClick={handleExecuteNode}
                 disabled={executingSingleNode}
-                variant="default"
               >
-                {executingSingleNode ? (
-                  <>
-                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    Execute
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3 h-3 mr-1" />
-                    Execute
-                  </>
-                )}
+                <Play className="w-3 h-3 mr-1" />
+                Execute
               </Button>
               <Button
                 size="sm"
                 variant="destructive"
+                animated
                 onClick={() => setDeleteDialogOpen(true)}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
@@ -374,6 +368,7 @@ export default function NodeSidebarN8N({
               <Button
                 size="sm"
                 variant="ghost"
+                animated
                 onClick={onClose}
                 style={{ padding: '0.25rem 0.5rem' }}
               >

@@ -33,6 +33,7 @@ import {
   Power,
   Filter,
 } from 'lucide-react';
+import WorkflowCardSkeleton from '@/components/ui/skeletons/WorkflowCardSkeleton';
 
 function FullWorkflowList() {
   const [workflows, setWorkflows] = useState([]);
@@ -132,10 +133,40 @@ function FullWorkflowList() {
   if (loading) {
     return (
       <PageContainer>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-lg text-muted-foreground">
-            Loading workflows...
+        <div className="space-y-6 py-4">
+          {/* Header Section */}
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <div className="flex items-center gap-4 mb-5">
+                <div className="p-3 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-blue-500/30">
+                  <Workflow className="w-8 h-8 text-blue-400" />
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                  Workflows
+                </h1>
+              </div>
+              <p className="text-muted-foreground ml-16 text-lg">
+                Manage your automation workflows
+              </p>
+            </div>
           </div>
+
+          {/* Skeleton Cards */}
+          <Card className="glass border-border/50">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-blue-400" />
+                All Workflows
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="space-y-4">
+                {[...Array(5)].map((_, index) => (
+                  <WorkflowCardSkeleton key={index} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </PageContainer>
     );
@@ -161,7 +192,8 @@ function FullWorkflowList() {
           </div>
           <Button
             onClick={() => navigate('/fullWorkflows/new')}
-            className="gap-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all hover:scale-105 text-base px-6 py-3"
+            animated
+            className="gap-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 text-base px-6 py-3"
           >
             <Plus className="w-5 h-5" />
             Create Workflow
@@ -201,8 +233,9 @@ function FullWorkflowList() {
                   </div>
                   <Button
                     variant="outline"
+                    animated
                     onClick={() => navigate('/fullWorkflows/new')}
-                    className="gap-2 hover:scale-105 transition-transform"
+                    className="gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Create your first workflow
@@ -293,8 +326,9 @@ function FullWorkflowList() {
                             <Button
                               variant="ghost"
                               size="default"
+                              animated
                               onClick={e => handleToggleActive(workflow, e)}
-                              className="gap-2.5 hover:scale-105 hover:bg-blue-500/10 hover:text-blue-300 transition-all px-5 py-2.5 text-base flex items-center"
+                              className="gap-2.5 hover:bg-blue-500/10 hover:text-blue-300 px-5 py-2.5 text-base flex items-center"
                             >
                               <Power className="w-6 h-6" />
                               <span className="flex items-center">
@@ -304,8 +338,9 @@ function FullWorkflowList() {
                             <Button
                               variant="ghost"
                               size="default"
+                              animated
                               onClick={e => handleDeleteClick(workflow.id, e)}
-                              className="gap-2.5 text-destructive hover:scale-105 hover:bg-red-500/10 transition-all px-5 py-2.5 text-base flex items-center"
+                              className="gap-2.5 text-destructive hover:bg-red-500/10 px-5 py-2.5 text-base flex items-center"
                             >
                               <Trash2 className="w-6 h-6" />
                               <span className="flex items-center">Delete</span>

@@ -19,6 +19,7 @@ import {
   Loader2,
   MessageSquare,
 } from 'lucide-react';
+import VersionItemSkeleton from '@/components/ui/skeletons/VersionItemSkeleton';
 
 const PAGE_SIZE = 20;
 
@@ -159,6 +160,7 @@ export default function VersionHistory({ workflowId, onRestore }) {
         <Button
           onClick={() => setIsModalOpen(true)}
           variant="outline"
+          animated
           className="w-full justify-start gap-2"
           style={{
             background: 'hsl(var(--secondary))',
@@ -218,9 +220,10 @@ export default function VersionHistory({ workflowId, onRestore }) {
             style={{ maxHeight: 'calc(85vh - 120px)' }}
           >
             {loading && (
-              <div className="text-center py-8 text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Loading versions...</span>
+              <div className="space-y-3">
+                {[...Array(5)].map((_, index) => (
+                  <VersionItemSkeleton key={index} />
+                ))}
               </div>
             )}
 
@@ -343,22 +346,14 @@ export default function VersionHistory({ workflowId, onRestore }) {
                             e.stopPropagation();
                             handleRestore(version);
                           }}
-                          disabled={restoring}
+                          loading={restoring}
+                          animated
                           size="sm"
                           variant={isLatest ? 'default' : 'outline'}
                           className="shrink-0"
                         >
-                          {restoring ? (
-                            <>
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              Restoring...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                              Restore
-                            </>
-                          )}
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Restore
                         </Button>
                       </div>
                     </div>
@@ -367,9 +362,10 @@ export default function VersionHistory({ workflowId, onRestore }) {
 
                 {/* Loading indicator for infinite scroll */}
                 {loadingMore && (
-                  <div className="text-center py-4 text-muted-foreground flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading more versions...</span>
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, index) => (
+                      <VersionItemSkeleton key={`loading-${index}`} />
+                    ))}
                   </div>
                 )}
 
