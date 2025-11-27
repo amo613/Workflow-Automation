@@ -57,8 +57,19 @@ export function DropdownMenuTrigger({ children, asChild, className }) {
 
 export function DropdownMenuContent({ children, align = 'start', className }) {
   const { open } = React.useContext(DropdownMenuContext);
+  const [isExiting, setIsExiting] = React.useState(false);
 
-  if (!open) return null;
+  React.useEffect(() => {
+    if (!open && isExiting) {
+      const timer = setTimeout(() => setIsExiting(false), 150);
+      return () => clearTimeout(timer);
+    }
+    if (open) {
+      setIsExiting(false);
+    }
+  }, [open, isExiting]);
+
+  if (!open && !isExiting) return null;
 
   const alignClasses = {
     start: 'left-0',
@@ -69,17 +80,29 @@ export function DropdownMenuContent({ children, align = 'start', className }) {
   return (
     <div
       className={cn(
-        'absolute top-full mt-2 z-[100] min-w-[12rem] rounded-md border border-border bg-popover p-1 shadow-lg',
+        'absolute top-full mt-2 z-[100] min-w-[12rem] rounded-md border border-border bg-popover p-1 shadow-lg dropdown-menu-animated',
         alignClasses[align],
+        !open && 'exiting',
         className
       )}
+      onAnimationEnd={() => {
+        if (!open) {
+          setIsExiting(true);
+        }
+      }}
     >
       {children}
     </div>
   );
 }
 
-export function DropdownMenuItem({ children, onClick, className, ...props }) {
+export function DropdownMenuItem({
+  children,
+  onClick,
+  className,
+  index = 0,
+  ...props
+}) {
   const { setOpen } = React.useContext(DropdownMenuContext);
 
   const handleClick = e => {
@@ -90,8 +113,9 @@ export function DropdownMenuItem({ children, onClick, className, ...props }) {
   return (
     <div
       onClick={handleClick}
+      data-index={index}
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground dropdown-menu-item-animated',
         className
       )}
       {...props}

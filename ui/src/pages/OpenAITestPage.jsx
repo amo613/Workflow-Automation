@@ -792,10 +792,11 @@ function OpenAITestPage() {
               </div>
             ) : (
               <div className="workflows-list">
-                {workflows.map(workflow => (
+                {workflows.map((workflow, index) => (
                   <div
                     key={workflow.id}
-                    className="workflow-item"
+                    data-index={index}
+                    className="workflow-item list-item-animated"
                     onClick={() =>
                       navigate(`/fullWorkflows/edit/${workflow.id}`)
                     }

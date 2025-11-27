@@ -16,16 +16,38 @@ const badgeVariants = cva(
           'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
         outline: 'text-foreground',
       },
+      animated: {
+        true: 'badge-animated',
+        false: '',
+      },
     },
     defaultVariants: {
       variant: 'default',
+      animated: true,
     },
   }
 );
 
-function Badge({ className, variant, ...props }) {
+function Badge({
+  className,
+  variant,
+  animated = true,
+  pulse = false,
+  glow = false,
+  statusChange = false,
+  ...props
+}) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <div
+      className={cn(
+        badgeVariants({ variant, animated }),
+        pulse && 'pulse',
+        glow && 'glow',
+        statusChange && 'status-change',
+        className
+      )}
+      {...props}
+    />
   );
 }
 

@@ -36,6 +36,9 @@ import KnowledgeBaseManager from './KnowledgeBaseManager';
 import VersionHistory from './VersionHistory';
 import WorkflowImportModal from './WorkflowImportModal';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { CommandPalette } from '@/components/ui/command-palette';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Database,
   Download,
@@ -143,6 +146,7 @@ function WorkflowEditorLayoutInner({
 }) {
   const [isAutoLayouting, setIsAutoLayouting] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState(null);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const reactFlowInstance = useReactFlow();
 
   const {
@@ -450,7 +454,7 @@ function WorkflowEditorLayoutInner({
             >
               {exporting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner variant="dots" size="sm" />
                   Exporting...
                 </>
               ) : (
@@ -659,8 +663,13 @@ function WorkflowEditorLayoutInner({
                         color: 'hsl(var(--muted-foreground))',
                         textAlign: 'center',
                         border: '1px solid hsl(var(--border))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
                       }}
                     >
+                      <Spinner variant="dots" size="sm" />
                       Loading statistics...
                     </div>
                   )}
@@ -2289,7 +2298,7 @@ function WorkflowEditorLayoutInner({
                 disabled={isAutoLayouting}
               >
                 {isAutoLayouting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner variant="ring" size="sm" />
                 ) : (
                   <LayoutGrid className="w-4 h-4" />
                 )}
@@ -2325,7 +2334,7 @@ function WorkflowEditorLayoutInner({
           {isAutoLayouting && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
               <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <Spinner variant="chase" size="lg" />
                 <span>Re-arranging nodes…</span>
               </div>
             </div>
@@ -2387,36 +2396,60 @@ function WorkflowEditorLayoutInner({
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
             zIndex: 1000,
             display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
+            flexDirection: 'column',
+            gap: '0.75rem',
             minWidth: '300px',
             maxWidth: '600px',
           }}
         >
-          <div style={{ fontSize: '1.5rem' }}>
-            {executionStatus.status === 'success'
-              ? '✅'
-              : executionStatus.status === 'error'
-                ? '❌'
-                : '⏳'}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '1.5rem' }}>
               {executionStatus.status === 'success'
-                ? 'Workflow Executed'
+                ? '✅'
                 : executionStatus.status === 'error'
-                  ? 'Execution Failed'
-                  : 'Executing...'}
+                  ? '❌'
+                  : '⏳'}
             </div>
-            <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
-              {executionStatus.message}
-              {executionStatus.eventId && (
-                <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
-                  Event ID: {executionStatus.eventId}
-                </div>
-              )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                {executionStatus.status === 'success'
+                  ? 'Workflow Executed'
+                  : executionStatus.status === 'error'
+                    ? 'Execution Failed'
+                    : 'Executing...'}
+              </div>
+              <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                {executionStatus.message}
+                {executionStatus.eventId && (
+                  <div style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>
+                    Event ID: {executionStatus.eventId}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+          {/* Progress Bar for running executions */}
+          {executing && edges.length > 0 && executedEdges && (
+            <div style={{ width: '100%' }}>
+              <Progress
+                value={executedEdges.length}
+                max={edges.length}
+                className="h-1.5 bg-white/20"
+                indicatorClassName="bg-white/80"
+                showShimmer={true}
+              />
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  opacity: 0.8,
+                  marginTop: '0.25rem',
+                  textAlign: 'right',
+                }}
+              >
+                {executedEdges.length} / {edges.length} steps
+              </div>
+            </div>
+          )}
           <button
             onClick={() => setExecutionStatus(null)}
             style={{
@@ -2437,6 +2470,39 @@ function WorkflowEditorLayoutInner({
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onImportSuccess={handleImportSuccess}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onAction={action => {
+          switch (action) {
+            case 'save':
+              handleSave();
+              break;
+            case 'execute':
+              if (!isNew) handleExecute();
+              break;
+            case 'export':
+              handleExport();
+              break;
+            case 'import':
+              setShowImportModal(true);
+              break;
+            case 'knowledge-base':
+              setShowKnowledgeBase(!showKnowledgeBase);
+              break;
+            case 'statistics':
+              setShowStatistics(!showStatistics);
+              break;
+            case 'history':
+              // Open version history modal if available
+              break;
+            default:
+              break;
+          }
+        }}
       />
     </div>
   );

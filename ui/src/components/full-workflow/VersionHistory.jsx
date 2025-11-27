@@ -249,7 +249,8 @@ export default function VersionHistory({ workflowId, onRestore }) {
                   return (
                     <div
                       key={version.id}
-                      className="rounded-lg border transition-all cursor-pointer"
+                      data-index={index}
+                      className="list-item-animated rounded-lg border transition-all cursor-pointer"
                       style={{
                         background: isSelected
                           ? 'hsl(var(--accent))'

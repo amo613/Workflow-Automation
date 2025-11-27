@@ -10,6 +10,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Spinner } from '@/components/ui/spinner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,7 +103,9 @@ function FullWorkflowList() {
   };
 
   const handleToggleActive = async (workflow, e) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     try {
       const response = await fetchWithCSRF(
         `/api/full-workflows/${workflow.id}`,
@@ -201,7 +205,7 @@ function FullWorkflowList() {
         </div>
 
         {/* Glassmorphism Card */}
-        <Card className="glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10">
+        <Card hover className="glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10">
           <CardHeader className="pb-4">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -257,7 +261,8 @@ function FullWorkflowList() {
                   {workflows.map((workflow, index) => (
                     <div
                       key={workflow.id}
-                      className="cursor-pointer hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm flex items-center"
+                      data-index={index}
+                      className="list-item-animated cursor-pointer hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm flex items-center"
                       style={{
                         minHeight: '100px',
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
@@ -293,25 +298,34 @@ function FullWorkflowList() {
                           </Badge>
                         </div>
                         <div className="col-span-2 flex items-center justify-start">
-                          <Badge
-                            variant={
-                              workflow.is_active ? 'default' : 'secondary'
-                            }
-                            className={`gap-2.5 px-4 py-2 text-base flex items-center ${
-                              workflow.is_active
-                                ? 'bg-green-500/20 border-green-500/30 text-green-300'
-                                : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                            }`}
-                          >
-                            {workflow.is_active ? (
-                              <CheckCircle className="w-5 h-5 text-green-400" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-gray-400" />
-                            )}
-                            <span className="flex items-center">
-                              {workflow.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </Badge>
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={workflow.is_active}
+                              onCheckedChange={() => handleToggleActive(workflow, { stopPropagation: () => {} })}
+                              animated
+                            />
+                            <Badge
+                              variant={
+                                workflow.is_active ? 'default' : 'secondary'
+                              }
+                              animated
+                              statusChange={workflow.is_active}
+                              className={`gap-2.5 px-4 py-2 text-base flex items-center ${
+                                workflow.is_active
+                                  ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                                  : 'bg-gray-500/20 border-gray-500/30 text-gray-400'
+                              }`}
+                            >
+                              {workflow.is_active ? (
+                                <CheckCircle className="w-5 h-5 text-green-400" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-gray-400" />
+                              )}
+                              <span className="flex items-center">
+                                {workflow.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </Badge>
+                          </div>
                         </div>
                         <div className="col-span-2 text-muted-foreground text-lg flex items-center">
                           {workflow.created_at
