@@ -33,6 +33,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17",
+    "three": "^0.166.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

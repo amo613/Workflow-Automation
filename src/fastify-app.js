@@ -198,11 +198,7 @@ fastify.get('/workflows/*', async (request, reply) => {
 // This ensures React pages get CSRF tokens when they load
 fastify.addHook('onRequest', generateCSRFTokenFastify);
 
-// Root routes
-fastify.get('/', async (request, reply) => {
-  return reply.status(200).send('Hello World!');
-});
-
+// API status route
 fastify.get('/api', async (request, reply) => {
   return reply.status(200).send({ message: 'API is running!' });
 });
