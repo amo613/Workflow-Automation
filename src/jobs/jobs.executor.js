@@ -5,20 +5,119 @@ import logger from '#config/logger.js';
 import { db } from '#config/database.js';
 import { jobs as jobsTable } from '#models/job.model.js';
 import { eq } from 'drizzle-orm';
+import { getRedisClient } from '#config/cache.js';
+
+// Pro-User Concurrency Limit
+const MAX_JOBS_PER_USER = 5;
+
+/**
+ * Check if user can process more jobs (pro-User concurrency limit)
+ * Uses Redis to track active jobs per user (works across multiple instances)
+ */
+async function canProcessJob(userId) {
+  const redisClient = getRedisClient();
+  if (!redisClient?.isReady) {
+    // Fallback to memory if Redis not available
+    logger.warn('Redis not available, using memory-based concurrency tracking');
+    return true;
+  }
+
+  const userKey = userId?.toString() || 'default';
+  const redisKey = `job:concurrency:${userKey}`;
+  
+  try {
+    const activeCount = await redisClient.get(redisKey);
+    const count = activeCount ? parseInt(activeCount, 10) : 0;
+    
+    if (count >= MAX_JOBS_PER_USER) {
+      logger.debug(`User ${userKey} has reached concurrency limit (${count}/${MAX_JOBS_PER_USER})`);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('Error checking user concurrency limit', { error: error.message, userId });
+    // On error, allow job to proceed (fail open)
+    return true;
+  }
+}
+
+/**
+ * Increment active job count for user
+ */
+async function incrementUserJobCount(userId) {
+  const redisClient = getRedisClient();
+  if (!redisClient?.isReady) return;
+
+  const userKey = userId?.toString() || 'default';
+  const redisKey = `job:concurrency:${userKey}`;
+  
+  try {
+    const count = await redisClient.incr(redisKey);
+    // Set expiration (5 minutes) to prevent stale keys
+    if (count === 1) {
+      await redisClient.expire(redisKey, 300);
+    }
+    logger.debug(`Incremented job count for user ${userKey}: ${count}`);
+  } catch (error) {
+    logger.error('Error incrementing user job count', { error: error.message, userId });
+  }
+}
+
+/**
+ * Decrement active job count for user
+ */
+async function decrementUserJobCount(userId) {
+  const redisClient = getRedisClient();
+  if (!redisClient?.isReady) return;
+
+  const userKey = userId?.toString() || 'default';
+  const redisKey = `job:concurrency:${userKey}`;
+  
+  try {
+    const count = await redisClient.decr(redisKey);
+    if (count <= 0) {
+      await redisClient.del(redisKey);
+    }
+    logger.debug(`Decremented job count for user ${userKey}: ${count}`);
+  } catch (error) {
+    logger.error('Error decrementing user job count', { error: error.message, userId });
+  }
+}
 
 export const jobWorker = new Worker(
   'jobs',
   async job => {
-    const { type, data, options } = job.data;
-    if (!jobRegistry.has(type)) throw new Error(`Unknown job type: ${type}`);
-    const JobClass = jobRegistry.getJobClass(type);
-    const jobInstance = new JobClass(data, options);
-    jobInstance.jobId = job.id;
-    return await jobInstance.run();
+    const { type, data, options, userId } = job.data;
+    
+    // Check pro-User concurrency limit
+    const canProcess = await canProcessJob(userId);
+    if (!canProcess) {
+      // Throw error to put job back in queue (will be retried)
+      // This ensures fair distribution across users
+      throw new Error(
+        `User ${userId || 'default'} has reached concurrency limit (${MAX_JOBS_PER_USER} jobs). Job will be retried.`
+      );
+    }
+    
+    // Increment active job count
+    await incrementUserJobCount(userId);
+    
+    try {
+      if (!jobRegistry.has(type)) throw new Error(`Unknown job type: ${type}`);
+      const JobClass = jobRegistry.getJobClass(type);
+      const jobInstance = new JobClass(data, options);
+      jobInstance.jobId = job.id;
+      return await jobInstance.run();
+    } finally {
+      // Always decrement when job finishes (success or failure)
+      await decrementUserJobCount(userId);
+    }
   },
   {
     connection: { url: REDIS_URL },
-    concurrency: 10,
+    // Higher global concurrency since we limit per-user
+    concurrency: 50, // Global limit (allows multiple users to process jobs in parallel)
     autorun: true,
   }
 );
@@ -74,28 +173,44 @@ jobWorker.on('completed', async job => {
 });
 
 jobWorker.on('failed', async (job, err) => {
+  // Check if this is a concurrency limit error (should not count as real failure)
+  const isConcurrencyLimit = err?.message?.includes('concurrency limit');
+  
   try {
-    await db
-      .update(jobsTable)
-      .set({
-        status: 'failed',
-        finishedAt: new Date(),
-        error: { message: err?.message, stack: err?.stack },
-        attemptsMade: job?.attemptsMade ?? 0,
-        updatedAt: new Date(),
-      })
-      .where(eq(jobsTable.id, String(job?.id ?? 'unknown')));
+    // Only mark as failed if it's not a concurrency limit error
+    // Concurrency limit errors will be retried automatically
+    if (!isConcurrencyLimit) {
+      await db
+        .update(jobsTable)
+        .set({
+          status: 'failed',
+          finishedAt: new Date(),
+          error: { message: err?.message, stack: err?.stack },
+          attemptsMade: job?.attemptsMade ?? 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(jobsTable.id, String(job?.id ?? 'unknown')));
+    } else {
+      // For concurrency limit, just log as warning (job will be retried)
+      logger.warn(`Job ${job?.id} delayed due to concurrency limit, will retry`, {
+        userId: job?.data?.userId,
+        type: job?.data?.type,
+      });
+    }
   } catch (dbErr) {
     logger.warn(
-      `Failed to update job ${job?.id} status to 'failed' in DB:`,
+      `Failed to update job ${job?.id} status in DB:`,
       dbErr.message
     );
   }
-  logger.error(`Job ${job?.id} failed: ${err?.message}`, {
-    type: job?.data?.type,
-    error: err?.message,
-    stack: err?.stack,
-  });
+  
+  if (!isConcurrencyLimit) {
+    logger.error(`Job ${job?.id} failed: ${err?.message}`, {
+      type: job?.data?.type,
+      error: err?.message,
+      stack: err?.stack,
+    });
+  }
 });
 jobWorker.on('error', err => logger.error(`Job worker error: ${err?.message}`));
 jobWorker.on('closed', () => logger.info('Job worker closed'));

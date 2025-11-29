@@ -424,35 +424,116 @@ fastify.setErrorHandler((error, request, reply) => {
 fastify.addHook('onReady', async () => {
   logger.info('✅ Fastify app is ready');
 
+  // Load and register all custom webhook paths from active workflows
+  // This is critical: after Redis restart or server restart, all custom paths are lost
+  // We need to reload them from the database to restore functionality
+  try {
+    const { db } = await import('#config/database.js');
+    const { fullWorkflows } = await import('#models/full-workflow.model.js');
+    const { eq } = await import('drizzle-orm');
+    const {
+      registerCustomPath,
+    } = await import('#services/custom-webhook-path.service.js');
+
+    // Get all active workflows
+    const activeWorkflows = await db
+      .select()
+      .from(fullWorkflows)
+      .where(eq(fullWorkflows.is_active, true));
+
+    let registeredCount = 0;
+    for (const workflow of activeWorkflows) {
+      const workflowJson = workflow.workflow_json || {};
+      const nodes = workflowJson.nodes || [];
+
+      // Find webhook trigger nodes with custom paths
+      const webhookTriggerNodes = nodes.filter(
+        node => node.type === 'webhook-trigger'
+      );
+
+      for (const webhookNode of webhookTriggerNodes) {
+        const customPath = webhookNode.data?.customPath;
+        if (customPath && customPath.trim() !== '') {
+          // Normalize path (ensure it starts with /api/custom/)
+          const normalizedPath = customPath.startsWith('/api/custom/')
+            ? customPath
+            : `/api/custom${customPath.startsWith('/') ? '' : '/'}${customPath}`;
+
+          // Register custom path
+          await registerCustomPath(normalizedPath, {
+            workflowId: workflow.id,
+            nodeId: webhookNode.id,
+            webhookId: workflow.id.toString(),
+          });
+          registeredCount++;
+
+          logger.info('Registered custom webhook path on startup', {
+            workflowId: workflow.id,
+            customPath: normalizedPath,
+            nodeId: webhookNode.id,
+          });
+        }
+      }
+    }
+
+    if (registeredCount > 0) {
+      logger.info(
+        `✅ Registered ${registeredCount} custom webhook path(s) on startup from ${activeWorkflows.length} active workflow(s)`
+      );
+    } else {
+      logger.info(
+        `ℹ️ No custom webhook paths found in ${activeWorkflows.length} active workflow(s)`
+      );
+    }
+  } catch (error) {
+    logger.error('❌ Error loading custom webhook paths on startup', {
+      error: error.message,
+      stack: error.stack,
+    });
+    // Don't throw - allow app to continue even if webhook path loading fails
+  }
+
   // Log all registered routes for debugging
   const googleSheetsRoutes = [];
   const aiAgentRoutes = [];
-  fastify
-    .printRoutes()
-    .split('\n')
-    .forEach(line => {
-      if (line.includes('google-sheets')) {
-        googleSheetsRoutes.push(line.trim());
-      }
-      if (line.includes('ai-agent')) {
-        aiAgentRoutes.push(line.trim());
-      }
-    });
+  const allRoutes = fastify.printRoutes();
+
+  allRoutes.split('\n').forEach(line => {
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('google-sheets') || lowerLine.includes('googlesheets')) {
+      googleSheetsRoutes.push(line.trim());
+    }
+    if (lowerLine.includes('ai-agent') || lowerLine.includes('aiagent')) {
+      aiAgentRoutes.push(line.trim());
+    }
+  });
+
   if (googleSheetsRoutes.length > 0) {
     logger.info(
       `✅ Google Sheets routes registered: ${googleSheetsRoutes.length} routes`
     );
     googleSheetsRoutes.forEach(route => logger.info(`   - ${route}`));
   } else {
-    logger.warn('⚠️ No Google Sheets routes found in registered routes');
+    const routes = fastify.printRoutes({ includeHooks: false, includeMeta: false });
+    if (routes.includes('/api/integrations/google-sheets')) {
+      logger.info('✅ Google Sheets routes registered (found in route tree)');
+    } else {
+      logger.warn('⚠️ No Google Sheets routes found in registered routes');
+    }
   }
+
   if (aiAgentRoutes.length > 0) {
     logger.info(
       `✅ AI Agent routes registered: ${aiAgentRoutes.length} routes`
     );
     aiAgentRoutes.forEach(route => logger.info(`   - ${route}`));
   } else {
-    logger.warn('⚠️ No AI Agent routes found in registered routes');
+    const routes = fastify.printRoutes({ includeHooks: false, includeMeta: false });
+    if (routes.includes('/api/ai-agent')) {
+      logger.info('✅ AI Agent routes registered (found in route tree)');
+    } else {
+      logger.warn('⚠️ No AI Agent routes found in registered routes');
+    }
   }
 });
 

@@ -799,6 +799,17 @@ export async function triggerWorkflowHandler(req, reply) {
       });
     } catch (error) {
       memoryCache.del(dedupeKey);
+      
+      // Check if error is due to monthly limit exceeded
+      if (error.message && error.message.includes('Monthly execution limit exceeded')) {
+        return reply.code(429).send({
+          success: false,
+          error: 'Monthly execution limit exceeded',
+          message: error.message,
+          code: 'MONTHLY_LIMIT_EXCEEDED',
+        });
+      }
+      
       throw error;
     }
   } catch (error) {
@@ -810,6 +821,17 @@ export async function triggerWorkflowHandler(req, reply) {
       userId: req.user?.id,
       workflowId: req.params?.id,
     });
+    
+    // Check if error is due to monthly limit exceeded
+    if (error.message && error.message.includes('Monthly execution limit exceeded')) {
+      return reply.code(429).send({
+        success: false,
+        error: 'Monthly execution limit exceeded',
+        message: error.message,
+        code: 'MONTHLY_LIMIT_EXCEEDED',
+      });
+    }
+    
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to trigger workflow',

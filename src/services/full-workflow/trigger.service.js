@@ -2,6 +2,10 @@ import { inngest } from '#config/inngest.js';
 import logger from '#config/logger.js';
 import { memoryCache } from '#config/cache.js';
 import { broadcastWorkflowEvent } from './workflow-events.service.js';
+import {
+  checkMonthlyExecutionLimit,
+  incrementExecutionCount,
+} from '#middleware/execution-rate-limit.middleware.js';
 
 /**
  * Trigger Service for Full Workflows
@@ -22,6 +26,41 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
       userId,
       hasInput: !!input,
     });
+
+    // Check monthly execution limit (central check for all workflow executions)
+    // Get user role from database
+    let userRole = 'user';
+    try {
+      const { db } = await import('#config/database.js');
+      const { users } = await import('#models/user.model.js');
+      const { eq } = await import('drizzle-orm');
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (user?.role) {
+        userRole = user.role;
+      }
+    } catch (error) {
+      logger.warn('Could not fetch user role for execution limit check', {
+        userId,
+        error: error.message,
+      });
+    }
+
+    const limitCheck = await checkMonthlyExecutionLimit(userId, userRole);
+    if (!limitCheck.allowed) {
+      logger.warn('Monthly execution limit exceeded', {
+        workflowId,
+        userId,
+        currentCount: limitCheck.currentCount,
+        limit: 10000,
+      });
+      throw new Error(
+        `Monthly execution limit exceeded. You have reached your monthly limit of 10,000 executions. Limit resets on ${limitCheck.resetAt.toISOString().split('T')[0]}`
+      );
+    }
 
     const event = await inngest.send({
       name: 'workflow/triggered',
@@ -103,6 +142,9 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
         inputKeys: Object.keys(input || {}),
       },
     });
+
+    // Increment execution count after successful trigger
+    await incrementExecutionCount(userId, userRole);
 
     return {
       success: true,

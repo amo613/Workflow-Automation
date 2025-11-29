@@ -463,6 +463,16 @@ async function webhookRoutes(fastify) {
         },
       });
     } catch (error) {
+      // Check if error is due to monthly limit exceeded
+      if (error.message && error.message.includes('Monthly execution limit exceeded')) {
+        return reply.code(429).send({
+          success: false,
+          error: 'Monthly execution limit exceeded',
+          message: error.message,
+          code: 'MONTHLY_LIMIT_EXCEEDED',
+        });
+      }
+      
       logger.error('Error handling webhook', {
         error: error.message,
         stack: error.stack,
@@ -757,6 +767,16 @@ async function webhookRoutes(fastify) {
         },
       });
     } catch (error) {
+      // Check if error is due to monthly limit exceeded
+      if (error.message && error.message.includes('Monthly execution limit exceeded')) {
+        return reply.code(429).send({
+          success: false,
+          error: 'Monthly execution limit exceeded',
+          message: error.message,
+          code: 'MONTHLY_LIMIT_EXCEEDED',
+        });
+      }
+      
       logger.error('Error handling custom webhook path', {
         error: error.message,
         stack: error.stack,
