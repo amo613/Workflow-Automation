@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import logger from '#config/logger.js';
 import { decryptApiKey } from '#utils/encryption.utils.js';
+import { NODE_ENV } from '#config/env.js';
 
 /**
  * Create SMTP transporter from credentials
@@ -25,6 +26,10 @@ function createTransporter(credentials) {
         user: smtpUser,
         pass: smtpPassword,
       },
+      // Timeout settings to prevent hanging in production
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
     });
   }
 
@@ -37,6 +42,10 @@ function createTransporter(credentials) {
       user: smtpUser,
       pass: smtpPassword,
     },
+    // Timeout settings to prevent hanging in production
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000, // 10 seconds
+    socketTimeout: 10000, // 10 seconds
   };
 
   // Port 465 uses direct SSL (secure: true)
@@ -102,8 +111,26 @@ export async function sendEmail({
     // Create transporter
     const transporter = createTransporter(credentials);
 
-    // Verify connection
-    await transporter.verify();
+    // Verify connection only in development (can cause timeouts in production)
+    // In production, we skip verify() and let sendMail() handle connection errors
+    if (NODE_ENV === 'development') {
+      try {
+        await Promise.race([
+          transporter.verify(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('SMTP verification timeout')), 8000)
+          ),
+        ]);
+        logger.debug('SMTP connection verified', { to });
+      } catch (verifyError) {
+        // Log warning but continue - verification is not required for sending
+        logger.warn('SMTP verification failed, continuing anyway', {
+          error: verifyError.message,
+          to,
+        });
+        // Don't throw - we can still try to send the email
+      }
+    }
 
     // Prepare email options
     const mailOptions = {
