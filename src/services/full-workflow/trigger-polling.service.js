@@ -686,7 +686,22 @@ export async function getActiveTriggers(workflowId) {
       .where(eq(fullWorkflows.id, workflowId))
       .limit(1);
 
+    if (!workflow) {
+      logger.warn('Workflow not found when getting active triggers', {
+        workflowId,
+      });
+      return [];
+    }
+
     const workflowNodes = workflow?.workflow_json?.nodes || [];
+    
+    logger.info('Getting active triggers - workflow info', {
+      workflowId,
+      workflowIsActive: workflow.is_active,
+      nodesCount: workflowNodes.length,
+      nodeTypes: workflowNodes.map(n => n.type),
+      triggerNodeTypes: workflowNodes.filter(n => n.type?.includes('trigger')).map(n => n.type),
+    });
 
     // Get repeatable jobs (these are the scheduled repeating jobs)
     const repeatableJobs = await triggerPollingQueue.getRepeatableJobs();
@@ -978,11 +993,28 @@ export async function getActiveTriggers(workflowId) {
 
     // Filter out null values
     const validTriggers = triggersToProcess.filter(t => t !== null);
+    
+    logger.info('Triggers from BullMQ jobs', {
+      workflowId,
+      validTriggersCount: validTriggers.length,
+      validTriggers: validTriggers.map(t => ({
+        id: t.id,
+        type: t.triggerConfig?.type,
+        triggerNodeId: t.triggerNodeId,
+      })),
+    });
 
     // Also check for webhook-trigger nodes (passive triggers, not BullMQ jobs)
+    // These should ALWAYS be shown if the node exists, regardless of workflow active state
     const webhookTriggerNodes = workflowNodes.filter(
       node => node.type === 'webhook-trigger'
     );
+    
+    logger.info('Webhook trigger nodes found', {
+      workflowId,
+      count: webhookTriggerNodes.length,
+      nodeIds: webhookTriggerNodes.map(n => n.id),
+    });
 
     for (const webhookNode of webhookTriggerNodes) {
       // Get webhook URL from node data or generate it
@@ -1008,6 +1040,12 @@ export async function getActiveTriggers(workflowId) {
     const callTriggerNodes = workflowNodes.filter(
       node => node.type === 'call-trigger'
     );
+    
+    logger.info('Call trigger nodes found', {
+      workflowId,
+      count: callTriggerNodes.length,
+      nodeIds: callTriggerNodes.map(n => n.id),
+    });
 
     for (const callTriggerNode of callTriggerNodes) {
       // Get webhook URL for call trigger
@@ -1031,6 +1069,12 @@ export async function getActiveTriggers(workflowId) {
     const hubspotTriggerNodes = workflowNodes.filter(
       node => node.type === 'hubspot-trigger'
     );
+    
+    logger.info('HubSpot trigger nodes found', {
+      workflowId,
+      count: hubspotTriggerNodes.length,
+      nodeIds: hubspotTriggerNodes.map(n => n.id),
+    });
 
     for (const hubspotTriggerNode of hubspotTriggerNodes) {
       // Get webhook URL for HubSpot trigger
@@ -1061,7 +1105,11 @@ export async function getActiveTriggers(workflowId) {
       webhookTriggerCount: webhookTriggerNodes.length,
       callTriggerCount: callTriggerNodes.length,
       hubspotTriggerCount: hubspotTriggerNodes.length,
+      scheduledTriggerCount: validTriggers.filter(t => t.triggerConfig?.type === 'google-sheets-trigger' || t.triggerConfig?.type === 'schedule-trigger').length,
       source: workflowJobs.length > 0 ? 'direct_queue' : 'repeatable_jobs',
+      workflowNodesCount: workflowNodes.length,
+      workflowIsActive: workflow?.is_active,
+      allTriggerNodeTypes: workflowNodes.filter(n => n.type?.includes('trigger')).map(n => n.type),
     });
 
     return validTriggers;

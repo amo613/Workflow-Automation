@@ -512,24 +512,33 @@ export function useFullWorkflowEditorLogic() {
       }
 
       const result = await response.json();
+      
+      // Set saving to false IMMEDIATELY after successful save
+      setSaving(false);
+      
       if (isNew) {
         navigate(`/fullWorkflows/edit/${result.data.id}`);
       } else {
         setGeneralError(null);
-        await fetchActiveTriggers();
-        await fetchStatistics();
-        await fetchExecutionHistory();
-        await fetchPerformance();
+        // Fetch updates in background - don't block UI
+        Promise.all([
+          fetchActiveTriggers(),
+          fetchStatistics(),
+          fetchExecutionHistory(),
+          fetchPerformance(),
+        ]).catch(err => {
+          console.warn('Error fetching workflow updates after save:', err);
+          // Don't show error to user - save was successful
+        });
       }
     } catch (err) {
       const errorMessage = err.message || 'Failed to save workflow';
       setGeneralError(errorMessage);
       console.error('Error saving workflow:', err);
+      setSaving(false); // Set to false on error too
       setTimeout(() => {
         alert('Failed to save workflow: ' + errorMessage);
       }, 100);
-    } finally {
-      setSaving(false);
     }
   }, [
     description,
