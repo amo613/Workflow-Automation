@@ -16,6 +16,7 @@ import { executeHubspotTrigger } from './hubspot-trigger.handler.js';
 import { executeKnowledgeBaseQuery } from './knowledge-base-query.handler.js';
 import { executeAiAgent } from './ai-agent.handler.js';
 import { executeEmail } from './email.handler.js';
+import { executeGmail } from './gmail.handler.js';
 import { executeScheduleTrigger } from './schedule-trigger.handler.js';
 import { executeCallTrigger } from './call-trigger.handler.js';
 import { executeMerge } from './merge.handler.js';
@@ -102,6 +103,9 @@ export async function executeNode(node, templateContext, variableContext) {
 
     case 'email':
       return executeEmail(node, templateContext);
+
+    case 'gmail':
+      return executeGmail(node, templateContext);
 
     case 'schedule-trigger':
       return executeScheduleTrigger(data, templateContext);

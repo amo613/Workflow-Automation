@@ -9,6 +9,7 @@ import TestingTab from './sidebar/TestingTab.jsx';
 import { nodeExecutionService } from '../../services/nodeExecution.service.js';
 import { googleSheetsService } from '../../services/googleSheets.service.js';
 import { useHubspot } from '../../hooks/useHubspot.js';
+import { useGmail } from '../../hooks/useGmail.js';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 import { getMinimalInputData } from '../../utils/variableExtraction.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -75,6 +76,9 @@ export default function NodeSidebarN8N({
   const hubspot = useHubspot(
     selectedNode?.type === 'hubspot' || selectedNode?.type === 'hubspot-trigger'
   );
+
+  // Gmail integration hook (for gmail nodes)
+  const gmail = useGmail(selectedNode?.type === 'gmail');
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -435,6 +439,9 @@ export default function NodeSidebarN8N({
                   knowledgeBaseEntries={knowledgeBaseEntries}
                   onGoogleSheetsAuth={handleGoogleSheetsAuth}
                   onGoogleSheetsDisconnect={handleGoogleSheetsDisconnect}
+                  gmail={gmail}
+                  onGmailAuth={handleGmailAuth}
+                  onGmailDisconnect={handleGmailDisconnect}
                   hubspot={hubspot}
                   onHubspotAuth={handleHubspotAuth}
                   onHubspotDisconnect={handleHubspotDisconnect}

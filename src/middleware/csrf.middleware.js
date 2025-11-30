@@ -71,7 +71,10 @@ export const csrfProtection = (req, res, next) => {
   }
 
   // PRIORITY 4: Skip CSRF for OAuth Callbacks (use state parameter)
-  if (req.path.includes('/integrations/google-calendar/callback')) {
+  if (
+    req.path.includes('/integrations/google-calendar/callback') ||
+    req.path.includes('/integrations/gmail/callback')
+  ) {
     return next();
   }
 

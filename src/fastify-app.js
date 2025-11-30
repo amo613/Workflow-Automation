@@ -25,6 +25,7 @@ import { jobsRoutesFastify } from '#routes/jobs.routes.js';
 import { openaiTestRoutesFastify } from '#routes/openai-test.routes.js';
 import { googleCalendarRoutesFastify } from '#routes/google-calendar.routes.js';
 import { googleSheetsRoutesFastify } from '#routes/google-sheets.routes.js';
+import { gmailRoutesFastify } from '#routes/gmail.routes.js';
 import { hubspotRoutesFastify } from '#routes/hubspot.routes.js';
 import knowledgeBaseRoutes from '#routes/knowledge-base.routes.js';
 import fullWorkflowRoutes from '#routes/full-workflow.routes.js';
@@ -297,6 +298,11 @@ fastify.register(googleCalendarRoutesFastify, {
 // Register google-sheets routes without CSRF protection, TODO: fix later
 fastify.register(googleSheetsRoutesFastify, {
   prefix: '/api/integrations/google-sheets',
+});
+
+// Register gmail routes without CSRF protection
+fastify.register(gmailRoutesFastify, {
+  prefix: '/api/integrations/gmail',
 });
 
 // Register hubspot routes without CSRF protection

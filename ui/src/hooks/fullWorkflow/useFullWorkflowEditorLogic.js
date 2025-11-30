@@ -235,6 +235,24 @@ export function useFullWorkflowEditorLogic() {
       setSearchParams(newParams);
       alert(`Google Sheets connection failed: ${error || 'Unknown error'}`);
     }
+
+    const gmailParam = searchParams.get('gmail');
+    if (gmailParam === 'connected') {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('gmail');
+      setSearchParams(newParams);
+      alert('Gmail connected successfully!');
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } else if (gmailParam === 'error') {
+      const error = searchParams.get('error');
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('gmail');
+      newParams.delete('error');
+      setSearchParams(newParams);
+      alert(`Gmail connection failed: ${error || 'Unknown error'}`);
+    }
   }, [fetchWorkflow, isNew, searchParams, setEdges, setNodes, setSearchParams]);
 
   useEffect(() => {

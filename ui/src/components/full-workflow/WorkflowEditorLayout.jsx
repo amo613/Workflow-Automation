@@ -27,6 +27,7 @@ import ScheduleTriggerNode from './nodes/ScheduleTriggerNode';
 import KnowledgeBaseQueryNode from './nodes/KnowledgeBaseQueryNode';
 import AiAgentNode from './nodes/AiAgentNode';
 import EmailNode from './nodes/EmailNode';
+import GmailNode from './nodes/GmailNode';
 import MergeNode from './nodes/MergeNode';
 import WebScraperNode from './nodes/WebScraperNode';
 import HubspotNode from './nodes/HubspotNode';
@@ -91,6 +92,7 @@ const nodeTypes = {
   'knowledge-base-query': KnowledgeBaseQueryNode,
   'ai-agent': AiAgentNode,
   email: EmailNode,
+  gmail: GmailNode,
   merge: MergeNode,
   'web-scraper': WebScraperNode,
   hubspot: HubspotNode,

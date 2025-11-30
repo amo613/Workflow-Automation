@@ -41,6 +41,7 @@ const requestHandler = (req, res) => {
     pathname.startsWith('/api/test-openai') ||
     pathname.startsWith('/api/integrations/google-calendar') ||
     pathname.startsWith('/api/integrations/google-sheets') ||
+    pathname.startsWith('/api/integrations/gmail') ||
     pathname.startsWith('/api/integrations/hubspot') ||
     pathname.startsWith('/api/inngest') ||
     pathname.startsWith('/api/webhooks') ||

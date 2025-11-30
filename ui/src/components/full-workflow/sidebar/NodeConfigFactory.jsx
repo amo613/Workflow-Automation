@@ -19,6 +19,7 @@ import WebhookTriggerConfig from './configs/WebhookTriggerConfig.jsx';
 import KnowledgeBaseQueryConfig from './configs/KnowledgeBaseQueryConfig.jsx';
 import AiAgentConfig from './configs/AiAgentConfig.jsx';
 import EmailConfig from './configs/EmailConfig.jsx';
+import GmailConfig from './configs/GmailConfig.jsx';
 import ScheduleTriggerConfig from './configs/ScheduleTriggerConfig.jsx';
 import MergeConfig from './configs/MergeConfig.jsx';
 import StartConfig from './configs/StartConfig.jsx';
@@ -42,6 +43,7 @@ const configMap = {
   'knowledge-base-query': KnowledgeBaseQueryConfig,
   'ai-agent': AiAgentConfig,
   email: EmailConfig,
+  gmail: GmailConfig,
   'schedule-trigger': ScheduleTriggerConfig,
   merge: MergeConfig,
   start: StartConfig,

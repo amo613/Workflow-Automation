@@ -22,7 +22,7 @@ export class GoogleOAuthService {
 
   /**
    * Get redirect URI for a specific integration type
-   * @param {string} integrationType - 'GOOGLE_CALENDAR' or 'GOOGLE_SHEETS'
+   * @param {string} integrationType - 'GOOGLE_CALENDAR', 'GOOGLE_SHEETS', or 'GOOGLE_GMAIL'
    * @returns {string} Full redirect URI
    */
   getRedirectUri(integrationType = 'GOOGLE_CALENDAR') {
@@ -32,10 +32,15 @@ export class GoogleOAuthService {
     }
 
     // Otherwise, append the appropriate callback path
-    const callbackPath =
-      integrationType === 'GOOGLE_SHEETS'
-        ? '/api/integrations/google-sheets/callback'
-        : '/api/integrations/google-calendar/callback';
+    let callbackPath;
+    if (integrationType === 'GOOGLE_SHEETS') {
+      callbackPath = '/api/integrations/google-sheets/callback';
+    } else if (integrationType === 'GOOGLE_GMAIL') {
+      callbackPath = '/api/integrations/gmail/callback';
+    } else {
+      // Default: Google Calendar
+      callbackPath = '/api/integrations/google-calendar/callback';
+    }
 
     return `${this.baseRedirectUri}${callbackPath}`;
   }
@@ -44,7 +49,7 @@ export class GoogleOAuthService {
    * Generiere OAuth URL für Browser
    * @param {number} userId - User ID for state parameter
    * @param {string} state - Additional state data
-   * @param {string} integrationType - Integration type ('GOOGLE_CALENDAR' or 'GOOGLE_SHEETS')
+   * @param {string} integrationType - Integration type ('GOOGLE_CALENDAR', 'GOOGLE_SHEETS', or 'GOOGLE_GMAIL')
    * @returns {string} OAuth authorization URL
    */
   getAuthUrl(userId, state = {}, integrationType = 'GOOGLE_CALENDAR') {
@@ -66,6 +71,10 @@ export class GoogleOAuthService {
       scopes = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive.readonly', // For listing spreadsheets
+      ];
+    } else if (integrationType === 'GOOGLE_GMAIL') {
+      scopes = [
+        'https://www.googleapis.com/auth/gmail.send', // Send emails
       ];
     } else {
       // Default: Google Calendar

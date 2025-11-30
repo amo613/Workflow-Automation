@@ -26,6 +26,9 @@ export default function SettingsTab({
   knowledgeBaseEntries,
   onGoogleSheetsAuth,
   onGoogleSheetsDisconnect,
+  gmail,
+  onGmailAuth,
+  onGmailDisconnect,
 }) {
   if (nodeType === 'google-sheets' || nodeType === 'google-sheets-trigger') {
     return (
@@ -572,6 +575,111 @@ export default function SettingsTab({
           )}
         </div>
       </>
+    );
+  }
+
+  if (nodeType === 'gmail') {
+    return (
+      <div>
+        {/* Gmail OAuth Configuration */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'white',
+              marginBottom: '1rem',
+            }}
+          >
+            Gmail Connection
+          </div>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: '#94a3b8',
+              marginBottom: '1rem',
+            }}
+          >
+            Connect your Gmail account to send emails via Gmail API. This uses
+            OAuth2 authentication and works even when SMTP is blocked.
+          </div>
+          {gmail?.status?.connected ? (
+            <div
+              style={{
+                padding: '1rem',
+                background: '#2a2a2a',
+                borderRadius: '8px',
+                border: '1px solid #10b981',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <span style={{ color: '#10b981', fontSize: '1.25rem' }}>✓</span>
+                <span
+                  style={{
+                    color: '#10b981',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Connected
+                </span>
+              </div>
+              {gmail.status.email && (
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#94a3b8',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  Account: {gmail.status.email}
+                </div>
+              )}
+              <button
+                onClick={onGmailDisconnect}
+                style={{
+                  background: '#ef4444',
+                  border: 'none',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                }}
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onGmailAuth}
+              style={{
+                background: '#ea4335',
+                border: 'none',
+                color: 'white',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>📧</span>
+              <span>Connect Gmail Account</span>
+            </button>
+          )}
+        </div>
+      </div>
     );
   }
 
