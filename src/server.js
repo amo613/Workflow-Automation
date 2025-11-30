@@ -6,9 +6,8 @@ import { configDotenv } from 'dotenv';
 import logger from '#config/logger.js';
 import { initOpenAIWebSocketServer } from './server/openai-websocket.server.js';
 import { initTwilioOpenAIProxyServer } from './server/twilio-openai-proxy.server.js';
-import ngrok from '@ngrok/ngrok';
-import { NGROK_AUTH_TOKEN } from '#config/env.js';
-import { setNgrokUrl } from '#utils/ngrok.service.js';
+import { NODE_ENV, NGROK_AUTH_TOKEN } from '#config/env.js';
+import { setPublicUrl } from '#utils/public-url.service.js';
 configDotenv({ quiet: true });
 
 const PORT = process.env.PORT || 3001;
@@ -202,26 +201,48 @@ server.on('upgrade', (request, socket, head) => {
       );
       logger.info(`   - All other routes → Express`);
 
-      // Start ngrok tunnel
-      (async () => {
-        try {
-          const ngrokAuthToken = NGROK_AUTH_TOKEN;
+      // Set public URL from environment variable (for production/Railway)
+      const publicUrl = process.env.PUBLIC_URL || process.env.FRONTEND_URL;
+      if (publicUrl) {
+        setPublicUrl(publicUrl);
+        logger.info(`✅ Public URL set from environment: ${publicUrl}`);
+      }
 
-          const listener = await ngrok.connect({
-            addr: PORT,
-            authtoken: ngrokAuthToken,
-          });
+      // Start ngrok tunnel only in development
+      if (NODE_ENV === 'development' && NGROK_AUTH_TOKEN) {
+        (async () => {
+          try {
+            // Dynamic import only in development
+            const ngrok = (await import('@ngrok/ngrok')).default;
+            
+            const listener = await ngrok.connect({
+              addr: PORT,
+              authtoken: NGROK_AUTH_TOKEN,
+            });
 
-          const ngrokPublicUrl = listener.url();
-          setNgrokUrl(ngrokPublicUrl);
+            const ngrokPublicUrl = listener.url();
+            setPublicUrl(ngrokPublicUrl);
 
-          logger.info(`✅ ngrok tunnel established at: ${ngrokPublicUrl}`);
-          logger.info(`🌐 Public URL: ${ngrokPublicUrl}`);
-        } catch (error) {
-          logger.error(`❌ Failed to start ngrok: ${error.message}`);
-          console.error('ngrok error:', error);
-        }
-      })();
+            logger.info(`✅ ngrok tunnel established at: ${ngrokPublicUrl}`);
+            logger.info(`🌐 Public URL: ${ngrokPublicUrl}`);
+          } catch (error) {
+            logger.error(`❌ Failed to start ngrok: ${error.message}`);
+            console.error('ngrok error:', error);
+            // Fallback to PUBLIC_URL if ngrok fails
+            if (publicUrl) {
+              logger.info(`🌐 Using PUBLIC_URL as fallback: ${publicUrl}`);
+            } else {
+              logger.warn(
+                '⚠️ ngrok failed and no PUBLIC_URL set. Webhooks may not work.'
+              );
+            }
+          }
+        })();
+      } else if (NODE_ENV === 'development' && !NGROK_AUTH_TOKEN) {
+        logger.warn(
+          '⚠️ Development mode but ngrok not configured. Set NGROK_AUTH_TOKEN or PUBLIC_URL for webhooks.'
+        );
+      }
     });
   } catch (error) {
     logger.error('❌ Failed to initialize server:', error);

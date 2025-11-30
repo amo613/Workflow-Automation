@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import logger from '#config/logger.js';
 import { OPENAI_API_KEY } from '#config/env.js';
-import { getCallFrom } from '#utils/ngrok.service.js';
+import { getCallFrom } from '#utils/public-url.service.js';
 import { loadToolsForUser } from '#utils/openai-tools.utils.js';
 import { getActiveWorkflow } from '#services/workflow.service.js';
 import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';

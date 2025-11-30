@@ -1,7 +1,7 @@
 import logger from '#config/logger.js';
 import openAIRealtimeConfigService from '#services/openai-realtime-config.service.js';
 import { createJob } from '#services/jobs.service.js';
-import { getNgrokUrl, storeCallFrom } from '#utils/ngrok.service.js';
+import { getPublicUrl, storeCallFrom } from '#utils/public-url.service.js';
 import { getActiveWorkflow } from '#services/workflow.service.js';
 import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 
@@ -139,25 +139,25 @@ export const twilioWebhook = async (req, res) => {
       return sendTwiMLError('Missing CallSid', 400);
     }
 
-    // Get ngrok URL for WebSocket endpoint
-    const ngrokUrl = getNgrokUrl();
-    if (!ngrokUrl) {
+    // Get public URL for WebSocket endpoint
+    const publicUrl = getPublicUrl();
+    if (!publicUrl) {
       logger.error(
-        'Ngrok URL not available, cannot establish proxy connection'
+        'Public URL not available, cannot establish proxy connection'
       );
       return sendTwiMLError('Service temporarily unavailable', 503);
     }
 
     // Convert HTTP(S) URL to WebSocket URL
-    const wsProtocol = ngrokUrl.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = ngrokUrl.replace(/^https?:\/\//, '');
+    const wsProtocol = publicUrl.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = publicUrl.replace(/^https?:\/\//, '');
     // Only include callSid in URL, config goes in <Parameter> tag if needed
     const wsFullUrl = `${wsProtocol}://${wsHost}/ws/openai/call?callSid=${CallSid}`;
 
     logger.info(`Twilio webhook called for call: ${CallSid}`, {
       hasConfig: !!configParam,
       wsUrl: wsFullUrl,
-      ngrokUrl,
+      publicUrl,
       requestHeaders: {
         'user-agent': req.headers['user-agent'],
         'x-forwarded-for': req.headers['x-forwarded-for'],

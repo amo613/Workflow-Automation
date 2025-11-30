@@ -40,8 +40,11 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    # Note: deploy.replicas only works with Docker Swarm
+    # For regular docker-compose, use: docker compose up --scale app=3
+    # deploy:
+    #   replicas: 3
     deploy:
-      replicas: 3  # Run 3 instances for horizontal scaling
       resources:
         limits:
           memory: 2G

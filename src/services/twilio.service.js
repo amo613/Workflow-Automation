@@ -6,7 +6,7 @@ import {
   TWILIO_WEBHOOK_URL,
 } from '#config/env.js';
 import logger from '#config/logger.js';
-import { getNgrokUrl, buildWebhookUrl } from '#utils/ngrok.service.js';
+import { getPublicUrl, buildWebhookUrl } from '#utils/public-url.service.js';
 
 /**
  * Twilio Service
@@ -97,14 +97,14 @@ class TwilioService {
       // The proxy server will handle the connection to OpenAI
       let webhookUrl = null;
 
-      // Get ngrok URL for our proxy webhook
-      const ngrokUrl = getNgrokUrl();
-      if (!ngrokUrl) {
-        logger.error('Ngrok URL not available, cannot make Twilio call');
+      // Get public URL for our proxy webhook
+      const publicUrl = getPublicUrl();
+      if (!publicUrl) {
+        logger.error('Public URL not available, cannot make Twilio call');
         return {
           success: false,
           error:
-            'Ngrok tunnel not established. Please wait for ngrok to initialize.',
+            'Public URL not configured. Please set PUBLIC_URL environment variable.',
         };
       }
 
@@ -131,11 +131,11 @@ class TwilioService {
 
       // CRITICAL: Validate webhookUrl before making the call
       if (!webhookUrl) {
-        logger.error('Webhook URL is null - ngrok might not be initialized');
+        logger.error('Webhook URL is null - PUBLIC_URL might not be set');
         return {
           success: false,
           error:
-            'Webhook URL not available. Please ensure ngrok tunnel is established.',
+            'Webhook URL not available. Please ensure PUBLIC_URL environment variable is set.',
         };
       }
 

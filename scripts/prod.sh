@@ -24,14 +24,19 @@ echo "   - Running in optimized production mode"
 echo ""
 
 # Start production environment
-docker compose -f docker-compose.prod.yml up --build -d
+# Use --scale app=3 for horizontal scaling (3 instances)
+docker compose -f docker-compose.prod.yml up --build -d --scale app=3
 
-# Wait for DB to be ready (basic health check)
+# Wait for containers to be ready
 echo "⏳ Waiting for containers to be ready..."
-sleep 5
+sleep 10
 
-# Migration runs automatically via server.js on app startup
-echo "📜 Migration will run automatically on app startup if needed..."
+# Run migrations explicitly (like in dev.sh)
+echo "📜 Generating database migrations..."
+docker compose -f docker-compose.prod.yml exec -T app npm run db:generate || echo "⚠️ Migration generation skipped (may already be up to date)"
+
+echo "📜 Applying latest schema with Drizzle..."
+docker compose -f docker-compose.prod.yml exec -T app npm run db:migrate || echo "⚠️ Migration skipped (may already be applied)"
 
 echo ""
 echo "🎉 Production environment started!"

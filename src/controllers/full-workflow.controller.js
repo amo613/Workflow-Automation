@@ -27,7 +27,7 @@ import {
 import { createWorkflowVersion } from '#services/workflow-version.service.js';
 import { memoryCache } from '#config/cache.js';
 import { getUserTwilioCredentials } from '#services/twilio-credentials.service.js';
-import { getNgrokUrl, storeCallFrom } from '#utils/ngrok.service.js';
+import { getPublicUrl, storeCallFrom } from '#utils/public-url.service.js';
 import { compileWorkflowToPrompt } from '#utils/workflow-compiler.utils.js';
 import { getWorkflow } from '#services/workflow.service.js';
 import { db } from '#config/database.js';
@@ -1623,11 +1623,11 @@ ${knowledgeBaseText}`;
       userId,
     };
 
-    // 7. Get ngrok URL for WebSocket endpoint
-    const ngrokUrl = getNgrokUrl();
-    if (!ngrokUrl) {
+    // 7. Get public URL for WebSocket endpoint
+    const publicUrl = getPublicUrl();
+    if (!publicUrl) {
       logger.error(
-        'Ngrok URL not available, cannot establish proxy connection'
+        'Public URL not available, cannot establish proxy connection'
       );
       return reply
         .status(503)
@@ -1643,8 +1643,8 @@ ${knowledgeBaseText}`;
     }
 
     // Convert HTTP(S) URL to WebSocket URL
-    const wsProtocol = ngrokUrl.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = ngrokUrl.replace(/^https?:\/\//, '');
+    const wsProtocol = publicUrl.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = publicUrl.replace(/^https?:\/\//, '');
     const wsFullUrl = `${wsProtocol}://${wsHost}/ws/openai/call?callSid=${CallSid}`;
 
     // Encode config as base64
