@@ -140,6 +140,45 @@ export default function NodeSidebarN8N({
     }
   };
 
+  // Handle Gmail authentication
+  const handleGmailAuth = async () => {
+    try {
+      const response = await fetchWithCSRF('/api/integrations/gmail/auth', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: 'Failed to initiate auth' }));
+        throw new Error(errorData.error || 'Failed to initiate auth');
+      }
+      const data = await response.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        throw new Error('No auth URL received');
+      }
+    } catch (error) {
+      console.error('Error initiating Gmail auth:', error);
+      toast.error(
+        `Failed to initiate Gmail authentication: ${error.message || 'Unknown error'}`
+      );
+    }
+  };
+
+  // Handle Gmail disconnect
+  const handleGmailDisconnect = async () => {
+    try {
+      await gmail.disconnect();
+      gmail.fetchStatus();
+      toast.success('Gmail disconnected successfully');
+    } catch (error) {
+      console.error('Error disconnecting Gmail:', error);
+      toast.error('Failed to disconnect Gmail: ' + error.message);
+    }
+  };
+
   // Handle HubSpot authentication
   const handleHubspotAuth = async () => {
     try {

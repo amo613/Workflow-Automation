@@ -2186,6 +2186,13 @@ function WorkflowEditorLayoutInner({
               <span>Email</span>
             </button>
             <button
+              onClick={() => addNode('gmail')}
+              style={nodePaletteButtonStyle}
+            >
+              <Mail className="w-4 h-4" style={{ color: '#ea4335' }} />
+              <span>Gmail</span>
+            </button>
+            <button
               onClick={() => addNode('web-scraper')}
               style={nodePaletteButtonStyle}
             >
