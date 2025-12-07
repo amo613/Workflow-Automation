@@ -771,17 +771,27 @@ export async function triggerWorkflowHandler(req, reply) {
     memoryCache.set(dedupeKey, lockPlaceholder, 3);
 
     try {
-      const workflow = await getFullWorkflow(workflowId, userId);
+      // Optimized: Only fetch is_active instead of entire workflow object
+      const [workflowStatus] = await db
+        .select({ is_active: fullWorkflows.is_active })
+        .from(fullWorkflows)
+        .where(and(
+          eq(fullWorkflows.id, workflowId),
+          eq(fullWorkflows.user_id, userId)
+        ))
+        .limit(1);
 
-      if (!workflow.is_active) {
+      if (!workflowStatus || !workflowStatus.is_active) {
         memoryCache.del(dedupeKey);
         return reply.code(400).send({
           success: false,
-          error: 'Workflow is not active',
+          error: 'Workflow not found or not active',
         });
       }
 
-      const result = await triggerWorkflow(workflowId, userId, input);
+      // Optimized: Pass userRole directly from JWT token instead of querying DB
+      const userRole = req.user.role || 'user';
+      const result = await triggerWorkflow(workflowId, userId, input, userRole);
 
       // Update lock with actual eventId
       memoryCache.set(

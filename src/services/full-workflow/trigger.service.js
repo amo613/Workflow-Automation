@@ -17,38 +17,20 @@ import {
  * @param {number} workflowId - Workflow ID
  * @param {number} userId - User ID
  * @param {Object} input - Workflow input data
+ * @param {string} userRole - User role (from JWT token, no DB query needed)
  * @returns {Promise<Object>} - Event ID from Inngest
  */
-export async function triggerWorkflow(workflowId, userId, input = {}) {
+export async function triggerWorkflow(workflowId, userId, input = {}, userRole = 'user') {
   try {
     logger.info('Triggering workflow via Inngest', {
       workflowId,
       userId,
       hasInput: !!input,
+      userRole,
     });
 
     // Check monthly execution limit (central check for all workflow executions)
-    // Get user role from database
-    let userRole = 'user';
-    try {
-      const { db } = await import('#config/database.js');
-      const { users } = await import('#models/user.model.js');
-      const { eq } = await import('drizzle-orm');
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-      if (user?.role) {
-        userRole = user.role;
-      }
-    } catch (error) {
-      logger.warn('Could not fetch user role for execution limit check', {
-        userId,
-        error: error.message,
-      });
-    }
-
+    // userRole is passed from controller (from JWT token), no DB query needed
     const limitCheck = await checkMonthlyExecutionLimit(userId, userRole);
     if (!limitCheck.allowed) {
       logger.warn('Monthly execution limit exceeded', {
@@ -143,8 +125,13 @@ export async function triggerWorkflow(workflowId, userId, input = {}) {
       },
     });
 
-    // Increment execution count after successful trigger
-    await incrementExecutionCount(userId, userRole);
+    // Increment execution count after successful trigger (async, don't await)
+    incrementExecutionCount(userId, userRole).catch(err => {
+      logger.warn('Failed to increment execution count', {
+        userId,
+        error: err.message,
+      });
+    });
 
     return {
       success: true,
