@@ -32,7 +32,8 @@
     "prod:docker": "sh ./scripts/prod.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "ui:build": "cd ui && npm install && npm run build",
-    "ui:dev": "cd ui && npm run dev"
+    "ui:dev": "cd ui && npm run dev",
+    "load-test": "node scripts/load-test.js"
   },
   "repository": {
     "type": "git",
@@ -59,6 +60,7 @@
     "@fastify/static": "^6.12.0",
     "@neondatabase/serverless": "^1.0.2",
     "@ngrok/ngrok": "^1.5.2",
+    "apminsight": "^5.3.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.8.0",
     "cookie-parser": "^1.4.7",
@@ -74,18 +76,18 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "node-cache": "^5.1.2",
+    "node-html-parser": "^6.1.0",
     "nodemailer": "^7.0.10",
     "openai": "^6.8.1",
     "pg": "^8.16.3",
+    "puppeteer": "^21.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "redis": "^4.6.12",
     "twilio": "^5.10.4",
     "winston": "^3.18.3",
     "ws": "^8.18.3",
-    "zod": "^4.1.12",
-    "puppeteer": "^21.0.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "node-html-parser": "^6.1.0"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",
