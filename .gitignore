@@ -13,4 +13,9 @@ build/
 # Ignore coverage
 coverage/
 
+# Site24x7 APM Insight runtime data
+apminsightdata/
+
+# Ignore apminsightnode.json
+apminsightnode.json
 

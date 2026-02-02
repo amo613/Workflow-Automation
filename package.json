@@ -16,8 +16,8 @@
     "#tools/*": "./src/tools/*"
   },
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
+    "dev": "node -r ./apm-require.cjs --watch src/index.js",
+    "start": "node -r ./apm-require.cjs src/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
