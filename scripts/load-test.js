@@ -5,7 +5,7 @@
  * Usage: npm run load-test
  * Env:   BASE_URL, LOAD_TEST_EMAIL, LOAD_TEST_PASSWORD (optional, see defaults)
  */
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const BASE_URL="https://app-production-58ae.up.railway.app";
 const EMAIL = process.env.LOAD_TEST_EMAIL || 'john@gmail.com';
 const PASSWORD = process.env.LOAD_TEST_PASSWORD || '123456';
 const WORKFLOW_ID = parseInt(process.env.LOAD_TEST_WORKFLOW_ID || '1', 10);

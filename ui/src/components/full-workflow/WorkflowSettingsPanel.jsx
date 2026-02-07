@@ -10,10 +10,38 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Bot, Shield, Zap, BarChart3, Play, Info } from 'lucide-react';
+
+const AGENT_TYPES = [
+  {
+    id: 'monitoring',
+    name: 'Monitoring',
+    icon: BarChart3,
+    description: 'Analysiert Ausführungsstatistiken und Fehler, schlägt Verbesserungen vor.',
+  },
+  {
+    id: 'optimization',
+    name: 'Optimization',
+    icon: Zap,
+    description: 'Prüft Workflow und Goal, schlägt oder wendet Optimierungen an (Nodes, Ablauf).',
+  },
+  {
+    id: 'security',
+    name: 'Security',
+    icon: Shield,
+    description: 'Prüft Struktur, Trigger und externe Aufrufe auf Sicherheitsrisiken.',
+  },
+  {
+    id: 'execution',
+    name: 'Execution',
+    icon: Play,
+    description: 'Prüft, ob der Workflow ausführbar ist (fehlende Konfiguration, ungültige Verbindungen).',
+  },
+];
 
 /**
- * Workflow / Agent settings panel: enable agents, goal definition, link to agent chat.
+ * Workflow / Agent settings: enable agents, goal definition, link to chat.
+ * Redesigned with clear info and better UX.
  */
 export default function WorkflowSettingsPanel({
   open,
@@ -86,87 +114,124 @@ export default function WorkflowSettingsPanel({
 
   return (
     <Dialog open={open} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Workflow-Einstellungen</DialogTitle>
-          <DialogDescription>
-            Agents und Goal Definition für diesen Workflow. Aktivierte Agents analysieren und
-            optimieren den Workflow.
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Bot className="w-5 h-5 text-primary" />
+            Workflow-Agents & Goal
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Agents analysieren und optimieren deinen Workflow automatisch. Definiere ein Goal, damit
+            sie gezielt vorgehen können. Du kannst jederzeit mit dem Agenten chatten (Fragen,
+            Erklärungen, Optimierungen).
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          <div className="flex items-center justify-between space-x-2">
-            <Label htmlFor="agents-enabled" className="flex-1">
-              Agents aktivieren
-            </Label>
-            <Switch
-              id="agents-enabled"
-              checked={agentsEnabled}
-              onCheckedChange={setAgentsEnabled}
-            />
+          {/* Enable toggle */}
+          <div className="rounded-xl border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="agents-enabled" className="text-base font-semibold">
+                Agents aktivieren
+              </Label>
+              <Switch
+                id="agents-enabled"
+                checked={agentsEnabled}
+                onCheckedChange={setAgentsEnabled}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Wenn aktiv, laufen nach dem Speichern des Workflows Monitoring-, Optimierungs-,
+              Security- und Execution-Checks. Alle Aktionen werden dokumentiert (Explainable AI).
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm">
-            Wenn aktiviert, laufen Monitoring-, Optimierungs-, Security- und Execution-Agents
-            (z. B. nach dem Speichern).
-          </p>
 
-          <div className="space-y-2">
-            <Label>Goal Definition</Label>
-            <div className="space-y-2">
+          {/* Agent types info */}
+          <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Info className="w-4 h-4" />
+              Was die Agents tun
+            </div>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {AGENT_TYPES.map(({ id, name, icon: Icon, description }) => (
+                <li
+                  key={id}
+                  className="flex gap-2 rounded-lg border bg-background p-3 text-sm"
+                >
+                  <Icon className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
+                  <div>
+                    <span className="font-medium text-foreground">{name}</span>
+                    <p className="text-muted-foreground mt-0.5">{description}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Goal definition */}
+          <div className="rounded-xl border bg-card p-4 space-y-4">
+            <Label className="text-base font-semibold">Goal Definition</Label>
+            <p className="text-sm text-muted-foreground">
+              Je klarer das Ziel beschrieben ist, desto gezielter können die Agents optimieren und
+              antworten.
+            </p>
+            <div className="space-y-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Zusammenfassung / Ziel</Label>
                 <Textarea
-                  placeholder="Kurze Beschreibung des Workflow-Ziels"
+                  placeholder="z. B. E-Mail-Benachrichtigungen bei neuen HubSpot-Deals, max. 3 Schritte"
                   value={goalSummary}
                   onChange={e => setGoalSummary(e.target.value)}
-                  className="mt-1 min-h-[60px]"
-                  rows={2}
+                  className="mt-1 min-h-[72px] resize-none"
+                  rows={3}
                 />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Einschränkungen (eine pro Zeile)</Label>
                 <Textarea
-                  placeholder="z. B. Nur interne APIs, max. 5 Nodes"
+                  placeholder="z. B. Nur interne APIs\nMax. 5 Nodes"
                   value={goalConstraints}
                   onChange={e => setGoalConstraints(e.target.value)}
-                  className="mt-1 min-h-[50px]"
+                  className="mt-1 min-h-[56px] resize-none"
                   rows={2}
                 />
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground">Erfolgskriterien</Label>
                 <Textarea
-                  placeholder="Wann gilt der Workflow als erfolgreich?"
+                  placeholder="z. B. E-Mail wird innerhalb von 1 Min. nach Deal-Erstellung versendet"
                   value={goalSuccessCriteria}
                   onChange={e => setGoalSuccessCriteria(e.target.value)}
-                  className="mt-1 min-h-[50px]"
+                  className="mt-1 min-h-[56px] resize-none"
                   rows={2}
                 />
               </div>
             </div>
           </div>
 
+          {/* Chat CTA */}
           {onOpenAgentChat && (
-            <div className="flex items-center gap-2 rounded-lg border p-3">
-              <MessageCircle className="h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">Mit Agent chatten</p>
-                <p className="text-xs text-muted-foreground">
-                  Fragen stellen, Optimierungen anfragen, Nodes erklären lassen
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <MessageCircle className="w-10 h-10 shrink-0 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground">Mit dem Agenten chatten</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Stelle Fragen zum Workflow, lass Nodes erklären oder bitte um Optimierungsvorschläge.
+                  Der Agent kennt dein Goal und die Workflow-Struktur.
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={handleOpenChat}>
+              <Button onClick={handleOpenChat} className="shrink-0 gap-2" size="lg">
+                <MessageCircle className="w-4 h-4" />
                 Chat öffnen
               </Button>
             </div>
           )}
 
           {error && (
-            <p className="text-destructive text-sm">{error}</p>
+            <p className="text-destructive text-sm font-medium">{error}</p>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>
               Abbrechen
             </Button>

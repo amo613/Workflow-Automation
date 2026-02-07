@@ -72,6 +72,7 @@ import {
   LayoutGrid,
   Search,
   Building2,
+  MessageCircle,
 } from 'lucide-react';
 import { computePyramidLayout } from '@/utils/layout/pyramidLayout';
 
@@ -419,6 +420,33 @@ function WorkflowEditorLayoutInner({
             justifyContent: 'flex-end',
           }}
         >
+          {!isNew && (
+            <button
+              onClick={() => setShowWorkflowSettings(true)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: agentsEnabled
+                  ? 'hsl(var(--primary))'
+                  : 'hsl(var(--secondary))',
+                color: agentsEnabled
+                  ? 'hsl(var(--primary-foreground))'
+                  : 'hsl(var(--secondary-foreground))',
+                border: `1px solid ${agentsEnabled ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.2s ease',
+              }}
+              title="Agents & Goal – Workflow-Einstellungen"
+            >
+              <Bot className="w-4 h-4" />
+              Agents
+            </button>
+          )}
           <button
             onClick={toggleKnowledgeBase}
             style={{
@@ -589,6 +617,75 @@ function WorkflowEditorLayoutInner({
             color: 'hsl(var(--foreground))',
           }}
         >
+          {!isNew && (
+            <div
+              style={{
+                marginBottom: '1.25rem',
+                padding: '1rem',
+                background: agentsEnabled ? 'linear-gradient(135deg, hsl(var(--primary) / 0.08) 0%, hsl(var(--card)) 100%)' : 'hsl(var(--card))',
+                border: `1px solid ${agentsEnabled ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))'}`,
+                borderRadius: '10px',
+                boxShadow: agentsEnabled ? '0 1px 3px hsl(var(--primary) / 0.1)' : 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <Bot className="w-4 h-4" style={{ color: agentsEnabled ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }} />
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0, color: 'hsl(var(--foreground))' }}>
+                  Agents
+                </h3>
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    padding: '2px 6px',
+                    borderRadius: '6px',
+                    background: agentsEnabled ? 'hsl(var(--primary) / 0.2)' : 'hsl(var(--muted))',
+                    color: agentsEnabled ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  {agentsEnabled ? 'Aktiv' : 'Aus'}
+                </span>
+              </div>
+              {goalDefinition?.summary && (
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                    marginBottom: '0.75rem',
+                    lineHeight: 1.4,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {goalDefinition.summary}
+                </p>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <Button
+                  variant={agentsEnabled ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => setShowWorkflowSettings(true)}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Einstellungen & Goal
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => setShowAgentChat(true)}
+                  title="Mit dem Workflow-Agenten chatten"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  Mit Agent chatten
+                </Button>
+              </div>
+            </div>
+          )}
           {!isNew && (
             <div
               style={{
@@ -2411,6 +2508,8 @@ function WorkflowEditorLayoutInner({
           {showAgentChat && !isNew && workflowId && (
             <AgentChatPanel
               workflowId={workflowId}
+              workflowName={name}
+              agentsEnabled={agentsEnabled}
               onClose={() => setShowAgentChat(false)}
             />
           )}

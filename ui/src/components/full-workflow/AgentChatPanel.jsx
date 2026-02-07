@@ -2,12 +2,20 @@ import { useState, useEffect, useRef } from 'react';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { X, Send, Loader2 } from 'lucide-react';
+import { X, Send, Loader2, Bot, Sparkles } from 'lucide-react';
+
+const QUICK_PROMPTS = [
+  { label: 'Workflow erklären', message: 'Erkläre mir bitte diesen Workflow: Ablauf, Zweck der Nodes und wo ich aufpassen muss.' },
+  { label: 'Optimierung vorschlagen', message: 'Schlag konkrete Optimierungen für diesen Workflow vor (Performance, Fehlerbehandlung, Vereinfachung).' },
+  { label: 'Sicherheit prüfen', message: 'Prüfe diesen Workflow auf Sicherheitsrisiken (Secrets, Trigger, externe Aufrufe).' },
+  { label: 'Node erklären', message: 'Erkläre mir den ausgewählten Node (oder den Start-Node, falls keiner ausgewählt): was macht er und welche Konfiguration ist wichtig?' },
+];
 
 /**
  * Agent Chat panel: conversation with the workflow agent.
+ * Improved layout, quick prompts, and empty state.
  */
-export default function AgentChatPanel({ workflowId, onClose }) {
+export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled = true, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -30,7 +38,7 @@ export default function AgentChatPanel({ workflowId, onClose }) {
         }
       })
       .catch(err => {
-        if (!cancelled) setError(err.message || 'Failed to load chat history');
+        if (!cancelled) setError(err.message || 'Verlauf konnte nicht geladen werden.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -42,130 +50,154 @@ export default function AgentChatPanel({ workflowId, onClose }) {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || sending || !workflowId) return;
+  const sendMessage = async (text) => {
+    const trimmed = String(text).trim();
+    if (!trimmed || sending || !workflowId) return;
 
     setSending(true);
     setError(null);
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
+    setMessages(prev => [...prev, { role: 'user', content: trimmed }]);
 
     try {
       const res = await fetchWithCSRF(`/api/full-workflows/${workflowId}/agent/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: trimmed }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to get reply');
+        throw new Error(data.error || 'Antwort konnte nicht geladen werden.');
       }
 
       if (data.success && data.data?.reply != null) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.data.reply }]);
       } else {
-        throw new Error('No reply from agent');
+        throw new Error('Keine Antwort vom Agenten.');
       }
     } catch (err) {
-      setError(err.message || 'Send failed');
+      setError(err.message || 'Senden fehlgeschlagen');
       setMessages(prev => prev.slice(0, -1));
-      setInput(text);
+      setInput(trimmed);
     } finally {
       setSending(false);
     }
   };
 
+  const handleSend = () => sendMessage(input);
+
+  const handleQuickPrompt = (message) => sendMessage(message);
+
   return (
     <div
+      className="flex flex-col h-full bg-card border-l border-border shadow-lg"
       style={{
         position: 'absolute',
         top: 0,
         right: 0,
         bottom: 0,
-        width: '420px',
-        maxWidth: '100%',
+        width: 'min(440px, 100%)',
         zIndex: 10,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'hsl(var(--card))',
-        borderLeft: '1px solid hsl(var(--border))',
-        boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          borderBottom: '1px solid hsl(var(--border))',
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Agent Chat</h3>
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-          <X className="h-4 w-4" />
+      {/* Header */}
+      <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
+            <Bot className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-foreground truncate">Agent Chat</h3>
+            {workflowName && (
+              <p className="text-xs text-muted-foreground truncate">{workflowName}</p>
+            )}
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Schließen" className="shrink-0">
+          <X className="w-4 h-4" />
         </Button>
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-        }}
-      >
+      {/* Messages */}
+      <div className="flex-1 overflow-auto p-4 flex flex-col gap-3">
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'hsl(var(--muted-foreground))' }}>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading history…
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Verlauf wird geladen…
           </div>
         )}
         {!loading && messages.length === 0 && (
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.875rem' }}>
-            Ask the agent about this workflow: explain nodes, request optimizations, or ask questions.
-          </p>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="rounded-xl bg-muted/50 border border-border p-4 flex flex-col items-center text-center gap-2">
+              <Sparkles className="w-8 h-8 text-primary/70" />
+              <p className="text-sm font-medium text-foreground">Mit dem Workflow-Agenten chatten</p>
+              <p className="text-xs text-muted-foreground max-w-[280px]">
+                Stelle Fragen zum Workflow, lass dir Nodes erklären oder bitte um Optimierungs- und Sicherheitsvorschläge.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Schnellvorschläge</p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_PROMPTS.map(({ label, message }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => handleQuickPrompt(message)}
+                    disabled={sending || !agentsEnabled}
+                    className="text-left text-xs px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted/50 transition-colors disabled:opacity-50 max-w-full"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
         {messages.map((m, i) => (
           <div
             key={i}
-            style={{
-              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '90%',
-              padding: '10px 14px',
-              borderRadius: '12px',
-              background: m.role === 'user' ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
-              color: m.role === 'user' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))',
-              fontSize: '0.875rem',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
+            className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {m.content}
+            <div
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                m.role === 'user'
+                  ? 'bg-primary text-primary-foreground rounded-br-md'
+                  : 'bg-muted text-foreground rounded-bl-md border border-border'
+              }`}
+              style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+            >
+              {m.content}
+            </div>
           </div>
         ))}
         {sending && (
-          <div style={{ alignSelf: 'flex-start', padding: '8px', color: 'hsl(var(--muted-foreground))' }}>
-            <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="flex justify-start">
+            <div className="rounded-2xl rounded-bl-md px-4 py-2.5 bg-muted border border-border">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
+      {!agentsEnabled && (
+        <div className="shrink-0 px-4 py-3 bg-amber-500/10 border-t border-border text-amber-800 dark:text-amber-200 text-sm">
+          Agents sind deaktiviert. Aktiviere sie unter „Einstellungen & Goal“, um Nachrichten zu senden.
+        </div>
+      )}
+
       {error && (
-        <div style={{ padding: '8px 16px', background: 'hsl(var(--destructive)/0.1)', color: 'hsl(var(--destructive))', fontSize: '0.8125rem' }}>
+        <div className="shrink-0 px-4 py-2 bg-destructive/10 text-destructive text-sm border-t border-border">
           {error}
         </div>
       )}
 
-      <div style={{ padding: '12px 16px', borderTop: '1px solid hsl(var(--border))' }}>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+      {/* Input */}
+      <div className="shrink-0 p-4 pt-3 border-t border-border bg-background">
+        <div className="flex gap-2 items-end">
           <Textarea
-            placeholder="Message to agent…"
+            placeholder={agentsEnabled ? 'Nachricht an den Agenten…' : 'Aktiviere Agents, um zu chatten'}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
@@ -175,11 +207,16 @@ export default function AgentChatPanel({ workflowId, onClose }) {
               }
             }}
             rows={2}
-            className="min-h-[60px] resize-none"
-            disabled={sending}
+            className="min-h-[52px] resize-none flex-1"
+            disabled={sending || !agentsEnabled}
           />
-          <Button onClick={handleSend} disabled={sending || !input.trim()} size="icon" className="h-10 w-10 shrink-0">
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <Button
+            onClick={handleSend}
+            disabled={sending || !input.trim() || !agentsEnabled}
+            size="icon"
+            className="h-[52px] w-12 shrink-0"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </div>
