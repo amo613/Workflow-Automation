@@ -14,6 +14,8 @@ export const createFullWorkflow = async (userId, data) => {
         type: data.type || 'automation',
         workflow_json: data.workflow_json,
         is_active: false,
+        goal_definition: data.goal_definition ?? null,
+        agents_enabled: data.agents_enabled ?? false,
       })
       .returning();
 
@@ -90,6 +92,10 @@ export const updateFullWorkflow = async (workflowId, userId, data) => {
     if (data.workflow_json !== undefined)
       updateData.workflow_json = data.workflow_json;
     if (data.is_active !== undefined) updateData.is_active = data.is_active;
+    if (data.goal_definition !== undefined)
+      updateData.goal_definition = data.goal_definition;
+    if (data.agents_enabled !== undefined)
+      updateData.agents_enabled = data.agents_enabled;
 
     const [updated] = await db
       .update(fullWorkflows)

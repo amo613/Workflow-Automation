@@ -36,6 +36,8 @@ import NodeSidebarN8N from './NodeSidebarN8N';
 import KnowledgeBaseManager from './KnowledgeBaseManager';
 import VersionHistory from './VersionHistory';
 import WorkflowImportModal from './WorkflowImportModal';
+import WorkflowSettingsPanel from './WorkflowSettingsPanel.jsx';
+import AgentChatPanel from './AgentChatPanel.jsx';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CommandPalette } from '@/components/ui/command-palette';
@@ -145,10 +147,17 @@ function WorkflowEditorLayoutInner({
   triggersState,
   historyState,
   handleClearPerformance,
+  agentsEnabled,
+  goalDefinition,
+  setAgentsEnabled,
+  setGoalDefinition,
+  handleSaveWorkflowSettings,
 }) {
   const [isAutoLayouting, setIsAutoLayouting] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [showWorkflowSettings, setShowWorkflowSettings] = useState(false);
+  const [showAgentChat, setShowAgentChat] = useState(false);
   const reactFlowInstance = useReactFlow();
 
   const {
@@ -2383,6 +2392,28 @@ function WorkflowEditorLayoutInner({
               />
             </div>
           )}
+
+          {!isNew && (
+            <WorkflowSettingsPanel
+              open={showWorkflowSettings}
+              onClose={() => setShowWorkflowSettings(false)}
+              workflowId={workflowId}
+              agentsEnabled={agentsEnabled}
+              goalDefinition={goalDefinition}
+              onSaveSettings={handleSaveWorkflowSettings}
+              onOpenAgentChat={() => {
+                setShowWorkflowSettings(false);
+                setShowAgentChat(true);
+              }}
+            />
+          )}
+
+          {showAgentChat && !isNew && workflowId && (
+            <AgentChatPanel
+              workflowId={workflowId}
+              onClose={() => setShowAgentChat(false)}
+            />
+          )}
         </div>
       </div>
 
@@ -2504,6 +2535,9 @@ function WorkflowEditorLayoutInner({
               break;
             case 'statistics':
               setShowStatistics(!showStatistics);
+              break;
+            case 'settings':
+              if (!isNew) setShowWorkflowSettings(true);
               break;
             case 'history':
               // Open version history modal if available

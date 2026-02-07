@@ -36,6 +36,10 @@ export const fullWorkflows = pgTable('full_workflows', {
   // Trigger configuration (for trigger nodes)
   trigger_config: jsonb('trigger_config'),
 
+  // Agent / goal definition
+  goal_definition: jsonb('goal_definition'), // e.g. { summary, constraints, success_criteria }
+  agents_enabled: boolean('agents_enabled').default(false),
+
   // Status
   is_active: boolean('is_active').default(false),
 

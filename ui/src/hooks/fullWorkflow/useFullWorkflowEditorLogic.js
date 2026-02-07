@@ -26,6 +26,8 @@ export function useFullWorkflowEditorLogic() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState('automation');
+  const [agentsEnabled, setAgentsEnabled] = useState(false);
+  const [goalDefinition, setGoalDefinition] = useState(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [saving, setSaving] = useState(false);
@@ -165,6 +167,8 @@ export function useFullWorkflowEditorLogic() {
       setName(workflow.name);
       setDescription(workflow.description || '');
       setType(workflow.type || 'automation');
+      setAgentsEnabled(workflow.agents_enabled === true);
+      setGoalDefinition(workflow.goal_definition ?? null);
 
       const workflowJson = workflow.workflow_json || {};
       setNodes(workflowJson.nodes || []);
@@ -521,6 +525,8 @@ export function useFullWorkflowEditorLogic() {
           description,
           type,
           workflow_json: workflowJson,
+          agents_enabled: agentsEnabled,
+          goal_definition: goalDefinition,
         }),
       });
 
@@ -559,12 +565,14 @@ export function useFullWorkflowEditorLogic() {
       }, 100);
     }
   }, [
+    agentsEnabled,
     description,
     edges,
     fetchActiveTriggers,
     fetchExecutionHistory,
     fetchPerformance,
     fetchStatistics,
+    goalDefinition,
     id,
     isNew,
     name,
@@ -572,6 +580,50 @@ export function useFullWorkflowEditorLogic() {
     nodes,
     type,
   ]);
+
+  const handleSaveWorkflowSettings = useCallback(
+    async (newAgentsEnabled, newGoalDefinition) => {
+      if (isNew || !id) return;
+      try {
+        const workflowJson = {
+          nodes: nodes.map(({ id: nodeId, type: nodeType, position, data }) => ({
+            id: nodeId,
+            type: nodeType,
+            position,
+            data,
+          })),
+          edges: edges.map((edge, index) => ({
+            id: edge.id || `edge-${index}-${edge.source}-${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            ...(edge.sourceHandle != null && { sourceHandle: edge.sourceHandle }),
+            ...(edge.targetHandle != null && { targetHandle: edge.targetHandle }),
+          })),
+        };
+        const response = await fetchWithCSRF(`/api/full-workflows/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            description,
+            type,
+            workflow_json: workflowJson,
+            agents_enabled: newAgentsEnabled,
+            goal_definition: newGoalDefinition,
+          }),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to save settings');
+        }
+        setAgentsEnabled(newAgentsEnabled);
+        setGoalDefinition(newGoalDefinition);
+      } catch (err) {
+        throw err;
+      }
+    },
+    [description, edges, id, isNew, name, nodes, type]
+  );
 
   const handleClearPerformance = useCallback(async () => {
     if (confirm('Are you sure you want to clear all performance data?')) {
@@ -643,5 +695,10 @@ export function useFullWorkflowEditorLogic() {
     executionTracking,
     handleClearPerformance,
     handleSwitchToCallFlow,
+    agentsEnabled,
+    goalDefinition,
+    setAgentsEnabled,
+    setGoalDefinition,
+    handleSaveWorkflowSettings,
   };
 }

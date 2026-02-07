@@ -18,6 +18,10 @@ import {
   getWorkflowPerformanceHandler,
   getNodePerformanceHistoryHandler,
   clearWorkflowPerformanceHandler,
+  getWorkflowAgentChatHandler,
+  postWorkflowAgentChatHandler,
+  postWorkflowAgentApplyHandler,
+  postWorkflowFromGoalHandler,
 } from '#controllers/full-workflow.controller.js';
 
 async function fullWorkflowRoutes(fastify) {
@@ -67,6 +71,21 @@ async function fullWorkflowRoutes(fastify) {
     handler: getAllFullWorkflowsHandler,
   });
 
+  // Create suggested workflow from natural language goal (optional)
+  fastify.post('/api/full-workflows/from-goal', {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['goal'],
+        properties: {
+          goal: { type: 'string' },
+          use_firecrawl: { type: 'boolean' },
+        },
+      },
+    },
+    handler: postWorkflowFromGoalHandler,
+  });
+
   // Create full workflow
   fastify.post('/api/full-workflows', {
     schema: {
@@ -82,6 +101,8 @@ async function fullWorkflowRoutes(fastify) {
             default: 'automation',
           },
           workflow_json: { type: 'object' },
+          goal_definition: { type: 'object' },
+          agents_enabled: { type: 'boolean' },
         },
       },
     },
@@ -120,6 +141,8 @@ async function fullWorkflowRoutes(fastify) {
           type: { type: 'string', enum: ['automation', 'call-workflow'] },
           workflow_json: { type: 'object' },
           is_active: { type: 'boolean' },
+          goal_definition: { type: 'object' },
+          agents_enabled: { type: 'boolean' },
         },
       },
     },
@@ -315,6 +338,81 @@ async function fullWorkflowRoutes(fastify) {
       },
     },
     handler: clearWorkflowPerformanceHandler,
+  });
+
+  // Get agent chat history
+  fastify.get('/api/full-workflows/:id/agent/chat', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          limit: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+    },
+    handler: getWorkflowAgentChatHandler,
+  });
+
+  // Post agent chat message
+  fastify.post('/api/full-workflows/:id/agent/chat', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+      body: {
+        type: 'object',
+        required: ['message'],
+        properties: {
+          message: { type: 'string' },
+          node_id: { type: 'string' },
+        },
+      },
+    },
+    handler: postWorkflowAgentChatHandler,
+  });
+
+  // Apply agent-suggested workflow/node changes
+  fastify.post('/api/full-workflows/:id/agent/apply', {
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', pattern: '^[0-9]+$' },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          workflow_json: { type: 'object' },
+          node_patches: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                nodeId: { type: 'string' },
+                patch: { type: 'object' },
+              },
+            },
+          },
+          reason: { type: 'string' },
+          agent_type: { type: 'string' },
+          optimization_impact: { type: 'string' },
+        },
+      },
+    },
+    handler: postWorkflowAgentApplyHandler,
   });
 }
 

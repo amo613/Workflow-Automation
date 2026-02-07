@@ -41,7 +41,7 @@ import { eq, inArray, and } from 'drizzle-orm';
 export async function createFullWorkflowHandler(req, reply) {
   try {
     const userId = req.user.id;
-    const { name, description, type, workflow_json } = req.body;
+    const { name, description, type, workflow_json, goal_definition, agents_enabled } = req.body;
 
     if (!name || !workflow_json) {
       return reply.code(400).send({
@@ -55,6 +55,8 @@ export async function createFullWorkflowHandler(req, reply) {
       description,
       type: type || 'automation',
       workflow_json,
+      goal_definition,
+      agents_enabled,
     });
 
     return reply.code(201).send({
@@ -146,7 +148,7 @@ export async function updateFullWorkflowHandler(req, reply) {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { name, description, type, workflow_json, is_active } = req.body;
+    const { name, description, type, workflow_json, is_active, goal_definition, agents_enabled } = req.body;
     const workflowId = parseInt(id, 10);
 
     // Get existing workflow to compare workflow_json for versioning
@@ -166,6 +168,8 @@ export async function updateFullWorkflowHandler(req, reply) {
       type,
       workflow_json,
       is_active,
+      goal_definition,
+      agents_enabled,
     });
 
     // Automatically create a version if workflow_json changed
@@ -191,6 +195,18 @@ export async function updateFullWorkflowHandler(req, reply) {
           });
         }
       }
+    }
+
+    // Run agent pipeline when agents are enabled (fire-and-forget)
+    if (workflow.agents_enabled) {
+      import('#services/full-workflow/agents/index.js').then(({ runAgentPipeline }) => {
+        runAgentPipeline(workflowId, userId).catch(err =>
+          logger.warn('Agent pipeline failed after workflow update', {
+            workflowId,
+            error: err.message,
+          })
+        );
+      });
     }
 
     // Handle trigger scheduling if workflow_json is updated
@@ -1705,5 +1721,239 @@ ${knowledgeBaseText}`;
       .send(
         '<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>'
       );
+  }
+}
+
+/**
+ * Create suggested workflow from natural language goal (optional Phase 7).
+ * POST /api/full-workflows/from-goal body: { goal, use_firecrawl? }
+ */
+export async function postWorkflowFromGoalHandler(req, reply) {
+  try {
+    const { goal, use_firecrawl: useFirecrawl } = req.body || {};
+    if (!goal || typeof goal !== 'string') {
+      return reply.code(400).send({ success: false, error: 'goal is required' });
+    }
+
+    const { createWorkflowFromGoal } = await import(
+      '#services/full-workflow/agents/create-from-goal.service.js'
+    );
+    const result = await createWorkflowFromGoal(goal.trim(), {
+      useFirecrawl: !!useFirecrawl,
+    });
+
+    if (!result.success) {
+      return reply.code(400).send({
+        success: false,
+        error: result.error || 'Failed to generate workflow',
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      data: { workflow_json: result.workflow_json },
+    });
+  } catch (error) {
+    logger.error('Error creating workflow from goal', {
+      error: error.message,
+      userId: req.user?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to generate workflow',
+    });
+  }
+}
+
+/**
+ * Get agent chat history for a workflow
+ */
+export async function getWorkflowAgentChatHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const workflowId = parseInt(req.params.id, 10);
+    const { limit = 50 } = req.query;
+
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({ success: false, error: 'Workflow not found' });
+    }
+
+    const { getWorkflowAgentChatMessages } = await import(
+      '#services/workflow-agent-action.service.js'
+    );
+    const messages = await getWorkflowAgentChatMessages(workflowId, userId, {
+      limit: parseInt(limit, 10) || 50,
+    });
+
+    return reply.code(200).send({ success: true, data: { messages } });
+  } catch (error) {
+    logger.error('Error getting agent chat history', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get chat history',
+    });
+  }
+}
+
+/**
+ * Apply agent-suggested changes to the workflow (persist and document).
+ * POST /api/full-workflows/:id/agent/apply
+ * Body: { workflow_json?, node_patches?: [{ nodeId, patch }], reason, agent_type, optimization_impact? }
+ */
+export async function postWorkflowAgentApplyHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const workflowId = parseInt(req.params.id, 10);
+    const { workflow_json: newWorkflowJson, node_patches: nodePatches, reason, agent_type: agentType, optimization_impact: optimizationImpact } = req.body || {};
+
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({ success: false, error: 'Workflow not found' });
+    }
+    if (!workflow.agents_enabled) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Agents are not enabled for this workflow',
+      });
+    }
+
+    let finalWorkflowJson = workflow.workflow_json || { nodes: [], edges: [] };
+
+    if (newWorkflowJson && typeof newWorkflowJson === 'object') {
+      finalWorkflowJson = {
+        nodes: newWorkflowJson.nodes ?? finalWorkflowJson.nodes,
+        edges: newWorkflowJson.edges ?? finalWorkflowJson.edges,
+      };
+    } else if (Array.isArray(nodePatches) && nodePatches.length > 0) {
+      const nodes = [...(finalWorkflowJson.nodes || [])];
+      for (const { nodeId, patch } of nodePatches) {
+        const idx = nodes.findIndex(n => n.id === nodeId);
+        if (idx === -1) continue;
+        const node = nodes[idx];
+        if (patch && typeof patch === 'object') {
+          nodes[idx] = {
+            ...node,
+            data: { ...(node.data || {}), ...patch },
+          };
+        }
+      }
+      finalWorkflowJson = { ...finalWorkflowJson, nodes };
+    } else {
+      return reply.code(400).send({
+        success: false,
+        error: 'Provide workflow_json or node_patches',
+      });
+    }
+
+    const updated = await updateFullWorkflow(workflowId, userId, {
+      workflow_json: finalWorkflowJson,
+    });
+
+    let versionId = null;
+    try {
+      const v = await createWorkflowVersion(workflowId, userId, finalWorkflowJson, {
+        description: `Agent (${agentType || 'orchestrator'}): ${reason || 'Applied changes'}`,
+      });
+      versionId = v?.id;
+    } catch (err) {
+      logger.warn('Failed to create workflow version after agent apply', {
+        workflowId,
+        error: err.message,
+      });
+    }
+
+    const { logAgentAction } = await import('#services/workflow-agent-action.service.js');
+    await logAgentAction({
+      workflowId,
+      agentType: agentType || 'orchestrator',
+      actionType: 'workflow_updated',
+      details: {
+        reason: reason || '',
+        node_patches: nodePatches || null,
+        optimization_impact: optimizationImpact,
+      },
+      optimizationImpact: optimizationImpact || 'unknown',
+      workflowVersionId: versionId,
+    });
+
+    return reply.code(200).send({
+      success: true,
+      data: { workflow: updated, versionId },
+    });
+  } catch (error) {
+    logger.error('Error applying agent changes', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to apply',
+    });
+  }
+}
+
+/**
+ * POST agent chat: send a message and get assistant reply
+ */
+export async function postWorkflowAgentChatHandler(req, reply) {
+  try {
+    const userId = req.user.id;
+    const workflowId = parseInt(req.params.id, 10);
+    const { message, node_id: nodeId } = req.body || {};
+
+    const workflow = await getFullWorkflow(workflowId, userId);
+    if (!workflow) {
+      return reply.code(404).send({ success: false, error: 'Workflow not found' });
+    }
+    if (!workflow.agents_enabled) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Agents are not enabled for this workflow. Enable them in Workflow Settings.',
+      });
+    }
+
+    const { getWorkflowAgentChatMessages } = await import(
+      '#services/workflow-agent-action.service.js'
+    );
+    const previousMessages = await getWorkflowAgentChatMessages(workflowId, userId, {
+      limit: 30,
+    });
+
+    const { runAgentChatTurn } = await import(
+      '#services/full-workflow/agents/chat.service.js'
+    );
+    const result = await runAgentChatTurn(workflowId, userId, workflow, {
+      message,
+      node_id: nodeId,
+      previousMessages,
+    });
+
+    if (!result.success) {
+      return reply.code(500).send({
+        success: false,
+        error: result.error || 'Agent failed to respond',
+      });
+    }
+
+    return reply.code(200).send({
+      success: true,
+      data: { reply: result.reply },
+    });
+  } catch (error) {
+    logger.error('Error in agent chat', {
+      error: error.message,
+      userId: req.user?.id,
+      workflowId: req.params?.id,
+    });
+    return reply.code(500).send({
+      success: false,
+      error: error.message || 'Failed to get reply',
+    });
   }
 }
