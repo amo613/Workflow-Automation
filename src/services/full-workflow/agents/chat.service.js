@@ -38,10 +38,20 @@ ${JSON.stringify(workflow.trigger_config, null, 2)}
   }
 
   if (stats && typeof stats === 'object') {
-    sections.push(`## Execution statistics
+    sections.push(`## Execution statistics & Goal Metrics
 \`\`\`json
 ${JSON.stringify(stats, null, 2)}
 \`\`\``);
+    
+    // Highlight goal achievement if available
+    if (stats.goalMetrics?.currentAchievementRate != null) {
+      const rate = (stats.goalMetrics.currentAchievementRate * 100).toFixed(1);
+      const trend = stats.goalMetrics.trend || 'unknown';
+      sections.push(`### Current Goal Performance
+- Achievement Rate: ${rate}%
+- Trend: ${trend}
+${rate < 70 ? '⚠️ Goal is not being achieved consistently' : '✅ Goal achievement is healthy'}`);
+    }
   }
 
   if (Array.isArray(executionHistory) && executionHistory.length > 0) {

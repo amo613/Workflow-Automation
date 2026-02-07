@@ -1,9 +1,7 @@
 /**
  * Post-Execution Agent Trigger
- * Called when a workflow run completes (success or failure). Respects Redis throttling:
- * - On success: run agents at most every COOLDOWN_SUCCESS_MS (e.g. 15 min).
- * - On failure: run agents at most every COOLDOWN_FAILURE_MS (e.g. 2 min) or immediately if no recent run.
- * Pipeline: at least Monitoring; on failure also Security + Execution; Optimization is skipped (handled by Save/Cron).
+ * Called when a workflow run completes (success or failure).
+ * Implements goal-driven, autonomous optimization with smart throttling.
  */
 import { getRedisClient } from '#config/cache.js';
 import logger from '#config/logger.js';
@@ -54,12 +52,45 @@ export async function triggerPostExecutionAgents(
     return 'error';
   }
 
+  // Smart goal-based throttling with stats check
+  const timeSinceLastRun = lastRunTs != null ? now - lastRunTs : Infinity;
   const cooldownMs = success ? COOLDOWN_SUCCESS_MS : COOLDOWN_FAILURE_MS;
-  if (lastRunTs != null && now - lastRunTs < cooldownMs) {
+  const maxInterval = 60 * 60 * 1000; // 1 hour max between checks
+  
+  // Check if we should run based on goal metrics (if available)
+  let goalNeedsAttention = false;
+  try {
+    const { getWorkflowStatistics } = await import('#services/full-workflow/statistics.service.js');
+    const stats = await getWorkflowStatistics(workflowId);
+    const achievementRate = stats?.goalMetrics?.currentAchievementRate;
+    const trend = stats?.goalMetrics?.trend;
+    
+    // Run agents if goal achievement is poor or declining
+    if (achievementRate != null && achievementRate < 0.7) {
+      goalNeedsAttention = true;
+      logger.debug('Goal achievement low, bypassing throttle', { workflowId, achievementRate });
+    }
+    if (trend === 'declining') {
+      goalNeedsAttention = true;
+      logger.debug('Goal trend declining, bypassing throttle', { workflowId, trend });
+    }
+  } catch (statsErr) {
+    // Ignore stats errors, proceed with time-based throttle
+    logger.debug('Could not fetch stats for throttle decision', { workflowId, error: statsErr.message });
+  }
+  
+  const shouldThrottle = 
+    lastRunTs != null && 
+    timeSinceLastRun < cooldownMs && 
+    timeSinceLastRun < maxInterval && 
+    success && 
+    !goalNeedsAttention; // Bypass throttle if goal needs attention
+  
+  if (shouldThrottle) {
     logger.debug('Post-execution agents throttled', {
       workflowId,
       success,
-      lastRunAgo: Math.round((now - lastRunTs) / 1000) + 's',
+      lastRunAgo: Math.round(timeSinceLastRun / 1000) + 's',
       cooldownSec: cooldownMs / 1000,
     });
     return 'throttled';
@@ -72,20 +103,23 @@ export async function triggerPostExecutionAgents(
     return 'error';
   }
 
-  // Run pipeline: at least Monitoring; on failure add Security + Execution; never Optimization here
+  // Run pipeline with goal-driven configuration
   const pipelineOptions = {
-    skipOptimization: true,
-    skipMonitoring: false,
-    skipSecurity: success,
-    skipExecution: success,
+    skipOptimization: false, // Always run for goal alignment
+    skipMonitoring: false,   // Always monitor goal progress
+    skipSecurity: success,   // Security only on failure
+    skipExecution: success,  // Execution validation only on failure
+    autoApply: true,         // Autonomous: auto-apply fixes
+    focusOnGoal: true,       // Primary focus: goal achievement
   };
 
-  // Pass last error so goal-research can search for solutions and agents get context
-  if (!success && error) {
-    pipelineOptions.executionContext = {
-      lastError: error?.message || String(error),
-    };
-  }
+  // Pass rich execution context
+  pipelineOptions.executionContext = {
+    lastError: !success && error ? (error?.message || String(error)) : null,
+    executionSuccess: success,
+    eventId,
+    triggeredBy: 'post_execution',
+  };
 
   logger.info('Post-execution agents starting', {
     workflowId,
