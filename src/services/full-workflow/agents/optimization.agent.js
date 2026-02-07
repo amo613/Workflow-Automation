@@ -11,6 +11,26 @@ export async function runOptimizationAgent(workflowId, context, options = {}) {
   const trend = goalMetrics.trend || 'unknown';
   const focusOnGoal = context.focusOnGoal !== false;
 
+  // CRITICAL: Define allowed node types (must match your system)
+  const ALLOWED_NODE_TYPES = [
+    'start', 'end',
+    'webhook', 'webhook-trigger',
+    'http-request',
+    'variable-set',
+    'if', 'switch',
+    'wait',
+    'email', 'gmail',
+    'database-query',
+    'google-sheets', 'google-sheets-trigger',
+    'call-agent', 'ai-agent',
+    'call-trigger',
+    'merge',
+    'knowledge-base-query',
+    'web-scraper',
+    'hubspot', 'hubspot-trigger',
+    'schedule-trigger'
+  ];
+
   const systemPrompt = `You are a workflow optimization agent with AUTONOMOUS GOAL-DRIVEN INTELLIGENCE.
 
 GOAL: ${JSON.stringify(context.goal_definition || 'Not defined')}
@@ -30,22 +50,32 @@ PRIMARY FOCUS: Make this workflow achieve its GOAL.
 Suggest improvements for reliability and performance.
 `}
 
+CRITICAL CONSTRAINTS:
+- You can ONLY use these node types: ${ALLOWED_NODE_TYPES.join(', ')}
+- Do NOT invent new node types like "slack", "code", "delay" - they don't exist
+- If you need functionality not in the list, use existing nodes creatively (e.g., "http-request" for APIs, "wait" for delays)
+
 You can propose:
 - "node_update": Modify existing node data (e.g., fix URL, adjust timeout)
-- "add_node": Insert new node (e.g., parallel processing, monitoring, notification)
-- "remove_node": Remove node that blocks goal (e.g., unnecessary filter)
+- "add_node": Insert new node using ONLY allowed types above
+- "remove_node": Remove node that blocks goal
 
-EXAMPLES:
+EXAMPLES (using ONLY allowed types):
 ${JSON.stringify([
   { type: 'node_update', nodeId: 'http_123', patch: { url: 'https://api.example.com/users' }, reason: 'Fixed typo in URL causing 404 errors' },
-  { type: 'add_node', nodeType: 'parallel_branch', connectAfter: 'node_5', reason: 'Goal requires <5min response, current sequential path takes 12min. Parallel processing reduces to 4min.' },
-  { type: 'remove_node', nodeId: 'filter_xyz', reason: 'This filter blocks 80% of leads, contradicts goal of fast response to ALL leads' }
+  { type: 'add_node', nodeType: 'wait', nodeData: { delay: 5000 }, connectAfter: 'node_5', reason: 'Add delay to avoid rate limiting' },
+  { type: 'add_node', nodeType: 'http-request', nodeData: { url: 'https://api.slack.com/...', method: 'POST' }, connectAfter: 'node_x', reason: 'Notify team via Slack API (using http-request)' },
+  { type: 'remove_node', nodeId: 'filter_xyz', reason: 'This filter blocks 80% of leads' }
 ], null, 2)}
 
-You must NOT expose or use any user credentials or raw integration data.
+You must NOT:
+- Use node types not in the allowed list
+- Expose or use user credentials or raw integration data
+- Add nodes that don't exist in the system
+
 If goalResearch is provided, use it for best practices and to align suggestions with the workflow goal.
 
-Respond in JSON: { "summary": "...", "changes": [{ "type": "node_update"|"add_node"|"remove_node", "nodeId": "...", "reason": "...", "patch": {} }], "optimization_impact": "helped"|"neutral"|"unknown" }.
+Respond in JSON: { "summary": "...", "changes": [{ "type": "node_update"|"add_node"|"remove_node", "nodeId": "...", "nodeType": "...", "reason": "...", "patch": {} }], "optimization_impact": "helped"|"neutral"|"unknown" }.
 If no changes needed, return { "summary": "Workflow is aligned with goal.", "changes": [], "optimization_impact": "neutral" }.`;
 
   let userContent = `Workflow: ${context.name}

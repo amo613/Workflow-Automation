@@ -1,11 +1,32 @@
 /**
  * Apply agent-suggested changes to workflows.
  * Supports: node updates, adding nodes, removing nodes, restructuring.
+ * VALIDATES: Only allowed node types can be added.
  */
 import { updateFullWorkflow } from '#services/full-workflow.service.js';
 import { createWorkflowVersion } from '#services/workflow-version.service.js';
 import { logAgentAction } from '#services/workflow-agent-action.service.js';
 import logger from '#config/logger.js';
+
+// CRITICAL: Allowed node types (must match system capabilities)
+const ALLOWED_NODE_TYPES = [
+  'start', 'end',
+  'webhook', 'webhook-trigger',
+  'http-request',
+  'variable-set',
+  'if', 'switch',
+  'wait',
+  'email', 'gmail',
+  'database-query',
+  'google-sheets', 'google-sheets-trigger',
+  'call-agent', 'ai-agent',
+  'call-trigger',
+  'merge',
+  'knowledge-base-query',
+  'web-scraper',
+  'hubspot', 'hubspot-trigger',
+  'schedule-trigger'
+];
 
 /**
  * Apply optimization changes to a workflow (auto-apply from agents).
@@ -13,7 +34,7 @@ import logger from '#config/logger.js';
  * @param {number} userId
  * @param {object} workflow - current workflow with workflow_json
  * @param {Array} changes - array of { type, nodeId?, patch?, reason?, ... }
- * @returns {Promise<{ success: boolean, appliedCount: number, versionId?: number }>}
+ * @returns {Promise<{ success: boolean, appliedCount: number, versionId?: number, rejectedChanges?: Array }>}
  */
 export async function applyOptimizationChanges(
   workflowId,
@@ -29,6 +50,7 @@ export async function applyOptimizationChanges(
   let edges = [...(workflow.workflow_json?.edges || [])];
   let appliedCount = 0;
   const appliedChanges = [];
+  const rejectedChanges = [];
 
   for (const change of changes) {
     try {
@@ -48,13 +70,29 @@ export async function applyOptimizationChanges(
           });
         }
       } else if (change.type === 'add_node') {
+        // VALIDATION: Only allow known node types
+        const nodeType = change.nodeType || 'custom';
+        if (!ALLOWED_NODE_TYPES.includes(nodeType)) {
+          logger.warn('Rejected add_node: invalid node type', {
+            workflowId,
+            nodeType,
+            allowedTypes: ALLOWED_NODE_TYPES,
+            change,
+          });
+          rejectedChanges.push({
+            change,
+            reason: `Node type "${nodeType}" is not allowed. Use one of: ${ALLOWED_NODE_TYPES.join(', ')}`,
+          });
+          continue; // Skip this change
+        }
+        
         // Add new node
         const newNodeId = change.nodeId || `agent_added_${Date.now()}_${appliedCount}`;
         const position = calculateNodePosition(nodes, change.position, change.connectAfter);
         
         const newNode = {
           id: newNodeId,
-          type: change.nodeType || 'custom',
+          type: nodeType,
           position,
           data: change.nodeData || change.data || {},
         };
@@ -86,7 +124,7 @@ export async function applyOptimizationChanges(
         appliedChanges.push({
           type: 'add_node',
           nodeId: newNodeId,
-          nodeType: change.nodeType,
+          nodeType: nodeType,
           reason: change.reason,
         });
       } else if (change.type === 'remove_node' && change.nodeId) {
@@ -141,6 +179,10 @@ export async function applyOptimizationChanges(
   }
 
   if (appliedCount === 0) {
+    if (rejectedChanges.length > 0) {
+      logger.warn('All changes rejected due to validation', { workflowId, rejectedChanges });
+      return { success: false, appliedCount: 0, rejectedChanges, error: 'All changes rejected' };
+    }
     return { success: true, appliedCount: 0 };
   }
 
@@ -175,7 +217,9 @@ export async function applyOptimizationChanges(
       details: {
         reason: 'Auto-applied optimization changes',
         appliedChanges,
+        rejectedChanges,
         appliedCount,
+        rejectedCount: rejectedChanges.length,
       },
       optimizationImpact: 'helped',
       workflowVersionId: versionId,
@@ -184,10 +228,11 @@ export async function applyOptimizationChanges(
     logger.info('Auto-applied optimization changes', {
       workflowId,
       appliedCount,
+      rejectedCount: rejectedChanges.length,
       versionId,
     });
 
-    return { success: true, appliedCount, versionId };
+    return { success: true, appliedCount, rejectedChanges, versionId };
   } catch (err) {
     logger.error('Failed to save workflow after applying changes', {
       workflowId,
