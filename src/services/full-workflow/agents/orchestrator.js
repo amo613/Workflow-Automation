@@ -13,6 +13,7 @@ import {
   getSecurityContext,
   getExecutionContext,
 } from './context.js';
+import { fetchGoalResearch } from './goal-research.js';
 import { runMonitoringAgent } from './monitoring.agent.js';
 import { runOptimizationAgent } from './optimization.agent.js';
 import { runSecurityAgent } from './security.agent.js';
@@ -24,7 +25,7 @@ import logger from '#config/logger.js';
  * Each agent receives only its scoped context (guardrails).
  * @param {number} workflowId
  * @param {number} userId
- * @param {object} options - { skipMonitoring, skipOptimization, skipSecurity, skipExecution }
+ * @param {object} options - { skipMonitoring, skipOptimization, skipSecurity, skipExecution, executionContext?: { lastError } }
  * @returns {Promise<{ monitoring?, optimization?, security?, execution?, error? }>}
  */
 export async function runAgentPipeline(workflowId, userId, options = {}) {
@@ -53,25 +54,26 @@ export async function runAgentPipeline(workflowId, userId, options = {}) {
     // ignore
   }
 
+  const goalResearch = await fetchGoalResearch(workflow, options.executionContext || {});
   const results = {};
 
   if (!options.skipMonitoring) {
-    const ctx = getMonitoringContext(workflow, stats, executionHistory);
+    const ctx = getMonitoringContext(workflow, stats, executionHistory, goalResearch);
     results.monitoring = await runMonitoringAgent(workflowId, ctx);
   }
 
   if (!options.skipOptimization) {
-    const ctx = getOptimizationContext(workflow, stats);
+    const ctx = getOptimizationContext(workflow, stats, goalResearch);
     results.optimization = await runOptimizationAgent(workflowId, ctx, options.optimizationOptions || {});
   }
 
   if (!options.skipSecurity) {
-    const ctx = getSecurityContext(workflow);
+    const ctx = getSecurityContext(workflow, goalResearch);
     results.security = await runSecurityAgent(workflowId, ctx);
   }
 
   if (!options.skipExecution) {
-    const ctx = getExecutionContext(workflow);
+    const ctx = getExecutionContext(workflow, goalResearch);
     results.execution = await runExecutionAgent(workflowId, ctx);
   }
 

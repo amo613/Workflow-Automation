@@ -6,12 +6,16 @@ import { logAgentAction } from '#services/workflow-agent-action.service.js';
 
 export async function runMonitoringAgent(workflowId, context) {
   const systemPrompt = `You are a workflow monitoring agent. You only receive execution statistics and error history, not the workflow structure.
-Analyze the data and suggest improvements or report issues. Be concise. If you have no insights, say so.`;
+Analyze the data and suggest improvements or report issues. Be concise. If you have no insights, say so.
+If goalResearch is provided, use it to validate suggestions, check best practices, and consider how things should look for the workflow goal.`;
 
-  const userContent = `Workflow: ${context.name}
+  let userContent = `Workflow: ${context.name}
 Goal: ${JSON.stringify(context.goal_definition || 'none')}
 Stats: ${JSON.stringify(context.stats || {}, null, 2)}
 Recent execution history (sample): ${JSON.stringify(context.executionHistory || [], null, 2)}`;
+  if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
+    userContent += `\n\nWeb research for goal / last error:\n${JSON.stringify(context.goalResearch, null, 2)}`;
+  }
 
   const { content, error } = await openRouterChat(
     [

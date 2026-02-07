@@ -7,11 +7,15 @@ import { logAgentAction } from '#services/workflow-agent-action.service.js';
 export async function runSecurityAgent(workflowId, context) {
   const systemPrompt = `You are a workflow security agent. You receive workflow structure (nodes, edges) and trigger config.
 Check for: exposed secrets, unsafe webhook paths, overly permissive triggers, suspicious external URLs.
-Do NOT receive or use execution logs or user data. Respond in JSON: { "summary": "...", "findings": [{ "severity": "high"|"medium"|"low"|"info", "message": "...", "nodeId": "..." }], "ok": boolean }.`;
+Do NOT receive or use execution logs or user data. If goalResearch is provided, you may use it for security best practices.
+Respond in JSON: { "summary": "...", "findings": [{ "severity": "high"|"medium"|"low"|"info", "message": "...", "nodeId": "..." }], "ok": boolean }.`;
 
-  const userContent = `Workflow: ${context.name}
+  let userContent = `Workflow: ${context.name}
 Workflow JSON: ${JSON.stringify(context.workflow_json || {}, null, 2)}
 Trigger config: ${JSON.stringify(context.trigger_config || {}, null, 2)}`;
+  if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
+    userContent += `\n\nWeb research (goal / error):\n${JSON.stringify(context.goalResearch, null, 2)}`;
+  }
 
   const { content, error } = await openRouterChat(
     [

@@ -8,11 +8,15 @@ import { logAgentAction } from '#services/workflow-agent-action.service.js';
 export async function runExecutionAgent(workflowId, context) {
   const systemPrompt = `You are an execution readiness agent. You receive only nodes and edges (no secrets).
 Check: Are there any nodes that would prevent execution? (e.g. missing required fields, invalid connections?)
+If goalResearch is provided (e.g. error search results), use it to inform possible causes or solutions.
 Respond in JSON: { "summary": "...", "blockers": [{ "nodeId": "...", "reason": "..." }], "ready": boolean }.`;
 
-  const userContent = `Nodes: ${JSON.stringify(context.nodes || [], null, 2)}
+  let userContent = `Nodes: ${JSON.stringify(context.nodes || [], null, 2)}
 Edges: ${JSON.stringify(context.edges || [], null, 2)}
 Trigger config present: ${!!context.trigger_config}`;
+  if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
+    userContent += `\n\nWeb research (goal / last error):\n${JSON.stringify(context.goalResearch, null, 2)}`;
+  }
 
   const { content, error } = await openRouterChat(
     [

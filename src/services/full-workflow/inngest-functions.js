@@ -5,6 +5,7 @@ import { executeWorkflow } from './executor.service.js';
 import { memoryCache } from '#config/cache.js';
 import { trackWorkflowExecution } from './statistics.service.js';
 import { broadcastWorkflowEvent } from './workflow-events.service.js';
+import { triggerPostExecutionAgents } from './agents/post-execution-trigger.js';
 
 /**
  * Inngest Function: Execute Full Workflow
@@ -194,7 +195,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
 
       throw error;
     } finally {
-      // Track statistics (async, don't wait) - include eventId
+      // Track statistics (await so execution history is written before post-execution agents)
       const eventId = event?.id;
       logger.info('Tracking workflow execution', {
         workflowId,
@@ -203,7 +204,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         eventId: eventId || 'none',
       });
 
-      trackWorkflowExecution(
+      await trackWorkflowExecution(
         workflowId,
         executionSuccess,
         executionError,
@@ -215,6 +216,24 @@ export const executeFullWorkflowFunction = inngest.createFunction(
           error: err.message,
         });
       });
+
+      if (workflow?.agents_enabled) {
+        triggerPostExecutionAgents(
+          workflowId,
+          userId,
+          {
+            success: executionSuccess,
+            error: executionError,
+            eventId: eventId ?? null,
+          },
+          { agentsEnabled: true }
+        ).catch(err => {
+          logger.warn('Post-execution agents trigger failed', {
+            workflowId,
+            error: err?.message,
+          });
+        });
+      }
     }
 
     // Store execution results in cache for UI polling

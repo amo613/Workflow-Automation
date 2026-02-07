@@ -4,6 +4,7 @@
  */
 
 export { runAgentPipeline } from './orchestrator.js';
+export { triggerPostExecutionAgents } from './post-execution-trigger.js';
 export { openRouterChat, isOpenRouterConfigured } from './openrouter.client.js';
 export {
   getMonitoringContext,
