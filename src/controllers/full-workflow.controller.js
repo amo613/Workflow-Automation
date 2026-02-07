@@ -1859,7 +1859,8 @@ export async function postWorkflowAgentApplyHandler(req, reply) {
       const v = await createWorkflowVersion(workflowId, userId, finalWorkflowJson, {
         description: `Agent (${agentType || 'orchestrator'}): ${reason || 'Applied changes'}`,
       });
-      versionId = v?.id;
+      const id = v?.id != null ? Number(v.id) : null;
+      versionId = id > 0 ? id : null;
     } catch (err) {
       logger.warn('Failed to create workflow version after agent apply', {
         workflowId,
@@ -1925,6 +1926,19 @@ export async function postWorkflowAgentChatHandler(req, reply) {
       limit: 30,
     });
 
+    let stats = null;
+    let executionHistory = [];
+    try {
+      stats = await getWorkflowStatistics(workflowId);
+    } catch {
+      // ignore
+    }
+    try {
+      executionHistory = await getWorkflowExecutionHistory(workflowId, 30);
+    } catch {
+      // ignore
+    }
+
     const { runAgentChatTurn } = await import(
       '#services/full-workflow/agents/chat.service.js'
     );
@@ -1932,6 +1946,8 @@ export async function postWorkflowAgentChatHandler(req, reply) {
       message,
       node_id: nodeId,
       previousMessages,
+      stats,
+      executionHistory,
     });
 
     if (!result.success) {

@@ -49,7 +49,10 @@ export async function logAgentAction(params) {
         optimization_impact: optimizationImpact && OPTIMIZATION_IMPACT.includes(optimizationImpact)
           ? optimizationImpact
           : null,
-        workflow_version_id: workflowVersionId ?? null,
+        workflow_version_id:
+          workflowVersionId != null && Number(workflowVersionId) > 0
+            ? Number(workflowVersionId)
+            : null,
       })
       .returning();
 
