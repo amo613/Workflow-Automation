@@ -270,7 +270,11 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         workflowId,
         executionSuccess,
         executionError,
-        eventId
+        eventId,
+        {
+          goalAchieved: executionSuccess && result?.goalEvaluation?.achieved,
+          goalMetrics: result?.goalEvaluation,
+        }
       ).catch(err => {
         logger.warn('Failed to track workflow statistics', {
           workflowId,
@@ -280,6 +284,10 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       });
 
       if (workflow?.agents_enabled) {
+        // IMPORTANT: Wait briefly to ensure Redis write is fully committed
+        // This prevents agents from reading stale stats
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         triggerPostExecutionAgents(
           workflowId,
           userId,

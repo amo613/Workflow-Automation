@@ -83,20 +83,38 @@ Description: ${context.description || 'none'}
 Goal: ${JSON.stringify(context.goal_definition || 'none')}
 Stats: ${JSON.stringify(context.stats || {}, null, 2)}`;
 
-  // Optimize: Don't send full workflow_json if it's very large
+  // Smart workflow JSON: always show structure but optimize large workflows
   const workflowJsonStr = JSON.stringify(context.workflow_json || {});
-  if (workflowJsonStr.length > 50000) {
-    // Large workflow: send summary instead
-    const nodes = context.workflow_json?.nodes || [];
-    const edges = context.workflow_json?.edges || [];
+  const nodes = context.workflow_json?.nodes || [];
+  const edges = context.workflow_json?.edges || [];
+  
+  if (workflowJsonStr.length > 100000) {
+    // Very large: show node/edge IDs and types only
     userContent += `
-Workflow structure (large, showing summary):
-- Total nodes: ${nodes.length}
-- Total edges: ${edges.length}
-- Node types: ${[...new Set(nodes.map(n => n.type))].join(', ')}
-- Nodes with data: ${nodes.filter(n => n.data && Object.keys(n.data).length > 0).length}
-(Full workflow_json omitted due to size. Focus on stats and goal alignment.)`;
+Workflow structure (large, ${nodes.length} nodes):
+Nodes (ID → Type):
+${nodes.map(n => `  ${n.id}: ${n.type}`).join('\n')}
+
+Edges (connections):
+${edges.map(e => `  ${e.source} → ${e.target}${e.sourceHandle ? ` (${e.sourceHandle})` : ''}`).join('\n')}
+
+Note: Full node data omitted due to size. Use node types to understand structure.`;
+  } else if (workflowJsonStr.length > 50000) {
+    // Large: show simplified nodes (no data) + full edges
+    const simplifiedNodes = nodes.map(n => ({
+      id: n.id,
+      type: n.type,
+      position: n.position,
+      hasData: !!(n.data && Object.keys(n.data).length > 0),
+    }));
+    userContent += `
+Workflow structure (${nodes.length} nodes, simplified):
+Nodes: ${JSON.stringify(simplifiedNodes, null, 2)}
+Edges: ${JSON.stringify(edges, null, 2)}
+
+Note: Node data omitted to reduce size. Focus on connections and types.`;
   } else {
+    // Normal size: show full JSON
     userContent += `
 Workflow JSON (nodes and edges): ${workflowJsonStr}`;
   }

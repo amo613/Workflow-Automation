@@ -101,6 +101,12 @@ export async function trackWorkflowExecution(
 
     // Save stats and history using Redis pipeline (batch writes)
     try {
+      // Calculate success rate BEFORE saving (as NUMBER, not string!)
+      stats.successRate =
+        stats.totalExecutions > 0
+          ? Number(((stats.successfulExecutions / stats.totalExecutions) * 100).toFixed(2))
+          : 0;
+      
       const pipeline = redisClient.multi();
       
       // Save stats

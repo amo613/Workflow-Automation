@@ -103,13 +103,16 @@ export async function triggerPostExecutionAgents(
     return 'error';
   }
 
+  // SMART AUTO-APPLY: Only enable if goal needs attention or workflow failed
+  const shouldAutoApply = goalNeedsAttention || !success;
+  
   // Run pipeline with goal-driven configuration
   const pipelineOptions = {
     skipOptimization: false, // Always run for goal alignment
     skipMonitoring: false,   // Always monitor goal progress
     skipSecurity: success,   // Security only on failure
     skipExecution: success,  // Execution validation only on failure
-    autoApply: true,         // Autonomous: auto-apply fixes
+    autoApply: shouldAutoApply, // ✅ Smart: only auto-apply when needed!
     focusOnGoal: true,       // Primary focus: goal achievement
   };
 
@@ -126,7 +129,8 @@ export async function triggerPostExecutionAgents(
     userId,
     success,
     eventId: eventId || null,
-    pipelineOptions,
+    autoApply: shouldAutoApply,
+    goalNeedsAttention,
   });
 
   runAgentPipeline(workflowId, userId, pipelineOptions)
