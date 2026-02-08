@@ -11,42 +11,6 @@ import {
 } from './error-classification.service.js';
 
 /**
- * Evaluate if workflow achieved its goal based on outputs and goal definition
- * Simple heuristic: workflow succeeded if all critical nodes completed successfully
- */
-function evaluateGoalAchievement(workflow, nodeOutputs) {
-  if (!workflow || !workflow.goal_definition) {
-    return { achieved: true, confidence: 0, reason: 'No goal defined' };
-  }
-
-  // Check if any nodes failed
-  const hasFailures = Object.values(nodeOutputs).some(
-    output => output?.status === 'failed' || output?.success === false
-  );
-
-  if (hasFailures) {
-    return { achieved: false, confidence: 0.9, reason: 'Nodes failed during execution' };
-  }
-
-  // Check if workflow has meaningful outputs (completed successfully)
-  const completedNodes = Object.values(nodeOutputs).filter(
-    output => output?.status === 'success' || output?.success === true
-  );
-
-  const completionRate = Object.keys(nodeOutputs).length > 0
-    ? completedNodes.length / Object.keys(nodeOutputs).length
-    : 0;
-
-  if (completionRate >= 0.9) {
-    return { achieved: true, confidence: 0.8, reason: 'All nodes completed successfully' };
-  } else if (completionRate >= 0.7) {
-    return { achieved: true, confidence: 0.6, reason: 'Most nodes completed successfully' };
-  } else {
-    return { achieved: false, confidence: 0.7, reason: 'Too many nodes did not complete' };
-  }
-}
-
-/**
  * Execute a full workflow
  * @param {number|Object} workflowIdOrWorkflow - Workflow ID or Workflow object
  * @param {Object} input - Workflow input data
@@ -210,9 +174,7 @@ export async function executeWorkflow(
       result: executionResult,
       variables: Object.fromEntries(context.variables),
       nodeOutputs: Object.fromEntries(context.nodeOutputs),
-      executedEdges: Array.from(executedEdges), // Return executed edge IDs
-      // Add goal achievement evaluation
-      goalEvaluation: evaluateGoalAchievement(workflow, Object.fromEntries(context.nodeOutputs)),
+      executedEdges: Array.from(executedEdges),
     };
   } catch (error) {
     logger.error('Error executing workflow', {

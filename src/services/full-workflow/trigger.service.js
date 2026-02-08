@@ -191,12 +191,6 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
   }
 }
 
-/**
- * Trigger workflow by webhook (optimized for low latency)
- * @param {string} webhookId - Webhook ID (can be workflow ID or custom ID)
- * @param {Object} payload - Webhook payload
- * @returns {Promise<Object>} - Event ID from Inngest
- */
 export async function triggerByWebhook(webhookId, payload = {}) {
   try {
     logger.info('Triggering workflow via webhook', {
@@ -204,7 +198,7 @@ export async function triggerByWebhook(webhookId, payload = {}) {
       payloadKeys: Object.keys(payload),
     });
 
-    // Fire Inngest event asynchronously (don't await to reduce latency)
+    // Fire event async (don't block response)
     const eventPromise = inngest.send({
       name: 'workflow/webhook',
       data: {
@@ -213,14 +207,14 @@ export async function triggerByWebhook(webhookId, payload = {}) {
       },
     });
 
-    // Generate eventId early for response (use temp ID if needed)
-    const tempEventId = `webhook-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate temp eventId for immediate response
+    const tempEventId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create pending cache entry IMMEDIATELY (don't wait for Inngest)
+    // Create pending cache entry immediately
     const cacheKey = `workflow-execution:${tempEventId}`;
     const pendingCacheData = {
       success: false,
-      workflowId: null, // Will be set when workflow is loaded
+      workflowId: null,
       eventId: tempEventId,
       status: 'pending',
       nodeOutputs: {},
@@ -229,26 +223,17 @@ export async function triggerByWebhook(webhookId, payload = {}) {
       startedAt: new Date().toISOString(),
     };
 
-    // Store in memory cache immediately (TTL: 5 minutes)
     memoryCache.set(cacheKey, pendingCacheData, 300);
 
-    // Redis write async (non-blocking)
-    setImmediate(async () => {
-      try {
-        const { getRedisClient } = await import('#config/cache.js');
-        const redisClient = getRedisClient();
-        if (redisClient && redisClient.isReady) {
-          await redisClient.set(cacheKey, JSON.stringify(pendingCacheData), 'EX', 3600);
-        }
-      } catch (err) {
-        logger.warn('Failed to cache pending webhook execution in Redis', {
-          eventId: tempEventId,
-          error: err.message,
-        });
+    // Redis async
+    try {
+      const { getRedisClient } = await import('#config/cache.js');
+      const redisClient = getRedisClient();
+      if (redisClient?.isReady) {
+        redisClient.set(cacheKey, JSON.stringify(pendingCacheData), 'EX', 3600).catch(() => {});
       }
-    });
+    } catch {}
 
-    // Broadcast async (already non-blocking with setImmediate)
     broadcastWorkflowEvent({
       type: 'workflow.pending',
       workflowId: null,
@@ -261,29 +246,19 @@ export async function triggerByWebhook(webhookId, payload = {}) {
       },
     });
 
-    // Wait for Inngest response in background (update eventId if needed)
+    // Handle real eventId in background
     eventPromise.then(event => {
       const realEventId = event.ids?.[0];
       if (realEventId && realEventId !== tempEventId) {
-        // Update cache with real eventId
         const realCacheKey = `workflow-execution:${realEventId}`;
-        const updatedData = { ...pendingCacheData, eventId: realEventId };
-        memoryCache.set(realCacheKey, updatedData, 300);
-        
-        logger.info('Webhook workflow triggered successfully', {
-          webhookId,
-          tempEventId,
-          realEventId,
-        });
+        memoryCache.set(realCacheKey, { ...pendingCacheData, eventId: realEventId }, 300);
+        logger.info('Webhook workflow triggered', { webhookId, tempEventId, realEventId });
       }
-    }).catch(inngestErr => {
-      logger.error('Inngest send failed for webhook', {
-        webhookId,
-        error: inngestErr.message,
-      });
+    }).catch(err => {
+      logger.error('Inngest send failed for webhook', { webhookId, error: err.message });
     });
 
-    // Return immediately with temp eventId (don't wait for Inngest!)
+    // Return immediately
     return {
       success: true,
       eventId: tempEventId,
