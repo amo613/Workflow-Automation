@@ -46,12 +46,22 @@ export async function trackWorkflowExecution(
     stats.totalExecutions += 1;
     stats.lastExecution = timestamp;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'statistics.service.js:46',message:'trackWorkflowExecution called',data:{workflowId,success,successType:typeof success,hasError:!!error,errorMsg:error?.message||error},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+
     if (success) {
       stats.successfulExecutions += 1;
       stats.lastSuccess = timestamp;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'statistics.service.js:51',message:'SUCCESS BRANCH executed',data:{workflowId,successfulExecutions:stats.successfulExecutions},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
     } else {
       stats.failedExecutions += 1;
       stats.lastFailure = timestamp;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'statistics.service.js:58',message:'FAILURE BRANCH executed',data:{workflowId,failedExecutions:stats.failedExecutions,successValue:success},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       if (error) {
         // Keep last 10 errors
         stats.errors.push({

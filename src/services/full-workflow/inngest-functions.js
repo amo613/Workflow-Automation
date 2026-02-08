@@ -97,6 +97,10 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     let result;
     let executionSuccess = false;
     let executionError = null;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:96',message:'BEFORE workflow execution',data:{workflowId,executionSuccess,hasResult:!!result},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
 
     // Create cache key for incremental updates
     const cacheKey = `workflow-execution:${event.id}`;
@@ -187,6 +191,9 @@ export const executeFullWorkflowFunction = inngest.createFunction(
           result: executionResult,
         });
         executionSuccess = true;
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:189',message:'SUCCESS - executionSuccess set to TRUE',data:{workflowId,executionSuccess:true,resultSuccess:executionResult?.success},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         return executionResult;
       });
     } catch (error) {
@@ -197,6 +204,9 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       });
       executionSuccess = false;
       executionError = error;
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:198',message:'CATCH - executionSuccess set to FALSE',data:{workflowId,executionSuccess:false,errorMsg:error.message},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
 
       // Even on error, try to store partial results if available
       // Also store executedEdges even if execution failed
@@ -266,6 +276,9 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         eventId: eventId || 'none',
       });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:269',message:'BEFORE trackWorkflowExecution',data:{workflowId,executionSuccess,hasError:!!executionError,errorMsg:executionError?.message},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       await trackWorkflowExecution(
         workflowId,
         executionSuccess,

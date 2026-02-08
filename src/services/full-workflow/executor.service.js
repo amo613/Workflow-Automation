@@ -168,7 +168,7 @@ export async function executeWorkflow(
       edgesExecuted: executedEdges.size,
     });
 
-    return {
+    const finalResult = {
       success: true,
       executionLog,
       result: executionResult,
@@ -176,6 +176,10 @@ export async function executeWorkflow(
       nodeOutputs: Object.fromEntries(context.nodeOutputs),
       executedEdges: Array.from(executedEdges),
     };
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'executor.service.js:207',message:'executeWorkflow returning SUCCESS',data:{success:finalResult.success,nodesExecuted:executionLog.length},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
+    return finalResult;
   } catch (error) {
     logger.error('Error executing workflow', {
       workflowId:
