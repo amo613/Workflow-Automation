@@ -459,7 +459,7 @@ async function webhookRoutes(fastify) {
         message: 'Workflow triggered successfully',
         data: {
           workflowId,
-          executionId: result?.id || null,
+          executionId: result?.eventId ?? null,
         },
       });
     } catch (error) {
@@ -763,7 +763,7 @@ async function webhookRoutes(fastify) {
         message: 'Workflow triggered successfully',
         data: {
           workflowId,
-          executionId: result?.id || null,
+          executionId: result?.eventId ?? null,
         },
       });
     } catch (error) {

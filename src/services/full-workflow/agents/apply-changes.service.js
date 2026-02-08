@@ -11,7 +11,7 @@ import logger from '#config/logger.js';
 // CRITICAL: Allowed node types (must match system capabilities)
 const ALLOWED_NODE_TYPES = [
   'start', 'end',
-  'webhook', 'webhook-trigger',
+  'webhook-trigger',
   'http-request',
   'variable-set',
   'if', 'switch',

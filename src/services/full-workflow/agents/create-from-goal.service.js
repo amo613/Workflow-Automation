@@ -4,12 +4,13 @@
  */
 import { openRouterChat } from './openrouter.client.js';
 import { isFirecrawlConfigured, firecrawlSearch } from '#services/firecrawl.service.js';
+import { getNodeDocsForAgents } from '../node-docs.js';
 
 const SCHEMA_DESC = `
 Workflow JSON schema:
 - nodes: array of { id: string, type: string, position: { x: number, y: number }, data: object }
 - edges: array of { id: string, source: string (node id), target: string (node id) }
-Node types: start, end, webhook, webhook-trigger, http-request, variable-set, if, switch, wait, email, gmail, database-query, google-sheets, call-agent, ai-agent, merge, knowledge-base-query, web-scraper, hubspot, hubspot-trigger, schedule-trigger, google-sheets-trigger.
+Node types: start, end, webhook-trigger, http-request, variable-set, if, switch, wait, email, gmail, database-query, google-sheets, google-sheets-trigger, call-agent, ai-agent, merge, knowledge-base-query, web-scraper, hubspot, hubspot-trigger, schedule-trigger, call-trigger.
 Always include exactly one "start" node (id e.g. start-1). Use type "end" for terminal nodes.
 Return ONLY valid JSON in this exact shape: { "nodes": [...], "edges": [...] }. No markdown, no explanation.`;
 
@@ -35,8 +36,13 @@ export async function createWorkflowFromGoal(goal, options = {}) {
     }
   }
 
+  const nodeDocs = getNodeDocsForAgents();
   const systemPrompt = `You are a workflow designer. Given a user goal, produce a workflow as JSON.
 ${SCHEMA_DESC}
+
+Node documentation (what each type does; connect nodes so data flows correctly):
+${nodeDocs}
+
 ${extraContext}`;
 
   const userContent = `Goal: ${goal.trim()}\n\nReturn only the JSON object with "nodes" and "edges".`;

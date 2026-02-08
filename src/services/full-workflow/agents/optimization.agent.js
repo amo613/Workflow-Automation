@@ -14,7 +14,7 @@ export async function runOptimizationAgent(workflowId, context, options = {}) {
   // CRITICAL: Define allowed node types (must match your system)
   const ALLOWED_NODE_TYPES = [
     'start', 'end',
-    'webhook', 'webhook-trigger',
+    'webhook-trigger',
     'http-request',
     'variable-set',
     'if', 'switch',
@@ -54,6 +54,9 @@ CRITICAL CONSTRAINTS:
 - You can ONLY use these node types: ${ALLOWED_NODE_TYPES.join(', ')}
 - Do NOT invent new node types like "slack", "code", "delay" - they don't exist
 - If you need functionality not in the list, use existing nodes creatively (e.g., "http-request" for APIs, "wait" for delays)
+
+NODE DOCUMENTATION (what each type does; use this to place and connect nodes correctly):
+${context.nodeDocumentation || 'Not provided.'}
 
 You can propose:
 - "node_update": Modify existing node data (e.g., fix URL, adjust timeout)

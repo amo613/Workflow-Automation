@@ -1,6 +1,7 @@
 /**
  * Build scoped context per agent (guardrails). Each agent receives only what it needs.
  */
+import { getNodeDocsForAgents, getNodeTypeDoc } from '../node-docs.js';
 
 /**
  * Monitoring agent: only execution stats, errors, logs. No full workflow_json.
@@ -48,6 +49,7 @@ export function getOptimizationContext(workflow, stats = null, goalResearch = nu
       ...stats,
       errors: recentErrors, // ✅ Only recent errors
     } : null,
+    nodeDocumentation: getNodeDocsForAgents(),
   };
   if (goalResearch && (goalResearch.goalSearch?.length || goalResearch.errorSearch?.length)) {
     ctx.goalResearch = goalResearch;
@@ -65,6 +67,7 @@ export function getSecurityContext(workflow, goalResearch = null) {
     name: workflow.name,
     workflow_json: workflow.workflow_json,
     trigger_config: workflow.trigger_config || null,
+    nodeDocumentation: getNodeDocsForAgents(),
   };
   if (goalResearch && (goalResearch.goalSearch?.length || goalResearch.errorSearch?.length)) {
     ctx.goalResearch = goalResearch;
@@ -83,6 +86,7 @@ export function getExecutionContext(workflow, goalResearch = null) {
     nodes: wj.nodes || [],
     edges: wj.edges || [],
     trigger_config: workflow.trigger_config || null,
+    nodeDocumentation: getNodeDocsForAgents(),
   };
   if (goalResearch && (goalResearch.goalSearch?.length || goalResearch.errorSearch?.length)) {
     ctx.goalResearch = goalResearch;
@@ -108,5 +112,6 @@ export function getSingleNodeContext(workflow, nodeId) {
     incomingEdges: incoming,
     outgoingEdges: outgoing,
     goal_definition: workflow.goal_definition,
+    nodeDocumentation: getNodeTypeDoc(node?.type),
   };
 }

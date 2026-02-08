@@ -6,6 +6,7 @@
 import { openRouterChat } from './openrouter.client.js';
 import { getSingleNodeContext } from './context.js';
 import { logAgentAction } from '#services/workflow-agent-action.service.js';
+import { getNodeDocsForAgents } from '../node-docs.js';
 
 /**
  * Build system prompt with full read context so the agent can answer anything about the workflow.
@@ -81,6 +82,9 @@ ${JSON.stringify(executionHistory.slice(0, 15), null, 2)}
 ${JSON.stringify(nodeContext, null, 2)}
 \`\`\``);
   }
+
+  sections.push(`## Node type documentation (short)
+${getNodeDocsForAgents()}`);
 
   sections.push(`Answer in the user's language. Be precise and cite the data above when relevant.`);
 

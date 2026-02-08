@@ -17,6 +17,9 @@ Trigger config present: ${!!context.trigger_config}`;
   if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
     userContent += `\n\nWeb research (goal / last error):\n${JSON.stringify(context.goalResearch, null, 2)}`;
   }
+  if (context.nodeDocumentation) {
+    userContent += `\n\nNode documentation (what each type does):\n${context.nodeDocumentation}`;
+  }
 
   const { content, error } = await openRouterChat(
     [
