@@ -7,6 +7,7 @@ import {
   deleteFullWorkflow,
 } from '#services/full-workflow.service.js';
 import { triggerWorkflow } from '#services/full-workflow/trigger.service.js';
+import { checkMonthlyExecutionLimit } from '#middleware/execution-rate-limit.middleware.js';
 import { executeNode } from '#services/full-workflow/node-handlers/index.js';
 import VariableContext from '#services/full-workflow/variable-context.service.js';
 import {
@@ -787,16 +788,31 @@ export async function triggerWorkflowHandler(req, reply) {
     memoryCache.set(dedupeKey, lockPlaceholder, 3);
 
     try {
-      // Optimized: Only fetch is_active instead of entire workflow object
-      const [workflowStatus] = await db
-        .select({ is_active: fullWorkflows.is_active })
-        .from(fullWorkflows)
-        .where(and(
-          eq(fullWorkflows.id, workflowId),
-          eq(fullWorkflows.user_id, userId)
-        ))
-        .limit(1);
+      const userRole = req.user.role || 'user';
 
+      // Run DB and limit check in parallel to reduce latency (wait for slower of the two)
+      const [workflowResult, limitCheck] = await Promise.all([
+        db
+          .select({ is_active: fullWorkflows.is_active })
+          .from(fullWorkflows)
+          .where(and(
+            eq(fullWorkflows.id, workflowId),
+            eq(fullWorkflows.user_id, userId)
+          ))
+          .limit(1),
+        checkMonthlyExecutionLimit(userId, userRole),
+      ]);
+
+      const [workflowStatus] = workflowResult;
+      if (!limitCheck.allowed) {
+        memoryCache.del(dedupeKey);
+        return reply.code(429).send({
+          success: false,
+          error: 'Monthly execution limit exceeded',
+          message: `Monthly execution limit exceeded. Limit resets on ${limitCheck.resetAt.toISOString().split('T')[0]}`,
+          code: 'MONTHLY_LIMIT_EXCEEDED',
+        });
+      }
       if (!workflowStatus || !workflowStatus.is_active) {
         memoryCache.del(dedupeKey);
         return reply.code(400).send({
@@ -805,9 +821,9 @@ export async function triggerWorkflowHandler(req, reply) {
         });
       }
 
-      // Optimized: Pass userRole directly from JWT token instead of querying DB
-      const userRole = req.user.role || 'user';
-      const result = await triggerWorkflow(workflowId, userId, input, userRole);
+      const result = await triggerWorkflow(workflowId, userId, input, userRole, {
+        skipLimitCheck: true,
+      });
 
       // Update lock with actual eventId
       memoryCache.set(

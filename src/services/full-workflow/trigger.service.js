@@ -18,9 +18,10 @@ import { workflowExecutionQueue } from './workflow-execution.queue.js';
  * @param {number} userId - User ID
  * @param {Object} input - Workflow input data
  * @param {string} userRole - User role (from JWT token, no DB query needed)
+ * @param {{ skipLimitCheck?: boolean }} [options] - If skipLimitCheck is true, limit was already checked by caller (e.g. controller)
  * @returns {Promise<Object>} - { success, eventId (job.id), workflowId }
  */
-export async function triggerWorkflow(workflowId, userId, input = {}, userRole = 'user') {
+export async function triggerWorkflow(workflowId, userId, input = {}, userRole = 'user', options = {}) {
   try {
     logger.info('Triggering workflow via BullMQ', {
       workflowId,
@@ -29,18 +30,19 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
       userRole,
     });
 
-    // Check monthly execution limit (central check for all workflow executions)
-    const limitCheck = await checkMonthlyExecutionLimit(userId, userRole);
-    if (!limitCheck.allowed) {
-      logger.warn('Monthly execution limit exceeded', {
-        workflowId,
-        userId,
-        currentCount: limitCheck.currentCount,
-        limit: 10000,
-      });
-      throw new Error(
-        `Monthly execution limit exceeded. You have reached your monthly limit of 10,000 executions. Limit resets on ${limitCheck.resetAt.toISOString().split('T')[0]}`
-      );
+    if (!options.skipLimitCheck) {
+      const limitCheck = await checkMonthlyExecutionLimit(userId, userRole);
+      if (!limitCheck.allowed) {
+        logger.warn('Monthly execution limit exceeded', {
+          workflowId,
+          userId,
+          currentCount: limitCheck.currentCount,
+          limit: 10000,
+        });
+        throw new Error(
+          `Monthly execution limit exceeded. You have reached your monthly limit of 10,000 executions. Limit resets on ${limitCheck.resetAt.toISOString().split('T')[0]}`
+        );
+      }
     }
 
     // Limit payload size: store large input in Redis and pass reference
