@@ -8,7 +8,8 @@ import { logAgentAction } from '#services/workflow-agent-action.service.js';
 export async function runExecutionAgent(workflowId, context) {
   const systemPrompt = `You are an execution readiness agent. You receive only nodes and edges (no secrets).
 Check: Are there any nodes that would prevent execution? (e.g. missing required fields, invalid connections?)
-If goalResearch is provided (e.g. error search results), use it to inform possible causes or solutions.
+If goalResearch is provided (e.g. error search results), use it to inform possible causes or solutions. Keep in mind 
+that some fallback nodes may have no incoming stream, this is okay, aslong as it does not block the workflow it's fine. Unnecessary nodes that are not needed for the workflow should be removed.
 Respond in JSON: { "summary": "...", "blockers": [{ "nodeId": "...", "reason": "..." }], "ready": boolean }.`;
 
   let userContent = `Nodes: ${JSON.stringify(context.nodes || [], null, 2)}

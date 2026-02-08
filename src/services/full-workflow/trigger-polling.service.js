@@ -250,7 +250,7 @@ async function handleGoogleSheetsTrigger(
           updatedRowCount: updatedRows.length,
         });
 
-        // Execute workflow for each new row via Inngest (for proper output tracking)
+        // Execute workflow for each new row via workflow execution queue (BullMQ)
         for (const { row } of newRows) {
           try {
             await triggerWorkflow(workflowId, userId, {
@@ -258,7 +258,7 @@ async function handleGoogleSheetsTrigger(
               event: 'added',
               row,
             });
-            // Track successful trigger (execution tracking happens in Inngest function)
+            // Track successful trigger (execution tracking happens in worker)
             trackTriggerExecution(
               workflowId,
               triggerNode.id,
@@ -280,7 +280,7 @@ async function handleGoogleSheetsTrigger(
           }
         }
 
-        // Execute workflow for each updated row via Inngest (for proper output tracking)
+        // Execute workflow for each updated row via workflow execution queue (BullMQ)
         for (const { row } of updatedRows) {
           try {
             await triggerWorkflow(workflowId, userId, {
@@ -288,7 +288,7 @@ async function handleGoogleSheetsTrigger(
               event: 'updated',
               row,
             });
-            // Track successful trigger (execution tracking happens in Inngest function)
+            // Track successful trigger (execution tracking happens in worker)
             trackTriggerExecution(
               workflowId,
               triggerNode.id,
@@ -369,7 +369,7 @@ async function handleScheduleTrigger(
       schedule: triggerConfig.schedule || triggerConfig.cronExpression,
     });
 
-    // Trigger the workflow via Inngest
+    // Trigger the workflow via workflow execution queue (BullMQ)
     await triggerWorkflow(workflowId, userId, {
       triggerNodeId: triggerNode.id,
       event: 'schedule_triggered',

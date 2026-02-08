@@ -1,3 +1,7 @@
+/**
+ * @deprecated Workflow execution now uses BullMQ (workflow-execution queue + worker).
+ * This file is kept for reference only. See workflow-execution.worker.js for the active implementation.
+ */
 import { inngest } from '#config/inngest.js';
 import logger from '#config/logger.js';
 import { getFullWorkflow } from '#services/full-workflow.service.js';
@@ -8,8 +12,7 @@ import { broadcastWorkflowEvent } from './workflow-events.service.js';
 import { triggerPostExecutionAgents } from './agents/post-execution-trigger.js';
 
 /**
- * Inngest Function: Execute Full Workflow
- * This function is triggered when a workflow needs to be executed
+ * Inngest Function: Execute Full Workflow (DEPRECATED - not registered; use BullMQ worker)
  */
 export const executeFullWorkflowFunction = inngest.createFunction(
   {

@@ -1,4 +1,3 @@
-import { inngest } from '#config/inngest.js';
 import logger from '#config/logger.js';
 import { memoryCache } from '#config/cache.js';
 import { broadcastWorkflowEvent } from './workflow-events.service.js';
@@ -6,10 +5,11 @@ import {
   checkMonthlyExecutionLimit,
   incrementExecutionCount,
 } from '#middleware/execution-rate-limit.middleware.js';
+import { workflowExecutionQueue } from './workflow-execution.queue.js';
 
 /**
  * Trigger Service for Full Workflows
- * Handles triggering workflows via Inngest
+ * Handles triggering workflows via BullMQ (workflow-execution queue)
  */
 
 /**
@@ -18,11 +18,11 @@ import {
  * @param {number} userId - User ID
  * @param {Object} input - Workflow input data
  * @param {string} userRole - User role (from JWT token, no DB query needed)
- * @returns {Promise<Object>} - Event ID from Inngest
+ * @returns {Promise<Object>} - { success, eventId (job.id), workflowId }
  */
 export async function triggerWorkflow(workflowId, userId, input = {}, userRole = 'user') {
   try {
-    logger.info('Triggering workflow via Inngest', {
+    logger.info('Triggering workflow via BullMQ', {
       workflowId,
       userId,
       hasInput: !!input,
@@ -30,7 +30,6 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
     });
 
     // Check monthly execution limit (central check for all workflow executions)
-    // userRole is passed from controller (from JWT token), no DB query needed
     const limitCheck = await checkMonthlyExecutionLimit(userId, userRole);
     if (!limitCheck.allowed) {
       logger.warn('Monthly execution limit exceeded', {
@@ -44,79 +43,48 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
       );
     }
 
-    // Limit payload size to avoid slow network writes
+    // Limit payload size: store large input in Redis and pass reference
     let finalInput = input;
     const inputStr = JSON.stringify(input || {});
     const payloadSizeKB = Math.round(inputStr.length / 1024);
-    
-    // If input is very large (>100KB), store in Redis and pass reference
+
     if (inputStr.length > 100000) {
       logger.warn('Large workflow input detected, storing in Redis', {
         workflowId,
         sizeKB: payloadSizeKB,
       });
-      
       try {
         const { getRedisClient } = await import('#config/cache.js');
         const redisClient = getRedisClient();
         if (redisClient && redisClient.isReady) {
           const inputRefKey = `workflow-input:${workflowId}:${Date.now()}`;
           await redisClient.set(inputRefKey, inputStr, 'EX', 3600);
-          
-          // Replace with reference
           finalInput = {
             _largeInputRef: inputRefKey,
             _originalSizeKB: payloadSizeKB,
           };
-          
-          logger.info('Large input stored in Redis', {
-            workflowId,
-            refKey: inputRefKey,
-            originalSizeKB: payloadSizeKB,
-          });
         }
       } catch (redisErr) {
         logger.warn('Failed to store large input in Redis, sending full payload', {
           workflowId,
           error: redisErr.message,
         });
-        // Fallback: send full payload
       }
     }
 
-    const event = await inngest.send({
-      name: 'workflow/triggered',
-      data: {
-        workflowId,
-        userId,
-        input: finalInput,
-      },
-    });
-
-    const eventId = event.ids?.[0];
+    const job = await workflowExecutionQueue.add(
+      'run',
+      { workflowId, userId, input: finalInput },
+      { removeOnComplete: { count: 500 } }
+    );
+    const eventId = String(job.id);
 
     logger.info('Workflow triggered successfully', {
       workflowId,
       eventId,
     });
 
-    if (!eventId) {
-      logger.warn(
-        'Inngest send returned no event IDs; run may not appear in dashboard',
-        {
-          workflowId,
-          userId,
-        }
-      );
-      return {
-        success: true,
-        eventId: null,
-        workflowId,
-      };
-    }
-
-    // Create pending cache entry IMMEDIATELY so frontend can see workflow is running
-    // This prevents 404 errors while waiting for execution to complete
+    // Pending cache so frontend can poll (eventId = job.id)
     const cacheKey = `workflow-execution:${eventId}`;
     const pendingCacheData = {
       success: false,
@@ -160,9 +128,7 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
       userId,
       eventId,
       source: 'triggerWorkflow',
-      payloadSummary: {
-        inputKeys: Object.keys(input || {}),
-      },
+      payloadSummary: { inputKeys: Object.keys(input || {}) },
     });
 
     // Increment execution count after successful trigger (async, don't await)
@@ -191,87 +157,32 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
   }
 }
 
+/**
+ * Trigger workflow by webhook ID (e.g. when webhookId equals workflowId).
+ * Resolves workflow to get userId, then enqueues via BullMQ like triggerWorkflow.
+ */
 export async function triggerByWebhook(webhookId, payload = {}) {
   try {
-    logger.info('Triggering workflow via webhook', {
-      webhookId,
-      payloadKeys: Object.keys(payload),
-    });
+    const { db } = await import('#config/database.js');
+    const { fullWorkflows } = await import('#models/full-workflow.model.js');
+    const { eq } = await import('drizzle-orm');
 
-    // ✅ Fire and forget: Start sending event but don't await
-    const eventPromise = inngest.send({
-      name: 'workflow/webhook',
-      data: {
-        webhookId,
-        payload,
-      },
-    });
+    const workflowId = parseInt(webhookId, 10);
+    if (isNaN(workflowId)) {
+      throw new Error('Invalid webhook ID');
+    }
 
-    // ✅ Generate temp eventId for immediate response (high entropy)
-    const tempEventId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    const [workflow] = await db
+      .select({ id: fullWorkflows.id, user_id: fullWorkflows.user_id })
+      .from(fullWorkflows)
+      .where(eq(fullWorkflows.id, workflowId))
+      .limit(1);
 
-    // ✅ Create pending cache entry SYNCHRONOUSLY (must be available before return!)
-    const cacheKey = `workflow-execution:${tempEventId}`;
-    const pendingCacheData = {
-      success: false,
-      workflowId: null,
-      eventId: tempEventId,
-      status: 'pending',
-      nodeOutputs: {},
-      executedEdges: [],
-      executionLog: [],
-      startedAt: new Date().toISOString(),
-    };
+    if (!workflow) {
+      throw new Error('Workflow not found');
+    }
 
-    // ✅ CRITICAL: Set memory cache SYNCHRONOUSLY before return
-    memoryCache.set(cacheKey, pendingCacheData, 300);
-    
-    // ✅ Redis write in background (non-blocking, slower operation)
-    setImmediate(async () => {
-      try {
-        const { getRedisClient } = await import('#config/cache.js');
-        const redisClient = getRedisClient();
-        if (redisClient?.isReady) {
-          redisClient.setEx(cacheKey, 3600, JSON.stringify(pendingCacheData)).catch(() => {});
-        }
-      } catch {}
-    });
-
-    // ✅ Broadcast in background (non-blocking)
-    setImmediate(() => {
-      broadcastWorkflowEvent({
-        type: 'workflow.pending',
-        workflowId: null,
-        userId: null,
-        eventId: tempEventId,
-        source: 'triggerByWebhook',
-        payloadSummary: {
-          payloadKeys: Object.keys(payload || {}),
-          webhookId,
-        },
-      });
-    });
-
-    // ✅ Background update: Get real eventId when promise resolves
-    eventPromise
-      .then((event) => {
-        const realEventId = event.ids?.[0];
-        if (realEventId && realEventId !== tempEventId) {
-          const realCacheKey = `workflow-execution:${realEventId}`;
-          memoryCache.set(realCacheKey, { ...pendingCacheData, eventId: realEventId }, 300);
-          logger.info('Webhook workflow triggered', { webhookId, tempEventId, realEventId });
-        }
-      })
-      .catch((err) => {
-        logger.error('Inngest send failed for webhook', { webhookId, error: err.message });
-      });
-
-    // ✅ Return immediately (< 50ms!)
-    return {
-      success: true,
-      eventId: tempEventId,
-      webhookId,
-    };
+    return await triggerWorkflow(workflowId, workflow.user_id, payload, 'user');
   } catch (error) {
     logger.error('Failed to trigger workflow via webhook', {
       webhookId,
@@ -283,7 +194,7 @@ export async function triggerByWebhook(webhookId, payload = {}) {
 
 /**
  * Trigger workflow by schedule (cron)
- * Note: This requires setting up a scheduled function in Inngest
+ * Actual schedule runs via trigger-polling BullMQ jobs (schedule-trigger); this is a placeholder.
  * @param {number} workflowId - Workflow ID
  * @param {string} cron - Cron expression
  * @returns {Promise<Object>} - Schedule ID
@@ -294,16 +205,11 @@ export async function triggerBySchedule(workflowId, cron) {
       workflowId,
       cron,
     });
-
-    // Note: Scheduled workflows are typically defined in Inngest functions
-    // This is a placeholder for future implementation
-    // You would create a scheduled function in inngest-functions.js
-
     return {
       success: true,
       workflowId,
       cron,
-      message: 'Schedule will be set up in Inngest function definition',
+      message: 'Schedule is managed by trigger-polling (BullMQ) when workflow is active',
     };
   } catch (error) {
     logger.error('Failed to schedule workflow', {

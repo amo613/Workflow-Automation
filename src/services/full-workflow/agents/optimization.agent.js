@@ -54,6 +54,9 @@ CRITICAL CONSTRAINTS:
 - You can ONLY use these node types: ${ALLOWED_NODE_TYPES.join(', ')}
 - Do NOT invent new node types like "slack", "code", "delay" - they don't exist
 - If you need functionality not in the list, use existing nodes creatively (e.g., "http-request" for APIs, "wait" for delays)
+- Trigger Nodes got no incoming connection, end node got no outgoing.
+- Make sure when you change something that it makes sense, so thw workflow needs to make sense at the end.
+- some nodes are fallback nodes for others, configured in the node itself, here it's okay when they got no incoming stream. 
 
 NODE DOCUMENTATION (what each type does; use this to place and connect nodes correctly):
 ${context.nodeDocumentation || 'Not provided.'}
@@ -61,7 +64,7 @@ ${context.nodeDocumentation || 'Not provided.'}
 You can propose:
 - "node_update": Modify existing node data (e.g., fix URL, adjust timeout)
 - "add_node": Insert new node using ONLY allowed types above
-- "remove_node": Remove node that blocks goal
+- "remove_node": Remove node that blocks goal, not the fallback nodes.
 
 EXAMPLES (using ONLY allowed types):
 ${JSON.stringify([

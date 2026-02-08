@@ -19,3 +19,4 @@ apminsightdata/
 # Ignore apminsightnode.json
 apminsightnode.json
 
+src/services/full-workflow/agents/ARCHITECTURE.md
