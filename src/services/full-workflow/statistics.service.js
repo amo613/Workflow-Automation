@@ -46,9 +46,6 @@ export async function trackWorkflowExecution(
     stats.totalExecutions += 1;
     stats.lastExecution = timestamp;
 
-    // #region agent log
-    const timestamp = Date.now();
-
     if (success) {
       stats.successfulExecutions += 1;
       stats.lastSuccess = timestamp;
@@ -111,6 +108,26 @@ export async function trackWorkflowExecution(
         stats.totalExecutions > 0
           ? Number(((stats.successfulExecutions / stats.totalExecutions) * 100).toFixed(2))
           : 0;
+      
+      // Prepare execution history entry
+      const historyKey = `workflow:${workflowId}:execution-history`;
+      const historyEntry = {
+        eventId: eventId || `exec-${timestamp}`,
+        timestamp,
+        success,
+        error: error ? (error.message || String(error)) : null,
+        goalAchieved: options.goalAchieved,
+      };
+      
+      // Get existing history and prepend new entry
+      const existingHistoryStr = await redisClient.get(historyKey);
+      const history = existingHistoryStr ? JSON.parse(existingHistoryStr) : [];
+      history.unshift(historyEntry);
+      
+      // Keep only last 100 executions
+      if (history.length > 100) {
+        history.splice(100);
+      }
       
       const pipeline = redisClient.multi();
       
