@@ -190,12 +190,11 @@ export const executeFullWorkflowFunction = inngest.createFunction(
           workflowId,
           result: executionResult,
         });
-        executionSuccess = true;
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:189',message:'SUCCESS - executionSuccess set to TRUE',data:{workflowId,executionSuccess:true,resultSuccess:executionResult?.success},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         return executionResult;
       });
+      
+      // ✅ CRITICAL FIX: Set executionSuccess AFTER step.run based on result
+      executionSuccess = !!(result && result.success !== false);
     } catch (error) {
       logger.error('Failed to execute workflow', {
         workflowId,

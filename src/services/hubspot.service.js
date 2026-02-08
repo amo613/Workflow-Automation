@@ -4,10 +4,17 @@ import { getIntegration } from './integration.service.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
+import { httpsAgent } from '#config/http-agent.js';
+
+// ✅ Cache HubSpot access tokens to reduce DB queries
+const hubspotTokenCache = new Map();
+const CACHE_TTL = 4 * 60 * 1000; // 4 minutes (refresh 1 min before expiry)
 
 /**
  * HubSpot Service
  * Handles HubSpot CRM API operations
+ * Note: Native Node.js fetch doesn't support agent parameter.
+ * For production, consider using undici or node-fetch for connection pooling.
  */
 export class HubSpotService {
   /**
@@ -16,6 +23,15 @@ export class HubSpotService {
    * @returns {Promise<{accessToken: string}>} - Access token for API calls
    */
   async getAuthenticatedClient(userId) {
+    // ✅ Check cache first
+    const cacheKey = `hubspot-token-${userId}`;
+    const cached = hubspotTokenCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      logger.debug('Using cached HubSpot token', { userId });
+      return { accessToken: cached.accessToken };
+    }
+
     const integration = await getIntegration(userId, 'HUBSPOT');
 
     if (!integration) {
@@ -70,6 +86,18 @@ export class HubSpotService {
           );
         }
       }
+    }
+
+    // ✅ Cache the token
+    hubspotTokenCache.set(cacheKey, {
+      accessToken,
+      timestamp: Date.now(),
+    });
+    
+    // ✅ Clean old cache entries (max 100)
+    if (hubspotTokenCache.size > 100) {
+      const oldestKey = hubspotTokenCache.keys().next().value;
+      hubspotTokenCache.delete(oldestKey);
     }
 
     return { accessToken };

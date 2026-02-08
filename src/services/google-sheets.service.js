@@ -1,6 +1,10 @@
 import { google } from 'googleapis';
 import logger from '#config/logger.js';
 
+// ✅ Cache Google OAuth clients per user to avoid recreating
+const oauth2ClientCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 /**
  * Google Sheets Service
  * Handles Google Sheets API operations
@@ -32,6 +36,15 @@ export class GoogleSheetsService {
       throw new Error('Google OAuth credentials not configured');
     }
 
+    // ✅ Check cache first
+    const cacheKey = `${accessToken.substring(0, 20)}-${refreshToken?.substring(0, 20) || 'none'}`;
+    const cached = oauth2ClientCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      logger.debug('Using cached Google OAuth client');
+      return cached.client;
+    }
+
     const oauth2Client = new google.auth.OAuth2(
       this.clientId,
       this.clientSecret,
@@ -47,7 +60,21 @@ export class GoogleSheetsService {
       oauth2Client.setCredentials({ access_token: accessToken });
     }
 
-    return google.sheets({ version: 'v4', auth: oauth2Client });
+    const sheetsClient = google.sheets({ version: 'v4', auth: oauth2Client });
+    
+    // ✅ Cache the client
+    oauth2ClientCache.set(cacheKey, {
+      client: sheetsClient,
+      timestamp: Date.now(),
+    });
+    
+    // ✅ Clean old cache entries (max 100)
+    if (oauth2ClientCache.size > 100) {
+      const oldestKey = oauth2ClientCache.keys().next().value;
+      oauth2ClientCache.delete(oldestKey);
+    }
+
+    return sheetsClient;
   }
 
   /**

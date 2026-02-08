@@ -3,6 +3,10 @@ import logger from '#config/logger.js';
 import { decryptApiKey } from '#utils/encryption.utils.js';
 import { NODE_ENV } from '#config/env.js';
 
+// ✅ Cache SMTP transporters to reuse connections
+const transporterCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 /**
  * Create SMTP transporter from credentials
  * @param {Object} credentials - SMTP credentials (decrypted)
@@ -17,55 +21,77 @@ function createTransporter(credentials) {
     useTls = true,
     service, // Optional: 'gmail', etc.
   } = credentials;
+  
+  // ✅ Check cache first
+  const cacheKey = `${service || smtpHost}-${smtpUser}`;
+  const cached = transporterCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    logger.debug('Using cached SMTP transporter', { cacheKey });
+    return cached.transporter;
+  }
+
+  let transporter;
 
   // If service is specified (e.g., 'gmail'), use service config
   if (service === 'gmail') {
-    return nodemailer.createTransport({
+    transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: smtpUser,
         pass: smtpPassword,
       },
-      // Timeout settings to prevent hanging in production
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000, // 10 seconds
-      socketTimeout: 10000, // 10 seconds
+      pool: true, // ✅ Enable connection pooling
+      maxConnections: 5,
+      maxMessages: 100,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
-  }
-
-  // Otherwise, use host/port configuration
-  const port = parseInt(smtpPort, 10);
-  const config = {
-    host: smtpHost,
-    port,
-    auth: {
-      user: smtpUser,
-      pass: smtpPassword,
-    },
-    // Timeout settings to prevent hanging in production
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000, // 10 seconds
-    socketTimeout: 10000, // 10 seconds
-  };
-
-  // Port 465 uses direct SSL (secure: true)
-  // Port 587 uses STARTTLS (secure: false, requireTLS: true)
-  if (port === 465) {
-    config.secure = true; // Direct SSL
-  } else if (port === 587) {
-    config.secure = false; // STARTTLS (not direct SSL)
-    if (useTls) {
-      config.requireTLS = true; // Require STARTTLS
-    }
   } else {
-    // Other ports: use useTls flag
-    config.secure = useTls;
-    if (!useTls && port === 587) {
+    // Otherwise, use host/port configuration
+    const port = parseInt(smtpPort, 10);
+    const config = {
+      host: smtpHost,
+      port,
+      auth: {
+        user: smtpUser,
+        pass: smtpPassword,
+      },
+      pool: true, // ✅ Enable connection pooling
+      maxConnections: 5,
+      maxMessages: 100,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    };
+
+    // ✅ CRITICAL: Port 465 uses direct SSL, port 587 uses STARTTLS
+    if (port === 465) {
+      config.secure = true;
+    } else if (port === 587) {
+      config.secure = false;
       config.requireTLS = true;
+    } else if (useTls) {
+      config.secure = true;
     }
+
+    transporter = nodemailer.createTransport(config);
+  }
+  
+  // ✅ Cache the transporter
+  transporterCache.set(cacheKey, {
+    transporter,
+    timestamp: Date.now(),
+  });
+  
+  // ✅ Clean old cache entries
+  if (transporterCache.size > 50) {
+    const oldestKey = transporterCache.keys().next().value;
+    transporterCache.delete(oldestKey);
   }
 
-  return nodemailer.createTransport(config);
+  return transporter;
 }
 
 /**

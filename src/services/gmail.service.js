@@ -1,6 +1,10 @@
 import { google } from 'googleapis';
 import logger from '#config/logger.js';
 
+// ✅ Cache Gmail OAuth clients to avoid recreating
+const gmailClientCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 /**
  * Gmail Service
  * Handles Gmail API operations
@@ -51,6 +55,15 @@ export class GmailService {
       throw new Error('Google OAuth credentials not configured');
     }
 
+    // ✅ Check cache first
+    const cacheKey = `${accessToken.substring(0, 20)}-${refreshToken?.substring(0, 20) || 'none'}`;
+    const cached = gmailClientCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      logger.debug('Using cached Gmail OAuth client');
+      return cached.client;
+    }
+
     const oauth2Client = new google.auth.OAuth2(
       this.clientId,
       this.clientSecret,
@@ -66,7 +79,21 @@ export class GmailService {
       oauth2Client.setCredentials({ access_token: accessToken });
     }
 
-    return google.gmail({ version: 'v1', auth: oauth2Client });
+    const gmailClient = google.gmail({ version: 'v1', auth: oauth2Client });
+    
+    // ✅ Cache the client
+    gmailClientCache.set(cacheKey, {
+      client: gmailClient,
+      timestamp: Date.now(),
+    });
+    
+    // ✅ Clean old cache entries (max 100)
+    if (gmailClientCache.size > 100) {
+      const oldestKey = gmailClientCache.keys().next().value;
+      gmailClientCache.delete(oldestKey);
+    }
+
+    return gmailClient;
   }
 
   /**

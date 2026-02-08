@@ -1,5 +1,6 @@
 import { resolveTemplate } from '#utils/template-engine.js';
 import logger from '#config/logger.js';
+import { undiciAgent } from '#config/http-agent.js';
 
 /**
  * Execute HTTP Request Node
@@ -66,6 +67,8 @@ export async function executeHttpRequest(data, context) {
         'Content-Type': 'application/json',
         ...resolvedHeaders,
       },
+      // ✅ Add undici dispatcher for connection pooling (native fetch)
+      dispatcher: undiciAgent,
     };
 
     if (resolvedBody && method.toUpperCase() !== 'GET') {
