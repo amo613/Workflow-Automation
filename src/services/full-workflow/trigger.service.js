@@ -44,12 +44,52 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
       );
     }
 
+    // Limit payload size to avoid slow network writes
+    let finalInput = input;
+    const inputStr = JSON.stringify(input || {});
+    const payloadSizeKB = Math.round(inputStr.length / 1024);
+    
+    // If input is very large (>100KB), store in Redis and pass reference
+    if (inputStr.length > 100000) {
+      logger.warn('Large workflow input detected, storing in Redis', {
+        workflowId,
+        sizeKB: payloadSizeKB,
+      });
+      
+      try {
+        const { getRedisClient } = await import('#config/cache.js');
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isReady) {
+          const inputRefKey = `workflow-input:${workflowId}:${Date.now()}`;
+          await redisClient.set(inputRefKey, inputStr, 'EX', 3600);
+          
+          // Replace with reference
+          finalInput = {
+            _largeInputRef: inputRefKey,
+            _originalSizeKB: payloadSizeKB,
+          };
+          
+          logger.info('Large input stored in Redis', {
+            workflowId,
+            refKey: inputRefKey,
+            originalSizeKB: payloadSizeKB,
+          });
+        }
+      } catch (redisErr) {
+        logger.warn('Failed to store large input in Redis, sending full payload', {
+          workflowId,
+          error: redisErr.message,
+        });
+        // Fallback: send full payload
+      }
+    }
+
     const event = await inngest.send({
       name: 'workflow/triggered',
       data: {
         workflowId,
         userId,
-        input,
+        input: finalInput,
       },
     });
 

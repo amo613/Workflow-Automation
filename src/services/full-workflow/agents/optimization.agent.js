@@ -81,8 +81,25 @@ If no changes needed, return { "summary": "Workflow is aligned with goal.", "cha
   let userContent = `Workflow: ${context.name}
 Description: ${context.description || 'none'}
 Goal: ${JSON.stringify(context.goal_definition || 'none')}
-Stats: ${JSON.stringify(context.stats || {}, null, 2)}
-Workflow JSON (nodes and edges): ${JSON.stringify(context.workflow_json || {}, null, 2)}`;
+Stats: ${JSON.stringify(context.stats || {}, null, 2)}`;
+
+  // Optimize: Don't send full workflow_json if it's very large
+  const workflowJsonStr = JSON.stringify(context.workflow_json || {});
+  if (workflowJsonStr.length > 50000) {
+    // Large workflow: send summary instead
+    const nodes = context.workflow_json?.nodes || [];
+    const edges = context.workflow_json?.edges || [];
+    userContent += `
+Workflow structure (large, showing summary):
+- Total nodes: ${nodes.length}
+- Total edges: ${edges.length}
+- Node types: ${[...new Set(nodes.map(n => n.type))].join(', ')}
+- Nodes with data: ${nodes.filter(n => n.data && Object.keys(n.data).length > 0).length}
+(Full workflow_json omitted due to size. Focus on stats and goal alignment.)`;
+  } else {
+    userContent += `
+Workflow JSON (nodes and edges): ${workflowJsonStr}`;
+  }
   
   if (context.executionContext) {
     userContent += `\n\nLast Execution:\n${JSON.stringify(context.executionContext, null, 2)}`;

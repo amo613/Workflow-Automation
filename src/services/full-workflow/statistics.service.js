@@ -99,71 +99,55 @@ export async function trackWorkflowExecution(
       stats.goalMetrics.lastEvaluation = timestamp;
     }
 
-    // Track execution history (last 100 executions)
-    const historyKey = `workflow:${workflowId}:execution-history`;
-    const executionRecord = {
-      timestamp,
-      success,
-      error: error ? error.message || String(error) : null,
-      errorStack: error?.stack || null,
-      eventId: eventId || null, // Store eventId for retrieving outputs
-    };
-
-    logger.debug('Tracking workflow execution in history', {
-      workflowId,
-      success,
-      hasEventId: !!eventId,
-      eventId: eventId || 'none',
-    });
-
+    // Save stats and history using Redis pipeline (batch writes)
     try {
-      // Get current history
-      const historyStr = await redisClient.get(historyKey);
-      const history = historyStr ? JSON.parse(historyStr) : [];
-
-      // Add new execution at the beginning
-      history.unshift(executionRecord);
-
-      // Keep only last 100 executions
-      if (history.length > 100) {
-        history.splice(100);
-      }
-
-      // Save history (TTL: 30 days)
-      await redisClient.set(
+      const pipeline = redisClient.multi();
+      
+      // Save stats
+      pipeline.set(
+        statsKey,
+        JSON.stringify(stats),
+        'EX',
+        90 * 24 * 60 * 60
+      );
+      
+      // Save history
+      pipeline.set(
         historyKey,
         JSON.stringify(history),
         'EX',
         30 * 24 * 60 * 60
       );
-    } catch (historyError) {
-      logger.warn('Error tracking execution history', {
+      
+      // Execute both writes in one round-trip
+      await pipeline.exec();
+      
+      logger.debug('Workflow statistics and history updated (batched)', {
         workflowId,
-        error: historyError.message,
+        totalExecutions: stats.totalExecutions,
+        successRate: stats.successRate,
       });
+    } catch (batchError) {
+      logger.warn('Error saving stats/history in batch', {
+        workflowId,
+        error: batchError.message,
+      });
+      
+      // Fallback: try individual writes
+      try {
+        await redisClient.set(
+          statsKey,
+          JSON.stringify(stats),
+          'EX',
+          90 * 24 * 60 * 60
+        );
+      } catch (statsErr) {
+        logger.error('Failed to save stats even in fallback', {
+          workflowId,
+          error: statsErr.message,
+        });
+      }
     }
-
-    // Calculate success rate
-    stats.successRate =
-      stats.totalExecutions > 0
-        ? ((stats.successfulExecutions / stats.totalExecutions) * 100).toFixed(
-            2
-          )
-        : 0;
-
-    // Save stats (TTL: 90 days)
-    await redisClient.set(
-      statsKey,
-      JSON.stringify(stats),
-      'EX',
-      90 * 24 * 60 * 60
-    );
-
-    logger.debug('Workflow statistics updated', {
-      workflowId,
-      totalExecutions: stats.totalExecutions,
-      successRate: stats.successRate,
-    });
   } catch (error) {
     logger.warn('Error tracking workflow statistics', {
       workflowId,

@@ -34,6 +34,46 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       eventId: event?.id,
     });
 
+    // Resolve large input references if present
+    let resolvedInput = input;
+    if (input?._largeInputRef) {
+      logger.info('Resolving large input from Redis', {
+        workflowId,
+        refKey: input._largeInputRef,
+        originalSizeKB: input._originalSizeKB,
+      });
+      
+      try {
+        const { getRedisClient } = await import('#config/cache.js');
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isReady) {
+          const largeInputStr = await redisClient.get(input._largeInputRef);
+          if (largeInputStr) {
+            resolvedInput = JSON.parse(largeInputStr);
+            logger.info('Large input resolved', {
+              workflowId,
+              sizeKB: Math.round(largeInputStr.length / 1024),
+            });
+            
+            // Delete reference (one-time use)
+            redisClient.del(input._largeInputRef).catch(() => {});
+          } else {
+            logger.warn('Large input reference not found', {
+              workflowId,
+              refKey: input._largeInputRef,
+            });
+            resolvedInput = {};
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to resolve large input', {
+          workflowId,
+          error: err.message,
+        });
+        resolvedInput = {};
+      }
+    }
+
     // Step 1: Load workflow from database
     const workflow = await step.run('load-workflow', async () => {
       try {
@@ -62,7 +102,28 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     const cacheKey = `workflow-execution:${event.id}`;
 
     // Function to update cache incrementally after each node execution
+    // THROTTLED: Only update every N nodes or every X seconds to reduce I/O
+    let lastCacheUpdate = Date.now();
+    let nodesSinceLastUpdate = 0;
+    const CACHE_UPDATE_INTERVAL_MS = 2000; // Update at most every 2 seconds
+    const CACHE_UPDATE_NODE_INTERVAL = 5; // Or every 5 nodes
+    
     const updateCacheIncremental = partialResult => {
+      nodesSinceLastUpdate++;
+      const now = Date.now();
+      const timeSinceLastUpdate = now - lastCacheUpdate;
+      
+      // Only update if enough time passed OR enough nodes executed
+      if (
+        timeSinceLastUpdate < CACHE_UPDATE_INTERVAL_MS &&
+        nodesSinceLastUpdate < CACHE_UPDATE_NODE_INTERVAL
+      ) {
+        return; // Skip this update
+      }
+      
+      lastCacheUpdate = now;
+      nodesSinceLastUpdate = 0;
+      
       try {
         const cacheData = {
           success: false, // Still running
@@ -79,7 +140,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         memoryCache.set(cacheKey, cacheData, 300);
 
         // Update Redis asynchronously (don't block)
-        (async () => {
+        setImmediate(async () => {
           try {
             const { getRedisClient } = await import('#config/cache.js');
             const redisClient = getRedisClient();
@@ -94,8 +155,9 @@ export const executeFullWorkflowFunction = inngest.createFunction(
           } catch {
             // Ignore Redis errors for incremental updates
           }
-        })();
+        });
 
+        // Broadcast event asynchronously (already uses setImmediate internally)
         broadcastWorkflowEvent({
           type: 'workflow.running',
           workflowId,
@@ -114,7 +176,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       result = await step.run('execute-workflow', async () => {
         const executionResult = await executeWorkflow(
           workflow,
-          input || {},
+          resolvedInput || {},
           userId,
           null,
           null,
@@ -238,16 +300,14 @@ export const executeFullWorkflowFunction = inngest.createFunction(
 
     // Store execution results in cache for UI polling
     // Use both memory cache (fast) and Redis (persistent)
-    // cacheKey already defined above for incremental updates
     const cacheData = {
       success: true,
-      status: 'completed', // Explicit status for frontend to detect completion
+      status: 'completed',
       workflowId,
       eventId: event.id,
       nodeOutputs: result.nodeOutputs || {},
       executedEdges: result.executedEdges || [],
-      executionLog: result.executionLog || [], // Include execution log with timestamps (without outputs to avoid duplication)
-      // Don't store executionResult - it contains duplicate data (nodeOutputs, executionLog, etc.)
+      executionLog: result.executionLog || [],
       completedAt: new Date().toISOString(),
     };
 
@@ -261,36 +321,38 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     // Store in memory cache (TTL: 5 minutes) for fast access
     memoryCache.set(cacheKey, cacheData, 300);
 
-    // Also store in Redis (TTL: 1 hour) for longer availability
-    // Do this asynchronously to not block execution
-    try {
-      const { getRedisClient } = await import('#config/cache.js');
-      const redisClient = getRedisClient();
-      if (redisClient && redisClient.isReady) {
-        // Don't await - do this asynchronously to not block
-        redisClient
-          .set(cacheKey, JSON.stringify(cacheData), 'EX', 3600)
-          .then(() => {
-            logger.debug('Workflow execution results cached in Redis', {
+    // Store in Redis asynchronously with compression for large payloads
+    setImmediate(async () => {
+      try {
+        const { getRedisClient } = await import('#config/cache.js');
+        const redisClient = getRedisClient();
+        if (redisClient && redisClient.isReady) {
+          const serialized = JSON.stringify(cacheData);
+          
+          // Warn if payload is very large
+          if (serialized.length > 500000) {
+            logger.warn('Large execution result being cached', {
               workflowId,
               eventId: event.id,
+              sizeKB: Math.round(serialized.length / 1024),
             });
-          })
-          .catch(redisError => {
-            logger.warn('Failed to cache execution results in Redis', {
-              workflowId,
-              eventId: event.id,
-              error: redisError.message,
-            });
+          }
+          
+          await redisClient.set(cacheKey, serialized, 'EX', 3600);
+          
+          logger.debug('Workflow execution results cached in Redis', {
+            workflowId,
+            eventId: event.id,
           });
+        }
+      } catch (redisError) {
+        logger.warn('Failed to cache execution results in Redis', {
+          workflowId,
+          eventId: event.id,
+          error: redisError.message,
+        });
       }
-    } catch (redisError) {
-      logger.warn('Failed to cache execution results in Redis', {
-        workflowId,
-        eventId: event.id,
-        error: redisError.message,
-      });
-    }
+    });
 
     logger.info('Workflow execution results cached', {
       workflowId,

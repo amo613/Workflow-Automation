@@ -25,10 +25,24 @@ function buildSystemPrompt(workflow, options = {}) {
 - Type: ${workflow.type || 'automation'}
 - Goal definition: ${workflow.goal_definition ? JSON.stringify(workflow.goal_definition, null, 2) : 'Not set'}`);
 
-  sections.push(`## Full workflow structure (nodes and edges)
-\`\`\`json
-${JSON.stringify(workflow.workflow_json || { nodes: [], edges: [] }, null, 2)}
+  sections.push(`## Full workflow structure (nodes and edges)`);
+  
+  const workflowJsonStr = JSON.stringify(workflow.workflow_json || { nodes: [], edges: [] });
+  if (workflowJsonStr.length > 100000) {
+    // Very large workflow: send summary to avoid token limit
+    const nodes = workflow.workflow_json?.nodes || [];
+    const edges = workflow.workflow_json?.edges || [];
+    sections.push(`Workflow is very large (${Math.round(workflowJsonStr.length / 1024)}KB).
+Summary:
+- Total nodes: ${nodes.length}
+- Total edges: ${edges.length}
+- Node types: ${[...new Set(nodes.map(n => n.type))].join(', ')}
+(Ask specific questions about nodes if needed - full JSON omitted due to size)`);
+  } else {
+    sections.push(`\`\`\`json
+${workflowJsonStr}
 \`\`\``);
+  }
 
   if (workflow.trigger_config && Object.keys(workflow.trigger_config).length > 0) {
     sections.push(`## Trigger configuration

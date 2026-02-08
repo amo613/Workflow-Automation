@@ -10,9 +10,28 @@ Check for: exposed secrets, unsafe webhook paths, overly permissive triggers, su
 Do NOT receive or use execution logs or user data. If goalResearch is provided, you may use it for security best practices.
 Respond in JSON: { "summary": "...", "findings": [{ "severity": "high"|"medium"|"low"|"info", "message": "...", "nodeId": "..." }], "ok": boolean }.`;
 
-  let userContent = `Workflow: ${context.name}
-Workflow JSON: ${JSON.stringify(context.workflow_json || {}, null, 2)}
+  let userContent = `Workflow: ${context.name}`;
+  
+  // Optimize: Don't send full workflow_json if it's very large
+  const workflowJsonStr = JSON.stringify(context.workflow_json || {});
+  if (workflowJsonStr.length > 50000) {
+    const nodes = context.workflow_json?.nodes || [];
+    const edges = context.workflow_json?.edges || [];
+    userContent += `
+Workflow structure (large, showing summary):
+- Total nodes: ${nodes.length}
+- Total edges: ${edges.length}
+- Node types: ${[...new Set(nodes.map(n => n.type))].join(', ')}
+- External URLs: ${nodes.filter(n => n.data?.url).map(n => n.data.url).join(', ')}
+(Check node types and external connections for security issues)`;
+  } else {
+    userContent += `
+Workflow JSON: ${workflowJsonStr}`;
+  }
+  
+  userContent += `
 Trigger config: ${JSON.stringify(context.trigger_config || {}, null, 2)}`;
+  
   if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
     userContent += `\n\nWeb research (goal / error):\n${JSON.stringify(context.goalResearch, null, 2)}`;
   }
