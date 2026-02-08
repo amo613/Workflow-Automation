@@ -8,7 +8,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import logger from '#config/logger.js';
 
 const AGENT_TYPES = ['orchestrator', 'monitoring', 'optimization', 'security', 'execution'];
-const ACTION_TYPES = ['workflow_updated', 'node_updated', 'suggestion', 'chat', 'check_performed'];
+const ACTION_TYPES = ['workflow_updated', 'node_updated', 'suggestion', 'chat', 'check_performed', 'pipeline_completed'];
 const OPTIMIZATION_IMPACT = ['helped', 'neutral', 'unknown', 'not_applicable'];
 
 /**
@@ -16,7 +16,7 @@ const OPTIMIZATION_IMPACT = ['helped', 'neutral', 'unknown', 'not_applicable'];
  * @param {object} params
  * @param {number} params.workflowId
  * @param {string} params.agentType - orchestrator | monitoring | optimization | security | execution
- * @param {string} params.actionType - workflow_updated | node_updated | suggestion | chat | check_performed
+ * @param {string} params.actionType - workflow_updated | node_updated | suggestion | chat | check_performed | pipeline_completed
  * @param {object} [params.details] - JSON (what changed, node IDs, reason, etc.)
  * @param {string} [params.optimizationImpact] - helped | neutral | unknown | not_applicable
  * @param {number} [params.workflowVersionId]

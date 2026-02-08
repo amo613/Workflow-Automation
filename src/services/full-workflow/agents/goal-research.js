@@ -44,12 +44,21 @@ export async function fetchGoalResearch(workflow, executionContext = {}) {
 
   const { lastError } = executionContext;
   const workflowId = workflow?.id;
-  const goalDefinition =
-    typeof workflow?.goal_definition === 'string'
-      ? workflow.goal_definition.trim()
-      : workflow?.goal_definition
-        ? String(workflow.goal_definition).trim()
-        : '';
+  const raw = workflow?.goal_definition;
+  let goalDefinition = '';
+  if (Array.isArray(raw)) {
+    goalDefinition = '';
+  } else if (typeof raw === 'string') {
+    goalDefinition = raw.trim().slice(0, 200);
+  } else if (raw != null && typeof raw === 'object') {
+    const text =
+      raw.text ?? raw.goal ?? raw.description ?? raw.title;
+    goalDefinition = typeof text === 'string'
+      ? text.trim().slice(0, 200)
+      : JSON.stringify(raw).trim().slice(0, 200);
+  } else if (raw != null) {
+    goalDefinition = String(raw).trim().slice(0, 200);
+  }
 
   let goalSearch = [];
   const redisClient = getRedisClient();

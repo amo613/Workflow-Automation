@@ -6,6 +6,8 @@
 import logger from '#config/logger.js';
 
 const DEFAULT_BASE_URL = 'https://api.firecrawl.dev';
+/** Max timeout in ms for search and scrape (5 min). */
+const FIRECRAWL_TIMEOUT_MAX_MS = 300000;
 
 function getBaseUrl() {
   const url = process.env.FIRECRAWL_API_URL || DEFAULT_BASE_URL;
@@ -31,7 +33,7 @@ function getAuthHeader() {
 /**
  * Search the web. Returns results (title, description, url, optionally markdown if scrapeOptions used).
  * @param {string} query - Search query
- * @param {object} options - { limit, sources, scrapeOptions }
+ * @param {object} options - { limit, scrapeOptions, timeout, tbs, location } (v1 API: no sources/country)
  * @returns {Promise<{ success: boolean, data?: { web?: Array }, error?: string }>}
  */
 export async function firecrawlSearch(query, options = {}) {
@@ -39,13 +41,15 @@ export async function firecrawlSearch(query, options = {}) {
   const url = `${apiBase}/search`;
 
   try {
+    // v1 search accepts only: query, limit, tbs, location, timeout, ignoreInvalidURLs, scrapeOptions
     const body = {
       query,
       limit: options.limit ?? 5,
-      sources: options.sources ?? ['web'],
-      ...(options.scrapeOptions && { scrapeOptions: options.scrapeOptions }),
-      ...(options.country && { country: options.country }),
-      ...(options.timeout && { timeout: options.timeout }),
+      ...(options.scrapeOptions !== undefined && { scrapeOptions: options.scrapeOptions }),
+      ...(typeof options.timeout === 'number' && !Number.isNaN(options.timeout) && options.timeout > 0 && { timeout: Math.min(options.timeout, FIRECRAWL_TIMEOUT_MAX_MS) }),
+      ...(options.tbs !== undefined && { tbs: options.tbs }),
+      ...(options.location !== undefined && { location: options.location }),
+      ...(options.ignoreInvalidURLs !== undefined && { ignoreInvalidURLs: options.ignoreInvalidURLs }),
     };
 
     const res = await fetch(url, {
@@ -86,7 +90,7 @@ export async function firecrawlScrape(urlToScrape, options = {}) {
       url: urlToScrape,
       formats: options.formats ?? ['markdown'],
       onlyMainContent: options.onlyMainContent !== false,
-      ...(options.timeout && { timeout: Math.min(options.timeout, 300000) }),
+      ...(typeof options.timeout === 'number' && !Number.isNaN(options.timeout) && options.timeout > 0 && { timeout: Math.min(options.timeout, FIRECRAWL_TIMEOUT_MAX_MS) }),
     };
 
     const res = await fetch(url, {
