@@ -11,7 +11,7 @@ const WorkflowCardSkeleton = React.memo(() => {
   return (
     <div
       className={cn(
-        'rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm',
+        'rounded-xl border border-border/30 bg-card',
         'flex items-center min-h-[100px]',
         'animate-pulse'
       )}

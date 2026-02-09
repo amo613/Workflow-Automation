@@ -91,7 +91,7 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
 
   return (
     <div
-      className="flex flex-col h-full bg-card border-l border-border shadow-lg"
+      className="flex flex-col h-full border-l border-border shadow-xl bg-card"
       style={{
         position: 'absolute',
         top: 0,
@@ -99,6 +99,7 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
         bottom: 0,
         width: 'min(440px, 100%)',
         zIndex: 10,
+        backgroundColor: 'hsl(var(--card))',
       }}
     >
       {/* Header */}
@@ -120,7 +121,10 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-auto p-4 flex flex-col gap-3">
+      <div
+        className="flex-1 overflow-auto p-4 flex flex-col gap-3 bg-card"
+        style={{ backgroundColor: 'hsl(var(--card))' }}
+      >
         {loading && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
             <Loader2 className="w-4 h-4 animate-spin" />

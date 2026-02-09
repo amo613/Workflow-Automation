@@ -35,8 +35,7 @@ const DialogContent = React.forwardRef(
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed left-[50%] top-[50%] z-[2000] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg',
-          // Enhanced modal entrance/exit animations
+          'fixed left-[50%] top-[50%] z-[2000] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-card p-6 shadow-lg',
           'duration-300 ease-out',
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
@@ -46,6 +45,7 @@ const DialogContent = React.forwardRef(
           'sm:rounded-lg',
           className
         )}
+        style={{ backgroundColor: 'hsl(var(--card))' }}
         {...props}
       >
         {children}
