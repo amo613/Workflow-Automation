@@ -147,7 +147,7 @@ export default function WorkflowSettingsPanel({
           </div>
 
           {/* Agent types info */}
-          <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+          <div className="rounded-xl border bg-muted p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Info className="w-4 h-4" />
               Was die Agents tun
@@ -211,7 +211,7 @@ export default function WorkflowSettingsPanel({
 
           {/* Chat CTA */}
           {onOpenAgentChat && (
-            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/10 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <MessageCircle className="w-10 h-10 shrink-0 text-primary" />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground">Mit dem Agenten chatten</p>

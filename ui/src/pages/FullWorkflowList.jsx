@@ -262,7 +262,7 @@ function FullWorkflowList() {
                     <div
                       key={workflow.id}
                       data-index={index}
-                      className="list-item-animated cursor-pointer hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm flex items-center"
+                      className="list-item-animated cursor-pointer hover:bg-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-all group rounded-xl border border-border/30 bg-card flex items-center"
                       style={{
                         minHeight: '100px',
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',

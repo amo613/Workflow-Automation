@@ -102,7 +102,7 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border bg-muted/30">
+      <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border bg-muted">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
             <Bot className="w-4 h-4" />
@@ -129,7 +129,7 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
         )}
         {!loading && messages.length === 0 && (
           <div className="flex flex-col gap-4 py-2">
-            <div className="rounded-xl bg-muted/50 border border-border p-4 flex flex-col items-center text-center gap-2">
+            <div className="rounded-xl bg-muted border border-border p-4 flex flex-col items-center text-center gap-2">
               <Sparkles className="w-8 h-8 text-primary/70" />
               <p className="text-sm font-medium text-foreground">Mit dem Workflow-Agenten chatten</p>
               <p className="text-xs text-muted-foreground max-w-[280px]">

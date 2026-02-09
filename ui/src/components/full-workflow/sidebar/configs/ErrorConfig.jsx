@@ -35,19 +35,10 @@ export default function ErrorConfig({
 
   return (
     <div
-      style={{
-        marginTop: '1rem',
-        paddingTop: '1rem',
-        borderTop: '1px solid #e5e7eb',
-      }}
+      className="mt-4 pt-4 border-t border-border"
     >
       <div
-        style={{
-          fontSize: '0.875rem',
-          fontWeight: 600,
-          color: '#374151',
-          marginBottom: '0.75rem',
-        }}
+        className="text-sm font-semibold text-muted-foreground mb-3"
       >
         Error Handling
       </div>
