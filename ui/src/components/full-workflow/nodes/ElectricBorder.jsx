@@ -283,8 +283,6 @@ const ElectricBorder = memo(({ children, color = '#5227FF', speed = 1, chaos = 1
       </div>
     </div>
   );
-};
-
 });
 
 ElectricBorder.displayName = 'ElectricBorder';
