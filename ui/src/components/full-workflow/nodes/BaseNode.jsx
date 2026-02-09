@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import StatusBadge from '@/utils/StatusBadge';
 import ElectricBorder from './ElectricBorder';
@@ -7,7 +8,7 @@ import ElectricBorder from './ElectricBorder';
  * Provides common structure and styling for all node types
  * Dark Theme optimized
  */
-export default function BaseNode({ data, selected, type, icon, color, label }) {
+function BaseNode({ data, selected, type, icon, color, label }) {
   // Status: 'idle' | 'running' | 'success' | 'failed'
   const status = data.status || 'idle';
 
@@ -18,8 +19,8 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
     idle: null,
   };
 
-  // Chaos: 0.1 for idle, 0.5 for running
-  const chaos = status === 'running' ? 0.6 : 0.3;
+  // Reduced chaos for better performance while maintaining visual effect
+  const chaos = status === 'running' ? 0.5 : 0.2;
 
   return (
     <ElectricBorder
@@ -134,3 +135,18 @@ export default function BaseNode({ data, selected, type, icon, color, label }) {
     </ElectricBorder>
   );
 }
+
+// Memoize to prevent unnecessary re-renders when parent updates
+export default memo(BaseNode, (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  return (
+    prevProps.selected === nextProps.selected &&
+    prevProps.type === nextProps.type &&
+    prevProps.color === nextProps.color &&
+    prevProps.label === nextProps.label &&
+    prevProps.icon === nextProps.icon &&
+    prevProps.data?.status === nextProps.data?.status &&
+    prevProps.data?.name === nextProps.data?.name &&
+    prevProps.data?.description === nextProps.data?.description
+  );
+});

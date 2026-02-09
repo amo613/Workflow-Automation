@@ -2399,6 +2399,11 @@ function WorkflowEditorLayoutInner({
             edgeTypes={edgeTypes}
             fitView
             defaultEdgeOptions={defaultEdgeOptions}
+            onlyRenderVisibleElements={true}
+            panOnScroll={true}
+            zoomOnScroll={true}
+            zoomOnPinch={true}
+            proOptions={{ hideAttribution: true }}
           >
             <Background
               variant="cross"

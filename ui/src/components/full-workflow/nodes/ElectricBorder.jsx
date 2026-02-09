@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useRef, useState, useCallback } from 'react';
 
 function hexToRgba(hex, alpha = 1) {
   if (!hex) return `rgba(0,0,0,${alpha})`;
@@ -17,33 +17,53 @@ function hexToRgba(hex, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-const ElectricBorder = ({ children, color = '#5227FF', speed = 1, chaos = 1, thickness = 2, className, style }) => {
+// Throttle RAF calls to reduce CPU usage
+function throttleRAF(callback) {
+  let ticking = false;
+  return (...args) => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        callback(...args);
+        ticking = false;
+      });
+      ticking = true;
+    }
+  };
+}
+
+const ElectricBorder = memo(({ children, color = '#5227FF', speed = 1, chaos = 1, thickness = 2, className, style }) => {
   const rawId = useId().replace(/[:]/g, '');
   const filterId = `turbulent-displace-${rawId}`;
   const svgRef = useRef(null);
   const rootRef = useRef(null);
   const strokeRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const rafIdRef = useRef(null);
+  const resizeTimeoutRef = useRef(null);
 
-  const updateAnim = () => {
+  const updateAnim = useCallback(() => {
     const svg = svgRef.current;
     const host = rootRef.current;
     if (!svg || !host) return;
+
+    // Pause animations when not visible
+    if (!isVisible) return;
 
     if (strokeRef.current) {
       strokeRef.current.style.filter = `url(#${filterId})`;
     }
 
-    const width = Math.max(1, Math.round(host.clientWidth || host.getBoundingClientRect().width || 0));
-    const height = Math.max(1, Math.round(host.clientHeight || host.getBoundingClientRect().height || 0));
+    const rect = host.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width || 0));
+    const height = Math.max(1, Math.round(rect.height || 0));
 
-    const dyAnims = Array.from(svg.querySelectorAll('feOffset > animate[attributeName="dy"]'));
+    const dyAnims = svg.querySelectorAll('feOffset > animate[attributeName="dy"]');
+    const dxAnims = svg.querySelectorAll('feOffset > animate[attributeName="dx"]');
 
     if (dyAnims.length >= 2) {
       dyAnims[0].setAttribute('values', `${height}; 0`);
       dyAnims[1].setAttribute('values', `0; -${height}`);
     }
-
-    const dxAnims = Array.from(svg.querySelectorAll('feOffset > animate[attributeName="dx"]'));
 
     if (dxAnims.length >= 2) {
       dxAnims[0].setAttribute('values', `${width}; 0`);
@@ -52,7 +72,8 @@ const ElectricBorder = ({ children, color = '#5227FF', speed = 1, chaos = 1, thi
 
     const baseDur = 6;
     const dur = Math.max(0.001, baseDur / (speed || 1));
-    [...dyAnims, ...dxAnims].forEach(a => a.setAttribute('dur', `${dur}s`));
+    dyAnims.forEach(a => a.setAttribute('dur', `${dur}s`));
+    dxAnims.forEach(a => a.setAttribute('dur', `${dur}s`));
 
     const disp = svg.querySelector('feDisplacementMap');
     if (disp) disp.setAttribute('scale', String(30 * (chaos || 1)));
@@ -65,53 +86,111 @@ const ElectricBorder = ({ children, color = '#5227FF', speed = 1, chaos = 1, thi
       filterEl.setAttribute('height', '500%');
     }
 
-    requestAnimationFrame(() => {
+    // Cancel previous RAF
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+
+    rafIdRef.current = requestAnimationFrame(() => {
       [...dyAnims, ...dxAnims].forEach(a => {
         if (typeof a.beginElement === 'function') {
           try {
             a.beginElement();
           } catch {
-            console.warn('ElectricBorder: beginElement failed');
+            // Silent fail
           }
         }
       });
     });
-  };
+  }, [filterId, speed, chaos, isVisible]);
+
+  // Throttled version for resize
+  const throttledUpdateAnim = useCallback(throttleRAF(updateAnim), [updateAnim]);
 
   useEffect(() => {
     updateAnim();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speed, chaos]);
+  }, [updateAnim]);
+
+  // Intersection Observer - pause animations when not visible
+  // Observer ref to persist across renders for proper cleanup
+  const observerRef = useRef(null);
 
   useLayoutEffect(() => {
     if (!rootRef.current) return;
 
-    const ro = new ResizeObserver(() => updateAnim());
-    ro.observe(rootRef.current);
-    updateAnim();
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '50px' }
+    );
 
-    return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    observerRef.current = observer;
+    observer.observe(rootRef.current);
+
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
   }, []);
+
+  useLayoutEffect(() => {
+    if (!rootRef.current) return;
+
+    // Debounced ResizeObserver - wait for resize to finish
+    const ro = new ResizeObserver(() => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      resizeTimeoutRef.current = setTimeout(() => {
+        throttledUpdateAnim();
+      }, 100);
+    });
+
+    ro.observe(rootRef.current);
+
+    return () => {
+      ro.disconnect();
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [throttledUpdateAnim]);
 
   const inheritRadius = {
     borderRadius: style?.borderRadius ?? 'inherit'
+  };
+
+  // GPU-accelerated styles with CSS containment
+  const containerStyle = {
+    ...style,
+    contain: 'layout style paint',
+    willChange: 'transform',
+    transform: 'translateZ(0)',
   };
 
   const strokeStyle = {
     ...inheritRadius,
     borderWidth: thickness,
     borderStyle: 'solid',
-    borderColor: color
+    borderColor: color,
+    willChange: 'filter',
+    transform: 'translateZ(0)',
   };
 
+  // Reduced blur complexity for better performance
   const glow1Style = {
     ...inheritRadius,
     borderWidth: thickness,
     borderStyle: 'solid',
     borderColor: hexToRgba(color, 0.6),
-    filter: `blur(${0.5 + thickness * 0.25}px)`,
-    opacity: 0.5
+    filter: `blur(${Math.min(2, 0.5 + thickness * 0.25)}px)`,
+    opacity: 0.5,
+    willChange: 'opacity',
+    transform: 'translateZ(0)',
   };
 
   const glow2Style = {
@@ -119,21 +198,43 @@ const ElectricBorder = ({ children, color = '#5227FF', speed = 1, chaos = 1, thi
     borderWidth: thickness,
     borderStyle: 'solid',
     borderColor: color,
-    filter: `blur(${2 + thickness * 0.5}px)`,
-    opacity: 0.5
+    filter: `blur(${Math.min(4, 2 + thickness * 0.5)}px)`,
+    opacity: 0.4,
+    willChange: 'opacity',
+    transform: 'translateZ(0)',
   };
 
+  // Simplified background glow
   const bgGlowStyle = {
     ...inheritRadius,
-    transform: 'scale(1.08)',
-    filter: 'blur(32px)',
-    opacity: 0.3,
+    transform: 'scale(1.05) translateZ(0)',
+    filter: 'blur(16px)',
+    opacity: 0.25,
     zIndex: -1,
-    background: `linear-gradient(-30deg, ${hexToRgba(color, 0.8)}, transparent, ${color})`
+    background: `radial-gradient(circle at center, ${hexToRgba(color, 0.6)}, transparent 70%)`,
+    willChange: 'opacity',
   };
 
+  // When not visible, render simplified version without animations
+  if (!isVisible) {
+    return (
+      <div className={'relative ' + (className ?? '')} style={containerStyle}>
+        <div
+          className="absolute inset-0 box-border"
+          style={{
+            ...inheritRadius,
+            border: `${thickness}px solid ${color}`,
+          }}
+        />
+        <div className="relative" style={inheritRadius}>
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div ref={rootRef} className={'relative isolate ' + (className ?? '')} style={style}>
+    <div ref={rootRef} className={'relative isolate ' + (className ?? '')} style={containerStyle}>
       <svg
         ref={svgRef}
         className="fixed -left-[10000px] -top-[10000px] w-[10px] h-[10px] opacity-[0.001] pointer-events-none"
@@ -183,6 +284,10 @@ const ElectricBorder = ({ children, color = '#5227FF', speed = 1, chaos = 1, thi
     </div>
   );
 };
+
+});
+
+ElectricBorder.displayName = 'ElectricBorder';
 
 export default ElectricBorder;
 
