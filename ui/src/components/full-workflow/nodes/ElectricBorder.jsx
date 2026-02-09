@@ -164,12 +164,8 @@ const ElectricBorder = memo(({ children, color = '#5227FF', speed = 1, chaos = 1
     borderRadius: style?.borderRadius ?? 'inherit'
   };
 
-  // GPU-accelerated styles with CSS containment
   const containerStyle = {
     ...style,
-    contain: 'layout style paint',
-    willChange: 'transform',
-    transform: 'translateZ(0)',
   };
 
   const strokeStyle = {
@@ -177,20 +173,15 @@ const ElectricBorder = memo(({ children, color = '#5227FF', speed = 1, chaos = 1
     borderWidth: thickness,
     borderStyle: 'solid',
     borderColor: color,
-    willChange: 'filter',
-    transform: 'translateZ(0)',
   };
 
-  // Reduced blur complexity for better performance
   const glow1Style = {
     ...inheritRadius,
     borderWidth: thickness,
     borderStyle: 'solid',
     borderColor: hexToRgba(color, 0.6),
-    filter: `blur(${Math.min(2, 0.5 + thickness * 0.25)}px)`,
+    filter: `blur(${0.5 + thickness * 0.25}px)`,
     opacity: 0.5,
-    willChange: 'opacity',
-    transform: 'translateZ(0)',
   };
 
   const glow2Style = {
@@ -198,21 +189,17 @@ const ElectricBorder = memo(({ children, color = '#5227FF', speed = 1, chaos = 1
     borderWidth: thickness,
     borderStyle: 'solid',
     borderColor: color,
-    filter: `blur(${Math.min(4, 2 + thickness * 0.5)}px)`,
-    opacity: 0.4,
-    willChange: 'opacity',
-    transform: 'translateZ(0)',
+    filter: `blur(${2 + thickness * 0.5}px)`,
+    opacity: 0.5,
   };
 
-  // Simplified background glow
   const bgGlowStyle = {
     ...inheritRadius,
-    transform: 'scale(1.05) translateZ(0)',
-    filter: 'blur(16px)',
-    opacity: 0.25,
+    transform: 'scale(1.08)',
+    filter: 'blur(32px)',
+    opacity: 0.3,
     zIndex: -1,
-    background: `radial-gradient(circle at center, ${hexToRgba(color, 0.6)}, transparent 70%)`,
-    willChange: 'opacity',
+    background: `linear-gradient(-30deg, ${hexToRgba(color, 0.8)}, transparent, ${color})`,
   };
 
   // When not visible, render simplified version without animations
