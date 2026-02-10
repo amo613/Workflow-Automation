@@ -987,10 +987,10 @@ function WorkflowEditorLayoutInner({
                       {statistics.totalExecutions > 0 && (
                         <button
                           type="button"
-                          onClick={() => { setShowExecutionHistory(!showExecutionHistory); if (!showExecutionHistory && executionHistory.length === 0) fetchExecutionHistory(); }}
+                          onClick={() => { setShowExecutionHistory(!showExecutionHistory); if (!showExecutionHistory && (!Array.isArray(executionHistory) || executionHistory.length === 0)) fetchExecutionHistory(); }}
                           style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem', background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--foreground))' }}
                         >
-                          <span><Clipboard className="w-4 h-4 mr-1 inline" /> Execution History ({executionHistory.length || 0})</span>
+                          <span><Clipboard className="w-4 h-4 mr-1 inline" /> Execution History ({Array.isArray(executionHistory) ? executionHistory.length : 0})</span>
                           <span>{showExecutionHistory ? '▼' : '▶'}</span>
                         </button>
                       )}
@@ -1048,17 +1048,23 @@ function WorkflowEditorLayoutInner({
                     <div style={{ padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))' }}>
                       <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Workflow Performance</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Duration</span>
-                        <span>{performance.workflow.durationMs != null ? `${performance.workflow.durationMs}ms` : '—'}</span>
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Avg. Duration</span>
+                        <span>{performance.workflow.avgExecutionTime != null ? `${Math.round(performance.workflow.avgExecutionTime)}ms` : '—'}</span>
                       </div>
-                      {performance.nodePerformance && performance.nodePerformance.length > 0 && (
+                      {performance.workflow.totalExecutions != null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Executions</span>
+                          <span>{performance.workflow.totalExecutions}</span>
+                        </div>
+                      )}
+                      {performance.nodes && performance.nodes.length > 0 && (
                         <>
-                          <div style={{ fontWeight: 600, marginTop: '0.5rem', marginBottom: '0.25rem' }}>Node bottlenecks</div>
+                          <div style={{ fontWeight: 600, marginTop: '0.5rem', marginBottom: '0.25rem' }}>Node Performance (Top Bottlenecks)</div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
-                            {performance.nodePerformance.slice(0, 5).map((n, i) => (
-                              <div key={i} style={{ fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between' }}>
-                                <span className="truncate" style={{ maxWidth: '60%' }}>{n.nodeId || n.nodeName || 'Node'}</span>
-                                <span>{n.durationMs != null ? `${n.durationMs}ms` : '—'}</span>
+                            {performance.nodes.slice(0, 5).map((n, i) => (
+                              <div key={n.nodeId || i} style={{ fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span className="truncate" style={{ maxWidth: '60%' }}>{n.nodeId || n.nodeType || 'Node'}</span>
+                                <span>{n.avg != null ? `${Math.round(n.avg)}ms` : '—'}</span>
                               </div>
                             ))}
                           </div>
@@ -1136,7 +1142,25 @@ function WorkflowEditorLayoutInner({
               )}
             </div>
 
-            {/* Version History / Execution History */}
+            {/* Version History: Button öffnet Modal mit allen Versionen (wie zuvor) */}
+            <div
+              style={{
+                padding: '0.75rem',
+                background: 'hsl(var(--card))',
+                borderRadius: '8px',
+                border: '1px solid hsl(var(--border))',
+              }}
+            >
+              <VersionHistory
+                workflowId={workflowId}
+                onRestore={restored => {
+                  if (restored?.nodes) setNodes(restored.nodes);
+                  if (restored?.edges) setEdges(restored.edges);
+                }}
+              />
+            </div>
+
+            {/* Execution History: klappbare Liste der Runs (Success/Failed) */}
             <div
               style={{
                 padding: '0.75rem',
@@ -1149,7 +1173,7 @@ function WorkflowEditorLayoutInner({
                 type="button"
                 onClick={() => {
                   setShowExecutionHistory(!showExecutionHistory);
-                  if (!showExecutionHistory && executionHistory.length === 0) fetchExecutionHistory();
+                  if (!showExecutionHistory && (!Array.isArray(executionHistory) || executionHistory.length === 0)) fetchExecutionHistory();
                 }}
                 style={{
                   width: '100%',
@@ -1166,7 +1190,7 @@ function WorkflowEditorLayoutInner({
               >
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4" />
-                  Version History
+                  Execution History ({Array.isArray(executionHistory) ? executionHistory.length : 0})
                 </span>
                 {showExecutionHistory ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
@@ -1181,7 +1205,7 @@ function WorkflowEditorLayoutInner({
                   {!historyLoading && !historyError && executionHistory?.length === 0 && (
                     <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>No execution history yet.</div>
                   )}
-                  {!historyLoading && !historyError && executionHistory?.length > 0 && (
+                  {!historyLoading && !historyError && Array.isArray(executionHistory) && executionHistory.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '400px', overflowY: 'auto' }}>
                       {executionHistory.map((execution, index) => {
                         const isFailed = !execution.success;

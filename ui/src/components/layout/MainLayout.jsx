@@ -150,7 +150,7 @@ export default function MainLayout({ children }) {
         </div>
       </nav>
       <main
-        className="w-full flex justify-center pt-20 pb-8"
+        className={`w-full flex justify-center pt-20 ${isEditorRoute ? 'pb-0' : 'pb-8'}`}
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
         {isEditorRoute ? (
