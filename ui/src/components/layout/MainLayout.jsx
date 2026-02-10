@@ -69,12 +69,12 @@ export default function MainLayout({ children }) {
 
   return (
     <div
-      className="min-h-screen bg-background"
+      className={`min-h-screen bg-background ${isEditorRoute ? 'flex flex-col' : ''}`}
       style={{ overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}
     >
       {/* Glassmorphism Header */}
       <nav
-        className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60"
+        className="sticky top-0 z-50 flex-shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60"
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
         <div className="w-full flex justify-center">
@@ -150,11 +150,11 @@ export default function MainLayout({ children }) {
         </div>
       </nav>
       <main
-        className={`w-full flex justify-center pt-20 ${isEditorRoute ? 'pb-0' : 'pb-8'}`}
+        className={`w-full flex justify-center ${isEditorRoute ? 'flex-1 flex flex-col min-h-0' : 'pt-20 pb-8'}`}
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
         {isEditorRoute ? (
-          <div className="w-full flex-1 min-h-0" style={{ height: 'calc(100vh - 12rem)' }}>{children}</div>
+          <div className="w-full flex-1 min-h-0 min-w-0">{children}</div>
         ) : (
           <div className="w-full max-w-[1400px] px-8">{children}</div>
         )}

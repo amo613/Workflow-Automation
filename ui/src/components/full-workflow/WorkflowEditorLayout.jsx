@@ -1046,11 +1046,23 @@ function WorkflowEditorLayoutInner({
                   )}
                   {!performanceLoading && !performanceError && performance?.workflow && (
                     <div style={{ padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Workflow Performance</div>
+                      <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Workflow performance</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Avg. Duration</span>
-                        <span>{performance.workflow.avgExecutionTime != null ? `${Math.round(performance.workflow.avgExecutionTime)}ms` : '—'}</span>
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Avg. runtime</span>
+                        <span>{performance.workflow.avgExecutionTime != null ? `${Math.round(performance.workflow.avgExecutionTime)} ms` : '—'}</span>
                       </div>
+                      {performance.workflow.minExecutionTime != null && performance.workflow.minExecutionTime > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Min runtime</span>
+                          <span>{Math.round(performance.workflow.minExecutionTime)} ms</span>
+                        </div>
+                      )}
+                      {performance.workflow.maxExecutionTime != null && performance.workflow.maxExecutionTime > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Max runtime</span>
+                          <span>{Math.round(performance.workflow.maxExecutionTime)} ms</span>
+                        </div>
+                      )}
                       {performance.workflow.totalExecutions != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                           <span style={{ color: 'hsl(var(--muted-foreground))' }}>Executions</span>
@@ -1059,12 +1071,15 @@ function WorkflowEditorLayoutInner({
                       )}
                       {performance.nodes && performance.nodes.length > 0 && (
                         <>
-                          <div style={{ fontWeight: 600, marginTop: '0.5rem', marginBottom: '0.25rem' }}>Node Performance (Top Bottlenecks)</div>
+                          <div style={{ fontWeight: 600, marginTop: '0.5rem', marginBottom: '0.25rem' }}>Nodes (top bottlenecks)</div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
                             {performance.nodes.slice(0, 5).map((n, i) => (
-                              <div key={n.nodeId || i} style={{ fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between' }}>
-                                <span className="truncate" style={{ maxWidth: '60%' }}>{n.nodeId || n.nodeType || 'Node'}</span>
-                                <span>{n.avg != null ? `${Math.round(n.avg)}ms` : '—'}</span>
+                              <div key={n.nodeId || i} style={{ fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                                <span className="truncate" style={{ maxWidth: '50%' }}>{n.nodeId || n.nodeType || 'Node'}</span>
+                                <span style={{ whiteSpace: 'nowrap' }}>
+                                  {n.avg != null ? `${Math.round(n.avg)} ms` : '—'}
+                                  {n.count != null && n.count > 0 ? ` (${n.count})` : ''}
+                                </span>
                               </div>
                             ))}
                           </div>
