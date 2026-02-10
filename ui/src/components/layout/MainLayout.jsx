@@ -154,7 +154,7 @@ export default function MainLayout({ children }) {
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
         {isEditorRoute ? (
-          <div className="w-full flex-1">{children}</div>
+          <div className="w-full flex-1 min-h-0" style={{ height: 'calc(100vh - 12rem)' }}>{children}</div>
         ) : (
           <div className="w-full max-w-[1400px] px-8">{children}</div>
         )}

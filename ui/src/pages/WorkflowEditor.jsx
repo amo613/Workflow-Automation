@@ -33,7 +33,9 @@ import { fetchWithCSRF } from '../utils/csrf.utils.js';
 import {
   setLastCallFlowId,
   clearLastCallFlowId,
+  getLastFullWorkflowId,
 } from '../utils/callFlowStorage.js';
+import FloatingCanvasToolbar from '../components/workflow/FloatingCanvasToolbar.jsx';
 import { computePyramidLayout } from '@/utils/layout/pyramidLayout';
 
 const nodeTypes = {

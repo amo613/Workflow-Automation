@@ -15,7 +15,7 @@ const QUICK_PROMPTS = [
  * Agent Chat panel: conversation with the workflow agent.
  * Improved layout, quick prompts, and empty state.
  */
-export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled = true, onClose }) {
+export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled = true, onClose, embedded = false }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -91,16 +91,20 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
 
   return (
     <div
-      className="flex flex-col h-full border-l border-border shadow-xl bg-card"
-      style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: 'min(440px, 100%)',
-        zIndex: 10,
-        backgroundColor: 'hsl(var(--card))',
-      }}
+      className={`flex flex-col bg-card ${embedded ? 'min-h-0 flex-1 overflow-hidden rounded-lg border border-border' : 'h-full border-l border-border shadow-xl'}`}
+      style={
+        embedded
+          ? { backgroundColor: 'hsl(var(--card))' }
+          : {
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'min(440px, 100%)',
+              zIndex: 10,
+              backgroundColor: 'hsl(var(--card))',
+            }
+      }
     >
       {/* Header */}
       <div className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-border bg-muted">

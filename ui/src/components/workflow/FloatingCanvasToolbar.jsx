@@ -58,7 +58,7 @@ export default function FloatingCanvasToolbar({
 
   return (
     <div
-      className="absolute top-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 px-4 py-2.5 rounded-2xl border bg-card/80 dark:bg-card/80 backdrop-blur-md shadow-lg"
+      className="absolute top-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-5 px-5 py-3.5 rounded-2xl border bg-card/80 dark:bg-card/80 backdrop-blur-md shadow-lg"
       style={{
         borderColor: 'hsl(var(--border))',
       }}
@@ -85,7 +85,7 @@ export default function FloatingCanvasToolbar({
             }}
             className="flex items-center gap-1.5 min-w-0 group text-left"
           >
-            <span className="truncate text-sm font-medium text-foreground">
+            <span className="truncate text-base font-medium text-foreground">
               {workflowName?.trim() || 'Untitled Workflow'}
             </span>
             <Pencil className="w-3.5 h-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -118,7 +118,7 @@ export default function FloatingCanvasToolbar({
               role="tab"
               aria-selected={activeTab === 'full'}
               onClick={() => activeTab !== 'full' && onSwitchTab('full')}
-              className="px-4 py-1.5 text-sm font-medium transition-colors"
+              className="px-5 py-2 text-sm font-medium transition-colors"
               style={{
                 background: activeTab === 'full' ? 'hsl(var(--primary))' : 'transparent',
                 color: activeTab === 'full' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
@@ -132,7 +132,7 @@ export default function FloatingCanvasToolbar({
               role="tab"
               aria-selected={activeTab === 'call'}
               onClick={() => activeTab !== 'call' && onSwitchTab('call')}
-              className="px-4 py-1.5 text-sm font-medium transition-colors"
+              className="px-5 py-2 text-sm font-medium transition-colors"
               style={{
                 background: activeTab === 'call' ? 'hsl(var(--primary))' : 'transparent',
                 color: activeTab === 'call' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
@@ -151,19 +151,8 @@ export default function FloatingCanvasToolbar({
         </>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {isFullWorkflow && !isNew && onOpenAgentsSettings && (
-          <Button
-            variant={agentsEnabled ? 'default' : 'outline'}
-            size="sm"
-            className="gap-1.5"
-            onClick={onOpenAgentsSettings}
-            title="Agents & Goal"
-          >
-            Agents
-          </Button>
-        )}
+      {/* Actions – Agents/Goal only in right sidebar, not in toolbar */}
+      <div className="flex items-center gap-2 shrink-0">
         {isFullWorkflow && onKnowledgeBase && (
           <Button
             variant={showKnowledgeBase ? 'default' : 'outline'}
