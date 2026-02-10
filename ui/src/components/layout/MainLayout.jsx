@@ -22,6 +22,10 @@ export default function MainLayout({ children }) {
   const isAuthPage =
     location.pathname === '/login' || location.pathname === '/register';
 
+  const isEditorRoute =
+    /^\/fullWorkflows\/(edit\/[^/]+|new)$/.test(location.pathname) ||
+    /^\/workflows\/(edit\/[^/]+|new)$/.test(location.pathname);
+
   // Update canonical URL on route change
   React.useEffect(() => {
     const canonicalLink = document.getElementById('canonical-link');
@@ -149,7 +153,11 @@ export default function MainLayout({ children }) {
         className="w-full flex justify-center pt-20 pb-8"
         style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
       >
-        <div className="w-full max-w-[1400px] px-8">{children}</div>
+        {isEditorRoute ? (
+          <div className="w-full flex-1">{children}</div>
+        ) : (
+          <div className="w-full max-w-[1400px] px-8">{children}</div>
+        )}
       </main>
     </div>
   );

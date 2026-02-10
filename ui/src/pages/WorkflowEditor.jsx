@@ -6,8 +6,6 @@ import {
   Flag,
   Save,
   FileText,
-  ArrowLeft,
-  Sparkles,
   Loader2,
   Clipboard,
   LayoutGrid,
@@ -30,7 +28,6 @@ import IfNode from '../components/nodes/IfNode';
 import StepNode from '../components/nodes/StepNode';
 import EndNode from '../components/nodes/EndNode';
 import NodeSidebar from '../components/NodeSidebar';
-import WorkflowCanvasTabs from '../components/workflow/WorkflowCanvasTabs.jsx';
 import { compileWorkflowToPrompt } from '../utils/workflow-compiler.js';
 import { fetchWithCSRF } from '../utils/csrf.utils.js';
 import {
@@ -382,7 +379,7 @@ function WorkflowEditorInner() {
 
       const data = await response.json();
       if (isNew) {
-        navigate(`/edit/${data.data.id}`);
+        navigate(`/workflows/edit/${data.data.id}`);
       } else {
         alert('Workflow saved successfully!');
       }
@@ -424,166 +421,90 @@ function WorkflowEditorInner() {
     </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div
-        id="workflow-header"
-        style={{
-          padding: '0.75rem 1.5rem',
-          background: 'hsl(var(--card))',
-          borderBottom: '1px solid hsl(var(--border))',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          width: '100%',
-          maxWidth: '100%',
-          overflowX: 'hidden',
-          boxSizing: 'border-box',
-        }}
-      >
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Left sidebar: node palette */}
         <div
+          className="custom-scrollbar"
           style={{
-            display: 'flex',
-            gap: '0.75rem',
-            alignItems: 'center',
-            flexWrap: 'nowrap',
+            width: '250px',
+            minWidth: '250px',
+            background: 'hsl(var(--card))',
+            borderRight: '1px solid hsl(var(--border))',
+            padding: '1rem',
+            overflowY: 'auto',
           }}
         >
-          <input
-            type="text"
-            placeholder="Workflow Name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="bubble-input"
+          <h3
             style={{
-              flex: '0 1 200px',
-              fontSize: '0.95rem',
-              fontWeight: 600,
-              padding: '0.5rem 0.75rem',
-            }}
-          />
-          <input
-            type="text"
-            placeholder="Description"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            className="bubble-input"
-            style={{
-              flex: '0 1 180px',
               fontSize: '0.875rem',
-              padding: '0.5rem 0.75rem',
-            }}
-          />
-          <div
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              marginLeft: 'auto',
-              flexShrink: 0,
+              fontWeight: 600,
+              color: 'hsl(var(--muted-foreground))',
+              marginBottom: '0.5rem',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
             }}
           >
+            Nodes
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <button
+              onClick={() => addNode('start')}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 text-sm font-medium"
+            >
+              <span style={{ color: '#10b981' }}>●</span> Start
+            </button>
             <button
               onClick={() => addNode('step')}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.75rem',
-                fontSize: '0.8rem',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              }}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 text-sm font-medium"
             >
-              <Plus className="w-3 h-3 mr-1" />
+              <Plus className="w-4 h-4" style={{ color: '#10b981' }} />
               Step
             </button>
             <button
               onClick={() => addNode('if')}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.75rem',
-                fontSize: '0.8rem',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              }}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 text-sm font-medium"
             >
-              <GitBranch className="w-3 h-3 mr-1" />
+              <GitBranch className="w-4 h-4" style={{ color: '#f59e0b' }} />
               If
             </button>
             <button
               onClick={() => addNode('end')}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.75rem',
-                fontSize: '0.8rem',
-                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              }}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 text-sm font-medium"
             >
-              <Flag className="w-3 h-3 mr-1" />
+              <Flag className="w-4 h-4" style={{ color: '#ef4444' }} />
               End
             </button>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              flexShrink: 0,
-            }}
-          >
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.9rem',
-                fontSize: '0.8rem',
-                background: saving
-                  ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
-                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                opacity: saving ? 0.6 : 1,
-                cursor: saving ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-3 h-3 mr-1" />
-                  Save
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleShowPrompt}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.9rem',
-                fontSize: '0.8rem',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-              }}
-            >
-              <FileText className="w-3 h-3 mr-1" />
-              Prompt
-            </button>
-            <button
-              onClick={() => navigate('/workflows')}
-              className="bubble-btn"
-              style={{
-                padding: '0.4rem 0.9rem',
-                fontSize: '0.8rem',
-                background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-              }}
-            >
-              <ArrowLeft className="w-3 h-3 mr-1" />
-              Back
-            </button>
-          </div>
         </div>
-      </div>
-      <div
-        style={{
-          flex: 1,
-          position: 'relative',
-          overflow: 'hidden',
-          width: '100%',
-          minWidth: 0,
-        }}
-      >
+
+        {/* Center: canvas with floating toolbar */}
+        <div
+          style={{
+            flex: 1,
+            position: 'relative',
+            overflow: 'hidden',
+            width: '100%',
+            minWidth: 0,
+          }}
+        >
+          <FloatingCanvasToolbar
+            workflowName={name}
+            onWorkflowNameChange={setName}
+            activeTab="call"
+            onSwitchTab={tab => {
+              if (tab === 'full') {
+                const lastId = getLastFullWorkflowId();
+                if (lastId) navigate(`/fullWorkflows/edit/${lastId}`);
+                else navigate('/fullWorkflows');
+              }
+            }}
+            onSave={handleSave}
+            onImport={() => {}}
+            onExport={() => {}}
+            isFullWorkflow={false}
+            saving={saving}
+            isNew={isNew}
+          />
         <div
           style={{
             width: '100%',
@@ -615,9 +536,9 @@ function WorkflowEditorInner() {
             defaultEdgeOptions={defaultEdgeOptions}
           >
             <Background
-              variant="cross"
-              gap={20}
-              size={5}
+              variant="dots"
+              gap={30}
+              size={1}
               color="hsl(var(--border))"
             />
             <Controls>
@@ -673,6 +594,35 @@ function WorkflowEditorInner() {
             onClose={() => setSelectedNode(null)}
           />
         )}
+        </div>
+
+        {/* Right sidebar: description, prompt (no Agents for Call Flow) */}
+        <div
+          className="custom-scrollbar"
+          style={{
+            width: '320px',
+            minWidth: '320px',
+            background: 'hsl(var(--card))',
+            borderLeft: '1px solid hsl(var(--border))',
+            padding: '1rem',
+            overflowY: 'auto',
+          }}
+        >
+          <label className="text-sm font-medium text-muted-foreground block mb-1">Description</label>
+          <textarea
+            placeholder="Description"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            className="w-full min-h-[80px] px-3 py-2 rounded-lg border border-input bg-background text-sm"
+          />
+          <button
+            onClick={handleShowPrompt}
+            className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 text-sm font-medium"
+          >
+            <FileText className="w-4 h-4" />
+            Prompt
+          </button>
+        </div>
       </div>
 
       {/* Prompt Preview Modal */}
@@ -788,7 +738,9 @@ function WorkflowEditorInner() {
   );
 
   return (
-    <WorkflowCanvasTabs activeTab="call">{editorContent}</WorkflowCanvasTabs>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {editorContent}
+    </div>
   );
 }
 

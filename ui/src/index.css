@@ -1159,3 +1159,20 @@ body.light-theme::before {
 .switch-toggle-thumb-animated[data-state='checked'] {
   animation: toggle-scale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Editor: custom scrollbar for sidebars (plan) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
