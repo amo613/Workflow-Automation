@@ -410,17 +410,17 @@ function WorkflowEditorLayoutInner({
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%', minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div
           className="custom-scrollbar"
           style={{
             width: '250px',
+            minWidth: '250px',
             height: '100%',
             background: 'hsl(var(--card))',
             borderRight: '1px solid hsl(var(--border))',
             padding: '1rem',
             overflowY: 'auto',
-            color: 'hsl(var(--foreground))',
           }}
         >
 
@@ -641,13 +641,10 @@ function WorkflowEditorLayoutInner({
           style={{
             flex: 1,
             position: 'relative',
-            background: 'transparent',
-            boxSizing: 'border-box',
+            overflow: 'hidden',
             width: '100%',
             minWidth: 0,
             height: '100%',
-            minHeight: 0,
-            overflow: 'hidden',
           }}
         >
           <FloatingCanvasToolbar
@@ -668,25 +665,34 @@ function WorkflowEditorLayoutInner({
             agentsEnabled={agentsEnabled}
             isNew={isNew}
           />
-          <ReactFlow
-            nodes={nodes}
-            edges={edgesWithOffset}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onNodeMouseEnter={handleNodeMouseEnter}
-            onNodeMouseLeave={handleNodeMouseLeave}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            defaultEdgeOptions={defaultEdgeOptions}
-            onlyRenderVisibleElements={true}
-            panOnScroll={true}
-            zoomOnScroll={true}
-            zoomOnPinch={true}
-            proOptions={{ hideAttribution: true }}
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              boxSizing: 'border-box',
+              background: 'transparent',
+              position: 'relative',
+            }}
           >
+            <ReactFlow
+              nodes={nodes}
+              edges={edgesWithOffset}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              fitView
+              defaultEdgeOptions={defaultEdgeOptions}
+              onlyRenderVisibleElements={true}
+              panOnScroll={true}
+              zoomOnScroll={true}
+              zoomOnPinch={true}
+              proOptions={{ hideAttribution: true }}
+            >
             <Background
               variant="dots"
               gap={30}
@@ -738,6 +744,7 @@ function WorkflowEditorLayoutInner({
               nodeStrokeWidth={3}
             />
           </ReactFlow>
+          </div>
           {isAutoLayouting && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
               <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
@@ -807,6 +814,7 @@ function WorkflowEditorLayoutInner({
               width: '320px',
               minWidth: '320px',
               height: '100%',
+              flexShrink: 0,
               background: 'hsl(var(--card))',
               borderLeft: '1px solid hsl(var(--border))',
               padding: '1rem',
