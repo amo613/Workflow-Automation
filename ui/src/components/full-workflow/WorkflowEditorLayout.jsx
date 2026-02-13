@@ -696,7 +696,7 @@ function WorkflowEditorLayoutInner({
             <Background
               variant="dots"
               gap={30}
-              size={1}
+              size={3}
               color="hsl(var(--border))"
             />
             <Controls
