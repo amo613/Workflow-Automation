@@ -357,7 +357,7 @@ function WorkflowEditorLayoutInner({
   };
 
   return (
-    <div style={{ display: 'flex', height: '100%', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
       {generalError && (
         <div
           style={{
