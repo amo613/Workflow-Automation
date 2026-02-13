@@ -410,11 +410,12 @@ function WorkflowEditorLayoutInner({
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%', minHeight: 0 }}>
         <div
           className="custom-scrollbar"
           style={{
             width: '250px',
+            height: '100%',
             background: 'hsl(var(--card))',
             borderRight: '1px solid hsl(var(--border))',
             padding: '1rem',
@@ -644,6 +645,8 @@ function WorkflowEditorLayoutInner({
             boxSizing: 'border-box',
             width: '100%',
             minWidth: 0,
+            height: '100%',
+            minHeight: 0,
             overflow: 'hidden',
           }}
         >
@@ -803,6 +806,7 @@ function WorkflowEditorLayoutInner({
             style={{
               width: '320px',
               minWidth: '320px',
+              height: '100%',
               background: 'hsl(var(--card))',
               borderLeft: '1px solid hsl(var(--border))',
               padding: '1rem',
