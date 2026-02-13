@@ -357,7 +357,7 @@ function WorkflowEditorLayoutInner({
   };
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, height: '100%', flexDirection: 'column' }}>
       {generalError && (
         <div
           style={{
@@ -410,7 +410,7 @@ function WorkflowEditorLayoutInner({
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}>
         <div
           className="custom-scrollbar"
           style={{
