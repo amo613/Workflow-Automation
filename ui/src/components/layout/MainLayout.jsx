@@ -69,8 +69,13 @@ export default function MainLayout({ children }) {
 
   return (
     <div
-      className={`min-h-screen bg-background ${isEditorRoute ? 'flex flex-col' : ''}`}
-      style={{ overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}
+      className={`bg-background ${isEditorRoute ? 'flex flex-col' : 'min-h-screen'}`}
+      style={{ 
+        overflowX: 'hidden', 
+        width: '100%', 
+        maxWidth: '100vw',
+        ...(isEditorRoute ? { height: '100vh', overflowY: 'hidden' } : {})
+      }}
     >
       {/* Glassmorphism Header */}
       <nav
@@ -151,7 +156,12 @@ export default function MainLayout({ children }) {
       </nav>
       <main
         className={`w-full flex justify-center ${isEditorRoute ? 'flex-1 flex flex-col min-h-0' : 'pt-20 pb-8'}`}
-        style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}
+        style={{ 
+          width: '100%', 
+          maxWidth: '100%', 
+          overflowX: 'hidden',
+          ...(isEditorRoute ? { overflowY: 'hidden' } : {})
+        }}
       >
         {isEditorRoute ? (
           <div className="w-full flex-1 min-h-0 min-w-0">{children}</div>
