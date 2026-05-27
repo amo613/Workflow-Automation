@@ -19,3 +19,17 @@ apminsightdata/
 # Ignore apminsightnode.json
 apminsightnode.json
 
+
+.cursor/
+.cursorrules
+.cursorignore
+.aider*
+.claude/
+CLAUDE.md
+.continue/
+.windsurf/
+.codeium/
+.tabnine/
+.github/copilot*
+.idea/copilot.data.migration.*.xml
+
