@@ -1,6 +1,10 @@
 node_modules
+.env
 .env.*
 .env.neon_local/
+
+# macOS
+.DS_Store
 
 # Ignore logs
 logs/
