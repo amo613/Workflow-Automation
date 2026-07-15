@@ -196,6 +196,14 @@ fastify.get('/workflows/*', async (request, reply) => {
   }
 });
 
+// Vite copies public assets to the build root, outside the /assets directory.
+fastify.get('/favicon.png', async (request, reply) => {
+  const faviconPath = join(process.cwd(), 'dist/workflows/favicon.png');
+  const favicon = readFileSync(faviconPath);
+  reply.type('image/png');
+  return reply.send(favicon);
+});
+
 // Global CSRF token generation for all GET requests (including React pages)
 // This ensures React pages get CSRF tokens when they load
 fastify.addHook('onRequest', generateCSRFTokenFastify);

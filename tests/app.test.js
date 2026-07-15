@@ -41,6 +41,19 @@ describe('API ENDPOINTS', () => {
     });
   });
 
+  describe('GET /favicon.png', () => {
+    it('should serve the production favicon', async () => {
+      const response = await fastifyApp.inject({
+        method: 'GET',
+        url: '/favicon.png',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('image/png');
+      expect(response.rawPayload.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('GET /nonexistent', () => {
     it('should return 404 for non-existing API routes', async () => {
       const response = await fastifyApp.inject({
