@@ -38,34 +38,34 @@ export default function StartNode({ data, selected }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
-      <div
-        style={{
-          fontSize: '2rem',
-          marginBottom: '0.5rem',
-        }}
-      >
-        <Rocket className="w-8 h-8" />
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: '1rem',
-          color: 'hsl(var(--foreground))',
-        }}
-      >
-        Start
-      </div>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: '#10b981',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        <StatusBadge status={status} />
+        <div
+          style={{
+            fontSize: '2rem',
+            marginBottom: '0.5rem',
+          }}
+        >
+          <Rocket className="w-8 h-8" />
+        </div>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: 'hsl(var(--foreground))',
+          }}
+        >
+          Start
+        </div>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{
+            background: '#10b981',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
+          }}
+        />
       </div>
     </ElectricBorder>
   );

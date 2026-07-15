@@ -43,94 +43,94 @@ function BaseNode({ data, selected, type, icon, color, label }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
-      {/* Input Handle */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          background: color,
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        <StatusBadge status={status} />
+        {/* Input Handle */}
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{
+            background: color,
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
+          }}
+        />
 
-      {/* Node Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.5rem',
-        }}
-      >
+        {/* Node Header */}
         <div
           style={{
-            fontSize: '1.5rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            borderRadius: '0.5rem',
-            background: `${color}20`,
-            color: color,
+            gap: '0.5rem',
+            marginBottom: '0.5rem',
           }}
         >
-          {icon}
-        </div>
-        <div>
           <div
             style={{
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              color: 'hsl(var(--foreground))',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '0.5rem',
+              background: `${color}20`,
+              color: color,
             }}
           >
-            {label || type}
+            {icon}
           </div>
-          {data.name && (
+          <div>
             <div
               style={{
-                fontSize: '0.75rem',
-                color: 'hsl(var(--muted-foreground))',
-                marginTop: '0.25rem',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: 'hsl(var(--foreground))',
               }}
             >
-              {data.name}
+              {label || type}
             </div>
-          )}
+            {data.name && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  marginTop: '0.25rem',
+                }}
+              >
+                {data.name}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Node Content */}
-      {data.description && (
-        <div
+        {/* Node Content */}
+        {data.description && (
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'hsl(var(--muted-foreground))',
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: 'hsl(var(--muted))',
+              borderRadius: '0.375rem',
+            }}
+          >
+            {data.description}
+          </div>
+        )}
+
+        {/* Output Handle */}
+        <Handle
+          type="source"
+          position={Position.Bottom}
           style={{
-            fontSize: '0.75rem',
-            color: 'hsl(var(--muted-foreground))',
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            background: 'hsl(var(--muted))',
-            borderRadius: '0.375rem',
+            background: color,
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
           }}
-        >
-          {data.description}
-        </div>
-      )}
-
-      {/* Output Handle */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: color,
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        />
       </div>
     </ElectricBorder>
   );

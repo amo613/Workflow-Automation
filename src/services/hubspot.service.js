@@ -4,7 +4,6 @@ import { getIntegration } from './integration.service.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
-import { httpsAgent } from '#config/http-agent.js';
 
 // ✅ Cache HubSpot access tokens to reduce DB queries
 const hubspotTokenCache = new Map();
@@ -26,7 +25,7 @@ export class HubSpotService {
     // ✅ Check cache first
     const cacheKey = `hubspot-token-${userId}`;
     const cached = hubspotTokenCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       logger.debug('Using cached HubSpot token', { userId });
       return { accessToken: cached.accessToken };
@@ -93,7 +92,7 @@ export class HubSpotService {
       accessToken,
       timestamp: Date.now(),
     });
-    
+
     // ✅ Clean old cache entries (max 100)
     if (hubspotTokenCache.size > 100) {
       const oldestKey = hubspotTokenCache.keys().next().value;

@@ -68,36 +68,44 @@ export async function trackWorkflowExecution(
 
     // Track goal achievement if provided
     if (options.goalAchieved !== undefined) {
-      stats.goalMetrics = stats.goalMetrics || { measurements: [], currentAchievementRate: null, trend: 'unknown' };
+      stats.goalMetrics = stats.goalMetrics || {
+        measurements: [],
+        currentAchievementRate: null,
+        trend: 'unknown',
+      };
       stats.goalMetrics.measurements = stats.goalMetrics.measurements || [];
-      
+
       stats.goalMetrics.measurements.unshift({
         timestamp,
         achieved: options.goalAchieved,
         details: options.goalMetrics || null,
       });
-      
+
       // Keep last 50 measurements
       if (stats.goalMetrics.measurements.length > 50) {
         stats.goalMetrics.measurements.splice(50);
       }
-      
+
       // Calculate achievement rate (last 20 executions)
       const recentMeasurements = stats.goalMetrics.measurements.slice(0, 20);
       const achievedCount = recentMeasurements.filter(m => m.achieved).length;
       const previousRate = stats.goalMetrics.currentAchievementRate;
-      stats.goalMetrics.currentAchievementRate = recentMeasurements.length > 0
-        ? (achievedCount / recentMeasurements.length)
-        : null;
-      
+      stats.goalMetrics.currentAchievementRate =
+        recentMeasurements.length > 0
+          ? achievedCount / recentMeasurements.length
+          : null;
+
       // Determine trend (improving/stable/declining)
-      if (previousRate !== null && stats.goalMetrics.currentAchievementRate !== null) {
+      if (
+        previousRate !== null &&
+        stats.goalMetrics.currentAchievementRate !== null
+      ) {
         const diff = stats.goalMetrics.currentAchievementRate - previousRate;
         if (diff > 0.1) stats.goalMetrics.trend = 'improving';
         else if (diff < -0.1) stats.goalMetrics.trend = 'declining';
         else stats.goalMetrics.trend = 'stable';
       }
-      
+
       stats.goalMetrics.lastEvaluation = timestamp;
     }
 
@@ -106,39 +114,39 @@ export async function trackWorkflowExecution(
       // Calculate success rate BEFORE saving (as NUMBER, not string!)
       stats.successRate =
         stats.totalExecutions > 0
-          ? Number(((stats.successfulExecutions / stats.totalExecutions) * 100).toFixed(2))
+          ? Number(
+              (
+                (stats.successfulExecutions / stats.totalExecutions) *
+                100
+              ).toFixed(2)
+            )
           : 0;
-      
+
       // Prepare execution history entry
       const historyKey = `workflow:${workflowId}:execution-history`;
       const historyEntry = {
         eventId: eventId || `exec-${timestamp}`,
         timestamp,
         success,
-        error: error ? (error.message || String(error)) : null,
+        error: error ? error.message || String(error) : null,
         goalAchieved: options.goalAchieved,
       };
-      
+
       // Get existing history and prepend new entry
       const existingHistoryStr = await redisClient.get(historyKey);
       const history = existingHistoryStr ? JSON.parse(existingHistoryStr) : [];
       history.unshift(historyEntry);
-      
+
       // Keep only last 100 executions
       if (history.length > 100) {
         history.splice(100);
       }
-      
+
       const pipeline = redisClient.multi();
-      
+
       // Save stats
-      pipeline.set(
-        statsKey,
-        JSON.stringify(stats),
-        'EX',
-        90 * 24 * 60 * 60
-      );
-      
+      pipeline.set(statsKey, JSON.stringify(stats), 'EX', 90 * 24 * 60 * 60);
+
       // Save history
       pipeline.set(
         historyKey,
@@ -146,10 +154,10 @@ export async function trackWorkflowExecution(
         'EX',
         30 * 24 * 60 * 60
       );
-      
+
       // Execute both writes in one round-trip
       await pipeline.exec();
-      
+
       logger.debug('Workflow statistics and history updated (batched)', {
         workflowId,
         totalExecutions: stats.totalExecutions,
@@ -160,7 +168,7 @@ export async function trackWorkflowExecution(
         workflowId,
         error: batchError.message,
       });
-      
+
       // Fallback: try individual writes
       try {
         await redisClient.set(
@@ -238,12 +246,15 @@ export async function getWorkflowStatistics(workflowId) {
         error: err.error,
       })),
       goalMetrics: {
-        measurements: (stats.goalMetrics?.measurements || []).slice(0, 20).map(m => ({
-          timestamp: new Date(m.timestamp).toISOString(),
-          achieved: m.achieved,
-          details: m.details,
-        })),
-        currentAchievementRate: stats.goalMetrics?.currentAchievementRate ?? null,
+        measurements: (stats.goalMetrics?.measurements || [])
+          .slice(0, 20)
+          .map(m => ({
+            timestamp: new Date(m.timestamp).toISOString(),
+            achieved: m.achieved,
+            details: m.details,
+          })),
+        currentAchievementRate:
+          stats.goalMetrics?.currentAchievementRate ?? null,
         trend: stats.goalMetrics?.trend || 'unknown',
         lastEvaluation: stats.goalMetrics?.lastEvaluation
           ? new Date(stats.goalMetrics.lastEvaluation).toISOString()

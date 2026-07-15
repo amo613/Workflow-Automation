@@ -37,100 +37,100 @@ export default function WebhookTriggerNode({ data, selected }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
+        <StatusBadge status={status} />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.5rem',
-        }}
-      >
         <div
           style={{
-            fontSize: '1.5rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            borderRadius: '0.5rem',
-            background: 'rgba(139, 92, 246, 0.2)',
-            color: '#8b5cf6',
+            gap: '0.5rem',
+            marginBottom: '0.5rem',
           }}
         >
-          <Link className="w-5 h-5" />
-        </div>
-        <div>
           <div
             style={{
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              color: 'hsl(var(--foreground))',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '0.5rem',
+              background: 'rgba(139, 92, 246, 0.2)',
+              color: '#8b5cf6',
             }}
           >
-            Webhook Trigger
+            <Link className="w-5 h-5" />
           </div>
-          {data.name && (
+          <div>
             <div
               style={{
-                fontSize: '0.75rem',
-                color: 'hsl(var(--muted-foreground))',
-                marginTop: '0.25rem',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: 'hsl(var(--foreground))',
               }}
             >
-              {data.name}
+              Webhook Trigger
             </div>
-          )}
+            {data.name && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  marginTop: '0.25rem',
+                }}
+              >
+                {data.name}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {data.requireSecret && (
-        <div
+        {data.requireSecret && (
+          <div
+            style={{
+              marginTop: '0.5rem',
+              fontSize: '0.7rem',
+              color: '#facc15',
+              background: 'rgba(250, 204, 21, 0.12)',
+              border: '1px solid rgba(250, 204, 21, 0.35)',
+              borderRadius: '0.375rem',
+              padding: '0.35rem 0.5rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>🔒</span>
+            Secret required
+          </div>
+        )}
+
+        {data.description && (
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'hsl(var(--muted-foreground))',
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: 'hsl(var(--muted))',
+              borderRadius: '0.375rem',
+            }}
+          >
+            {data.description}
+          </div>
+        )}
+
+        <Handle
+          type="source"
+          position={Position.Bottom}
           style={{
-            marginTop: '0.5rem',
-            fontSize: '0.7rem',
-            color: '#facc15',
-            background: 'rgba(250, 204, 21, 0.12)',
-            border: '1px solid rgba(250, 204, 21, 0.35)',
-            borderRadius: '0.375rem',
-            padding: '0.35rem 0.5rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
+            background: '#8b5cf6',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
           }}
-        >
-          <span style={{ fontSize: '0.85rem' }}>🔒</span>
-          Secret required
-        </div>
-      )}
-
-      {data.description && (
-        <div
-          style={{
-            fontSize: '0.75rem',
-            color: 'hsl(var(--muted-foreground))',
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            background: 'hsl(var(--muted))',
-            borderRadius: '0.375rem',
-          }}
-        >
-          {data.description}
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: '#8b5cf6',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        />
       </div>
     </ElectricBorder>
   );

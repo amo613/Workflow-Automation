@@ -42,7 +42,10 @@ async function processWorkflowJob(job) {
         }
       }
     } catch (err) {
-      logger.error('Failed to resolve large input', { workflowId, error: err.message });
+      logger.error('Failed to resolve large input', {
+        workflowId,
+        error: err.message,
+      });
       resolvedInput = {};
     }
   }
@@ -50,9 +53,15 @@ async function processWorkflowJob(job) {
   let workflow;
   try {
     workflow = await getFullWorkflow(workflowId, userId);
-    logger.info('Workflow loaded', { workflowId: workflow.id, name: workflow.name });
+    logger.info('Workflow loaded', {
+      workflowId: workflow.id,
+      name: workflow.name,
+    });
   } catch (error) {
-    logger.error('Failed to load workflow', { workflowId, error: error.message });
+    logger.error('Failed to load workflow', {
+      workflowId,
+      error: error.message,
+    });
     throw error;
   }
 
@@ -90,7 +99,9 @@ async function processWorkflowJob(job) {
           if (redis?.isReady) {
             await redis.set(cacheKey, JSON.stringify(cacheData), 'EX', 3600);
           }
-        } catch {}
+        } catch {
+          // Best-effort Redis cache update; the in-memory cache remains available.
+        }
       });
       broadcastWorkflowEvent({
         type: 'workflow.running',
@@ -101,7 +112,9 @@ async function processWorkflowJob(job) {
         executedEdgesCount: cacheData.executedEdges.length,
         nodeOutputsCount: Object.keys(cacheData.nodeOutputs || {}).length,
       });
-    } catch {}
+    } catch {
+      // Incremental status updates must never interrupt workflow execution.
+    }
   };
 
   let result;
@@ -148,7 +161,10 @@ async function processWorkflowJob(job) {
         await redis.set(cacheKey, JSON.stringify(failedCacheData), 'EX', 3600);
       }
     } catch (redisErr) {
-      logger.warn('Failed to cache failed execution in Redis', { eventId, error: redisErr.message });
+      logger.warn('Failed to cache failed execution in Redis', {
+        eventId,
+        error: redisErr.message,
+      });
     }
     broadcastWorkflowEvent({
       type: 'workflow.failed',
@@ -162,9 +178,18 @@ async function processWorkflowJob(job) {
 
   // Finally: stats and post-execution agents (run whether we threw or not)
   try {
-    await trackWorkflowExecution(workflowId, executionSuccess, executionError, eventId);
+    await trackWorkflowExecution(
+      workflowId,
+      executionSuccess,
+      executionError,
+      eventId
+    );
   } catch (err) {
-    logger.warn('Failed to track workflow statistics', { workflowId, eventId, error: err.message });
+    logger.warn('Failed to track workflow statistics', {
+      workflowId,
+      eventId,
+      error: err.message,
+    });
   }
 
   if (workflow?.agents_enabled) {
@@ -178,7 +203,10 @@ async function processWorkflowJob(job) {
       },
       { agentsEnabled: true }
     ).catch(err => {
-      logger.warn('Post-execution agents trigger failed', { workflowId, error: err?.message });
+      logger.warn('Post-execution agents trigger failed', {
+        workflowId,
+        error: err?.message,
+      });
     });
   }
 
@@ -235,7 +263,10 @@ export const workflowExecutionWorker = new Worker(
 );
 
 workflowExecutionWorker.on('completed', job => {
-  logger.debug('Workflow execution job completed', { jobId: job.id, workflowId: job.data?.workflowId });
+  logger.debug('Workflow execution job completed', {
+    jobId: job.id,
+    workflowId: job.data?.workflowId,
+  });
 });
 
 workflowExecutionWorker.on('failed', (job, err) => {

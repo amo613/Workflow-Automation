@@ -50,7 +50,7 @@ export default function FloatingCanvasToolbar({
     }
   };
 
-  const handleNameKeyDown = (e) => {
+  const handleNameKeyDown = e => {
     if (e.key === 'Enter') {
       e.target.blur();
     }
@@ -69,7 +69,7 @@ export default function FloatingCanvasToolbar({
           <input
             type="text"
             value={localName}
-            onChange={(e) => setLocalName(e.target.value)}
+            onChange={e => setLocalName(e.target.value)}
             onBlur={handleNameBlur}
             onKeyDown={handleNameKeyDown}
             autoFocus
@@ -120,8 +120,12 @@ export default function FloatingCanvasToolbar({
               onClick={() => activeTab !== 'full' && onSwitchTab('full')}
               className="px-5 py-2 text-sm font-medium transition-colors"
               style={{
-                background: activeTab === 'full' ? 'hsl(var(--primary))' : 'transparent',
-                color: activeTab === 'full' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                background:
+                  activeTab === 'full' ? 'hsl(var(--primary))' : 'transparent',
+                color:
+                  activeTab === 'full'
+                    ? 'hsl(var(--primary-foreground))'
+                    : 'hsl(var(--muted-foreground))',
                 cursor: activeTab === 'full' ? 'default' : 'pointer',
               }}
             >
@@ -134,8 +138,12 @@ export default function FloatingCanvasToolbar({
               onClick={() => activeTab !== 'call' && onSwitchTab('call')}
               className="px-5 py-2 text-sm font-medium transition-colors"
               style={{
-                background: activeTab === 'call' ? 'hsl(var(--primary))' : 'transparent',
-                color: activeTab === 'call' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                background:
+                  activeTab === 'call' ? 'hsl(var(--primary))' : 'transparent',
+                color:
+                  activeTab === 'call'
+                    ? 'hsl(var(--primary-foreground))'
+                    : 'hsl(var(--muted-foreground))',
                 cursor: activeTab === 'call' ? 'default' : 'pointer',
               }}
             >

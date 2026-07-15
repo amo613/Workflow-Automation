@@ -5,7 +5,8 @@
 import logger from '#config/logger.js';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = process.env.OPENROUTER_AGENT_MODEL || 'openai/gpt-oss-120b';
+const DEFAULT_MODEL =
+  process.env.OPENROUTER_AGENT_MODEL || 'openai/gpt-oss-120b';
 
 /**
  * Call OpenRouter chat completions.
@@ -41,8 +42,12 @@ export async function openRouterChat(messages, options = {}) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const errMsg = data.error?.message || data.message || `HTTP ${res.status}`;
-      logger.warn('OpenRouter API error', { status: res.status, error: errMsg });
+      const errMsg =
+        data.error?.message || data.message || `HTTP ${res.status}`;
+      logger.warn('OpenRouter API error', {
+        status: res.status,
+        error: errMsg,
+      });
       return { error: errMsg };
     }
 

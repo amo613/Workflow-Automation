@@ -22,7 +22,8 @@ export function Switch({
   ...props
 }) {
   const [internalChecked, setInternalChecked] = React.useState(defaultChecked);
-  const checked = controlledChecked !== undefined ? controlledChecked : internalChecked;
+  const checked =
+    controlledChecked !== undefined ? controlledChecked : internalChecked;
 
   const handleToggle = React.useCallback(() => {
     if (disabled) return;
@@ -49,9 +50,7 @@ export function Switch({
         data-state={checked ? 'checked' : 'unchecked'}
         className={cn(
           'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50',
-          checked
-            ? 'bg-primary'
-            : 'bg-input',
+          checked ? 'bg-primary' : 'bg-input',
           animated && 'switch-toggle',
           className
         )}
@@ -71,11 +70,7 @@ export function Switch({
   );
 }
 
-export function SwitchLabel({
-  className,
-  children,
-  ...props
-}) {
+export function SwitchLabel({ className, children, ...props }) {
   const { checked, disabled } = React.useContext(SwitchContext);
 
   return (
@@ -94,4 +89,3 @@ export function SwitchLabel({
 
 Switch.displayName = 'Switch';
 SwitchLabel.displayName = 'SwitchLabel';
-

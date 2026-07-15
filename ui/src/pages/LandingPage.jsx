@@ -130,7 +130,7 @@ function WorkflowDemoInner() {
     const interval = setInterval(() => {
       setCurrentStep(prev => {
         const next = (prev + 1) % 4;
-        
+
         // Update node statuses based on step
         setNodes(nds =>
           nds.map(node => {
@@ -204,10 +204,15 @@ function WorkflowDemoInner() {
         zoomOnPinch={true}
         preventScrolling={false}
       >
-        <Background variant="dots" gap={20} size={1} color="hsl(var(--border))" />
+        <Background
+          variant="dots"
+          gap={20}
+          size={1}
+          color="hsl(var(--border))"
+        />
         <Controls showInteractive={false} />
         <MiniMap
-          nodeColor={(node) => {
+          nodeColor={node => {
             const colors = {
               'webhook-trigger': '#8b5cf6',
               'ai-agent': '#3b82f6',
@@ -270,37 +275,43 @@ export default function LandingPage() {
     {
       icon: Workflow,
       title: 'Visual Workflow Editor',
-      description: 'Drag-and-drop interface powered by React Flow. Build complex workflows visually.',
+      description:
+        'Drag-and-drop interface powered by React Flow. Build complex workflows visually.',
       color: '#3b82f6',
     },
     {
       icon: Layers,
       title: '20+ Node Types',
-      description: 'From simple HTTP requests to AI-powered agents. Everything you need.',
+      description:
+        'From simple HTTP requests to AI-powered agents. Everything you need.',
       color: '#8b5cf6',
     },
     {
       icon: Play,
       title: 'Real-time Execution',
-      description: 'Watch your workflows run live with animated visualizations and live updates.',
+      description:
+        'Watch your workflows run live with animated visualizations and live updates.',
       color: '#10b981',
     },
     {
       icon: Sparkles,
       title: 'AI Integration',
-      description: 'Built-in OpenAI integration for intelligent automation and decision-making.',
+      description:
+        'Built-in OpenAI integration for intelligent automation and decision-making.',
       color: '#ec4899',
     },
     {
       icon: Rocket,
       title: 'Production-Ready',
-      description: 'Dockerized, scalable, and battle-tested. Deploy with confidence.',
+      description:
+        'Dockerized, scalable, and battle-tested. Deploy with confidence.',
       color: '#f59e0b',
     },
     {
       icon: Github,
       title: 'Open Source',
-      description: 'Free, open-source, and community-driven. Contribute and customize.',
+      description:
+        'Free, open-source, and community-driven. Contribute and customize.',
       color: '#6366f1',
     },
   ];
@@ -360,7 +371,8 @@ export default function LandingPage() {
     },
     {
       title: 'Customer Support',
-      description: 'Handle tickets, send responses, and escalate issues automatically.',
+      description:
+        'Handle tickets, send responses, and escalate issues automatically.',
       icon: Mail,
       color: '#10b981',
     },
@@ -378,7 +390,8 @@ export default function LandingPage() {
     },
     {
       title: 'Appointment Scheduling',
-      description: 'Automatically schedule meetings based on calendar availability.',
+      description:
+        'Automatically schedule meetings based on calendar availability.',
       icon: Calendar,
       color: '#f59e0b',
     },
@@ -430,16 +443,12 @@ export default function LandingPage() {
             <span className="gradient-text">No Code Required</span>
           </h1>
           <p className="hero-subheadline">
-            Connect APIs, automate tasks, and orchestrate complex business processes with a
-            visual drag-and-drop interface. Perfect for sales automation, customer support, and
-            data processing.
+            Connect APIs, automate tasks, and orchestrate complex business
+            processes with a visual drag-and-drop interface. Perfect for sales
+            automation, customer support, and data processing.
           </p>
           <div className="hero-ctas">
-            <Button
-              size="lg"
-              className="cta-primary"
-              asChild
-            >
+            <Button size="lg" className="cta-primary" asChild>
               <Link to="/register">
                 Get Started Free
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -456,14 +465,9 @@ export default function LandingPage() {
                 Login
               </Link>
             </Button>
-            <Button
-              size="lg"
-              variant="ghost"
-              className="cta-github"
-              asChild
-            >
+            <Button size="lg" variant="ghost" className="cta-github" asChild>
               <a
-                href="https://github.com/amo613/Testing"
+                href="https://github.com/amo613/Workflow-Automation"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -548,7 +552,13 @@ export default function LandingPage() {
                   <img
                     src={tech.logo}
                     alt={tech.name}
-                    className={tech.type === 'svg' ? 'tech-logo-svg' : tech.name === 'Inngest' ? 'tech-logo-png tech-logo-no-bg' : 'tech-logo-png'}
+                    className={
+                      tech.type === 'svg'
+                        ? 'tech-logo-svg'
+                        : tech.name === 'Inngest'
+                          ? 'tech-logo-png tech-logo-no-bg'
+                          : 'tech-logo-png'
+                    }
                   />
                 </div>
                 <span className="tech-name">{tech.name}</span>
@@ -575,7 +585,7 @@ export default function LandingPage() {
             onMouseLeave={() => setIsHoveringTabs(false)}
           >
             <div className="node-tabs-indicators">
-              {tabConfig.map((tab) => {
+              {tabConfig.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeNodeTab === tab.key;
                 return (
@@ -657,7 +667,9 @@ export default function LandingPage() {
                       <Icon className="w-8 h-8" />
                     </div>
                     <h3 className="use-case-title">{useCase.title}</h3>
-                    <p className="use-case-description">{useCase.description}</p>
+                    <p className="use-case-description">
+                      {useCase.description}
+                    </p>
                   </CardContent>
                 </Card>
               );
@@ -715,8 +727,8 @@ export default function LandingPage() {
               <Github className="w-12 h-12 mb-4" />
               <h2 className="github-title">Join the Open Source Community</h2>
               <p className="github-description">
-                Star us on GitHub, contribute to the project, or report issues. We welcome all
-                contributions!
+                Star us on GitHub, contribute to the project, or report issues.
+                We welcome all contributions!
               </p>
               <div className="github-stats">
                 <div className="github-stat">
@@ -728,9 +740,14 @@ export default function LandingPage() {
                   <span>Join Contributors</span>
                 </div>
               </div>
-              <Button size="lg" variant="outline" className="github-button" asChild>
+              <Button
+                size="lg"
+                variant="outline"
+                className="github-button"
+                asChild
+              >
                 <a
-                  href="https://github.com/amo613/Testing"
+                  href="https://github.com/amo613/Workflow-Automation"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -746,11 +763,10 @@ export default function LandingPage() {
       {/* Final CTA Section */}
       <section className="final-cta-section">
         <div className="section-container">
-          <h2 className="final-cta-title">
-            Ready to Automate Your Workflows?
-          </h2>
+          <h2 className="final-cta-title">Ready to Automate Your Workflows?</h2>
           <p className="final-cta-description">
-            Start building powerful automation workflows today. No credit card required.
+            Start building powerful automation workflows today. No credit card
+            required.
           </p>
           <div className="final-cta-buttons">
             <Button size="lg" className="cta-primary" asChild>
@@ -759,7 +775,12 @@ export default function LandingPage() {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="cta-secondary" asChild>
+            <Button
+              size="lg"
+              variant="outline"
+              className="cta-secondary"
+              asChild
+            >
               <Link to="/login">
                 <LogIn className="w-5 h-5 mr-2" />
                 Login
@@ -771,4 +792,3 @@ export default function LandingPage() {
     </div>
   );
 }
-

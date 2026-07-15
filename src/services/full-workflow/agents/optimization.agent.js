@@ -4,8 +4,7 @@
 import { openRouterChat } from './openrouter.client.js';
 import { logAgentAction } from '#services/workflow-agent-action.service.js';
 
-export async function runOptimizationAgent(workflowId, context, options = {}) {
-  const { mode = 'suggest' } = options;
+export async function runOptimizationAgent(workflowId, context, _options = {}) {
   const goalMetrics = context.goalMetrics || {};
   const achievementRate = goalMetrics.currentAchievementRate;
   const trend = goalMetrics.trend || 'unknown';
@@ -13,22 +12,28 @@ export async function runOptimizationAgent(workflowId, context, options = {}) {
 
   // CRITICAL: Define allowed node types (must match your system)
   const ALLOWED_NODE_TYPES = [
-    'start', 'end',
+    'start',
+    'end',
     'webhook-trigger',
     'http-request',
     'variable-set',
-    'if', 'switch',
+    'if',
+    'switch',
     'wait',
-    'email', 'gmail',
+    'email',
+    'gmail',
     'database-query',
-    'google-sheets', 'google-sheets-trigger',
-    'call-agent', 'ai-agent',
+    'google-sheets',
+    'google-sheets-trigger',
+    'call-agent',
+    'ai-agent',
     'call-trigger',
     'merge',
     'knowledge-base-query',
     'web-scraper',
-    'hubspot', 'hubspot-trigger',
-    'schedule-trigger'
+    'hubspot',
+    'hubspot-trigger',
+    'schedule-trigger',
   ];
 
   const systemPrompt = `You are a workflow optimization agent with AUTONOMOUS GOAL-DRIVEN INTELLIGENCE.
@@ -41,14 +46,18 @@ CURRENT GOAL PERFORMANCE:
 ${achievementRate != null && achievementRate < 0.7 ? '⚠️ GOAL IS NOT BEING ACHIEVED - STRUCTURAL CHANGES NEEDED' : ''}
 
 YOUR MISSION:
-${focusOnGoal ? `
+${
+  focusOnGoal
+    ? `
 PRIMARY FOCUS: Make this workflow achieve its GOAL.
 - If goal achievement < 70%: Propose STRUCTURAL changes (add nodes, remove bottlenecks, parallelize, reorder)
 - If goal is achieved: Optimize for efficiency (cost, speed)
 - EVERY change must explain: "This brings us closer to the goal because..."
-` : `
+`
+    : `
 Suggest improvements for reliability and performance.
-`}
+`
+}
 
 CRITICAL CONSTRAINTS:
 - You can ONLY use these node types: ${ALLOWED_NODE_TYPES.join(', ')}
@@ -67,12 +76,37 @@ You can propose:
 - "remove_node": Remove node that blocks goal, not the fallback nodes.
 
 EXAMPLES (using ONLY allowed types):
-${JSON.stringify([
-  { type: 'node_update', nodeId: 'http_123', patch: { url: 'https://api.example.com/users' }, reason: 'Fixed typo in URL causing 404 errors' },
-  { type: 'add_node', nodeType: 'wait', nodeData: { delay: 5000 }, connectAfter: 'node_5', reason: 'Add delay to avoid rate limiting' },
-  { type: 'add_node', nodeType: 'http-request', nodeData: { url: 'https://api.slack.com/...', method: 'POST' }, connectAfter: 'node_x', reason: 'Notify team via Slack API (using http-request)' },
-  { type: 'remove_node', nodeId: 'filter_xyz', reason: 'This filter blocks 80% of leads' }
-], null, 2)}
+${JSON.stringify(
+  [
+    {
+      type: 'node_update',
+      nodeId: 'http_123',
+      patch: { url: 'https://api.example.com/users' },
+      reason: 'Fixed typo in URL causing 404 errors',
+    },
+    {
+      type: 'add_node',
+      nodeType: 'wait',
+      nodeData: { delay: 5000 },
+      connectAfter: 'node_5',
+      reason: 'Add delay to avoid rate limiting',
+    },
+    {
+      type: 'add_node',
+      nodeType: 'http-request',
+      nodeData: { url: 'https://api.slack.com/...', method: 'POST' },
+      connectAfter: 'node_x',
+      reason: 'Notify team via Slack API (using http-request)',
+    },
+    {
+      type: 'remove_node',
+      nodeId: 'filter_xyz',
+      reason: 'This filter blocks 80% of leads',
+    },
+  ],
+  null,
+  2
+)}
 
 You must NOT:
 - Use node types not in the allowed list
@@ -93,7 +127,7 @@ Stats: ${JSON.stringify(context.stats || {}, null, 2)}`;
   const workflowJsonStr = JSON.stringify(context.workflow_json || {});
   const nodes = context.workflow_json?.nodes || [];
   const edges = context.workflow_json?.edges || [];
-  
+
   if (workflowJsonStr.length > 100000) {
     // Very large: show node/edge IDs and types only
     userContent += `
@@ -124,12 +158,16 @@ Note: Node data omitted to reduce size. Focus on connections and types.`;
     userContent += `
 Workflow JSON (nodes and edges): ${workflowJsonStr}`;
   }
-  
+
   if (context.executionContext) {
     userContent += `\n\nLast Execution:\n${JSON.stringify(context.executionContext, null, 2)}`;
   }
-  
-  if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
+
+  if (
+    context.goalResearch &&
+    (context.goalResearch.goalSearch?.length ||
+      context.goalResearch.errorSearch?.length)
+  ) {
     userContent += `\n\nWeb research for goal:\n${JSON.stringify(context.goalResearch, null, 2)}`;
   }
 
@@ -152,7 +190,11 @@ Workflow JSON (nodes and edges): ${workflowJsonStr}`;
     return { success: false, error, changes: [], optimizationImpact: null };
   }
 
-  let parsed = { summary: content, changes: [], optimization_impact: 'unknown' };
+  let parsed = {
+    summary: content,
+    changes: [],
+    optimization_impact: 'unknown',
+  };
   try {
     const jsonMatch = content && /\{[\s\S]*\}/.exec(content);
     if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
@@ -169,13 +211,15 @@ Workflow JSON (nodes and edges): ${workflowJsonStr}`;
       changes: parsed.changes || [],
       rawResponse: content?.slice(0, 2000),
     },
-    optimizationImpact: parsed.optimization_impact || parsed.optimizationImpact || 'unknown',
+    optimizationImpact:
+      parsed.optimization_impact || parsed.optimizationImpact || 'unknown',
   });
 
   return {
     success: true,
     summary: parsed.summary,
     changes: parsed.changes || [],
-    optimizationImpact: parsed.optimization_impact || parsed.optimizationImpact || 'unknown',
+    optimizationImpact:
+      parsed.optimization_impact || parsed.optimizationImpact || 'unknown',
   };
 }

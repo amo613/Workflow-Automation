@@ -40,80 +40,80 @@ export default function HubspotTriggerNode({ data, selected }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
+        <StatusBadge status={status} />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.5rem',
-        }}
-      >
         <div
           style={{
-            fontSize: '1.5rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            borderRadius: '0.5rem',
-            background: 'rgba(255, 122, 89, 0.2)',
-            color: '#ff7a59',
+            gap: '0.5rem',
+            marginBottom: '0.5rem',
           }}
         >
-          <Zap className="w-5 h-5" />
-        </div>
-        <div>
           <div
             style={{
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              color: 'hsl(var(--foreground))',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '0.5rem',
+              background: 'rgba(255, 122, 89, 0.2)',
+              color: '#ff7a59',
             }}
           >
-            HubSpot Trigger
+            <Zap className="w-5 h-5" />
           </div>
-          {eventCount > 0 && (
+          <div>
             <div
               style={{
-                fontSize: '0.75rem',
-                color: 'hsl(var(--muted-foreground))',
-                marginTop: '0.25rem',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: 'hsl(var(--foreground))',
               }}
             >
-              {eventCount} event{eventCount !== 1 ? 's' : ''}
+              HubSpot Trigger
             </div>
-          )}
+            {eventCount > 0 && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  marginTop: '0.25rem',
+                }}
+              >
+                {eventCount} event{eventCount !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {data.description && (
-        <div
+        {data.description && (
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'hsl(var(--muted-foreground))',
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: 'hsl(var(--muted))',
+              borderRadius: '0.375rem',
+            }}
+          >
+            {data.description}
+          </div>
+        )}
+
+        <Handle
+          type="source"
+          position={Position.Bottom}
           style={{
-            fontSize: '0.75rem',
-            color: 'hsl(var(--muted-foreground))',
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            background: 'hsl(var(--muted))',
-            borderRadius: '0.375rem',
+            background: '#ff7a59',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
           }}
-        >
-          {data.description}
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: '#ff7a59',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        />
       </div>
     </ElectricBorder>
   );

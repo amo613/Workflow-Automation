@@ -422,9 +422,9 @@ fastify.addHook('onReady', async () => {
     const { db } = await import('#config/database.js');
     const { fullWorkflows } = await import('#models/full-workflow.model.js');
     const { eq } = await import('drizzle-orm');
-    const {
-      registerCustomPath,
-    } = await import('#services/custom-webhook-path.service.js');
+    const { registerCustomPath } = await import(
+      '#services/custom-webhook-path.service.js'
+    );
 
     // Get all active workflows
     const activeWorkflows = await db
@@ -491,7 +491,10 @@ fastify.addHook('onReady', async () => {
 
   allRoutes.split('\n').forEach(line => {
     const lowerLine = line.toLowerCase();
-    if (lowerLine.includes('google-sheets') || lowerLine.includes('googlesheets')) {
+    if (
+      lowerLine.includes('google-sheets') ||
+      lowerLine.includes('googlesheets')
+    ) {
       googleSheetsRoutes.push(line.trim());
     }
     if (lowerLine.includes('ai-agent') || lowerLine.includes('aiagent')) {
@@ -505,7 +508,10 @@ fastify.addHook('onReady', async () => {
     );
     googleSheetsRoutes.forEach(route => logger.info(`   - ${route}`));
   } else {
-    const routes = fastify.printRoutes({ includeHooks: false, includeMeta: false });
+    const routes = fastify.printRoutes({
+      includeHooks: false,
+      includeMeta: false,
+    });
     if (routes.includes('/api/integrations/google-sheets')) {
       logger.info('✅ Google Sheets routes registered (found in route tree)');
     } else {
@@ -519,7 +525,10 @@ fastify.addHook('onReady', async () => {
     );
     aiAgentRoutes.forEach(route => logger.info(`   - ${route}`));
   } else {
-    const routes = fastify.printRoutes({ includeHooks: false, includeMeta: false });
+    const routes = fastify.printRoutes({
+      includeHooks: false,
+      includeMeta: false,
+    });
     if (routes.includes('/api/ai-agent')) {
       logger.info('✅ AI Agent routes registered (found in route tree)');
     } else {

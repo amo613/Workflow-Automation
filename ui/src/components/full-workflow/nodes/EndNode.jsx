@@ -38,34 +38,34 @@ export default function EndNode({ data, selected }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
-      <div
-        style={{
-          fontSize: '2rem',
-          marginBottom: '0.5rem',
-        }}
-      >
-        <Flag className="w-8 h-8" />
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: '1rem',
-          color: 'hsl(var(--foreground))',
-        }}
-      >
-        End
-      </div>
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          background: '#ef4444',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        <StatusBadge status={status} />
+        <div
+          style={{
+            fontSize: '2rem',
+            marginBottom: '0.5rem',
+          }}
+        >
+          <Flag className="w-8 h-8" />
+        </div>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: 'hsl(var(--foreground))',
+          }}
+        >
+          End
+        </div>
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{
+            background: '#ef4444',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
+          }}
+        />
       </div>
     </ElectricBorder>
   );

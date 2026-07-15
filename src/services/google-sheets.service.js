@@ -39,7 +39,7 @@ export class GoogleSheetsService {
     // ✅ Check cache first
     const cacheKey = `${accessToken.substring(0, 20)}-${refreshToken?.substring(0, 20) || 'none'}`;
     const cached = oauth2ClientCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       logger.debug('Using cached Google OAuth client');
       return cached.client;
@@ -61,13 +61,13 @@ export class GoogleSheetsService {
     }
 
     const sheetsClient = google.sheets({ version: 'v4', auth: oauth2Client });
-    
+
     // ✅ Cache the client
     oauth2ClientCache.set(cacheKey, {
       client: sheetsClient,
       timestamp: Date.now(),
     });
-    
+
     // ✅ Clean old cache entries (max 100)
     if (oauth2ClientCache.size > 100) {
       const oldestKey = oauth2ClientCache.keys().next().value;

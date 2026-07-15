@@ -7,7 +7,8 @@ const NODE_TYPE_DOCS = {
   start:
     'Entry point of the workflow. Passes the initial input (e.g. webhook payload or manual input) to the next node. Must have exactly one outgoing connection.',
   end: 'Terminates the workflow. Collects variables and node outputs from the run. Place at the end of each branch. No outgoing connections needed.',
-  webhook: 'Deprecated. Use HTTP Request or Webhook Trigger instead. Previously used to receive HTTP payloads.',
+  webhook:
+    'Deprecated. Use HTTP Request or Webhook Trigger instead. Previously used to receive HTTP payloads.',
   'webhook-trigger':
     'Starts the workflow when an HTTP request hits the webhook URL. Use custom path or /api/webhooks/:id. Must be connected to the rest of the flow.',
   'http-request':
@@ -28,13 +29,16 @@ const NODE_TYPE_DOCS = {
     'Makes an AI-powered phone call (e.g. Twilio + OpenAI). Configure prompt, phone numbers, and knowledge base. Output includes call status and transcript.',
   'ai-agent':
     'Runs an AI agent in the flow (chat/completion). Use for decisions, summaries, or text generation. Configure model and prompt; use {{variables}} in the prompt.',
-  email: 'Sends an email via SMTP. Set recipient, subject, body. Connect SMTP credentials in Settings.',
-  gmail: 'Sends an email via Gmail API. Set recipient, subject, body. Connect Google account in Settings.',
+  email:
+    'Sends an email via SMTP. Set recipient, subject, body. Connect SMTP credentials in Settings.',
+  gmail:
+    'Sends an email via Gmail API. Set recipient, subject, body. Connect Google account in Settings.',
   'schedule-trigger':
     'Starts the workflow on a cron schedule (e.g. daily at 9:00). Configure cron expression. Must be connected to the rest of the flow.',
   'call-trigger':
     'Starts the workflow when an incoming call is received. Configure phone number and greeting. Must be connected to the rest of the flow.',
-  merge: 'Combines outputs from multiple branches into one. Use when several paths (e.g. after a switch) must feed into a single node. Connect all branches to this node.',
+  merge:
+    'Combines outputs from multiple branches into one. Use when several paths (e.g. after a switch) must feed into a single node. Connect all branches to this node.',
   'knowledge-base-query':
     'Queries a knowledge base (e.g. RAG) and returns relevant chunks. Use for context in AI agents or search. Configure knowledge base in Settings.',
   'web-scraper':

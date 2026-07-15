@@ -28,6 +28,7 @@ This repository includes three CI/CD workflows for automated testing, linting, a
 **What it does:**
 
 - Runs test suite with `npm test`
+- Runs on Node.js 24 LTS and starts a Redis 7 service
 - Sets environment variables: `NODE_ENV=test`, `NODE_OPTIONS=--experimental-vm-modules`
 - Uploads coverage reports as artifacts (retention: 30 days)
 - Generates GitHub step summary with test results and coverage status
@@ -42,7 +43,7 @@ This repository includes three CI/CD workflows for automated testing, linting, a
 
 **What it does:**
 
-- Sets up Docker Buildx for multi-platform builds
+- Sets up QEMU and Docker Buildx for multi-platform builds
 - Logs in to Docker Hub using secrets
 - Extracts metadata including:
   - Branch name

@@ -64,7 +64,7 @@ export class GoogleCalendarService {
     // ✅ Check cache first
     const cacheKey = `${accessToken.substring(0, 20)}-${refreshToken?.substring(0, 20) || 'none'}`;
     const cached = calendarClientCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       logger.debug('Using cached Google Calendar OAuth client');
       return cached.client;
@@ -85,14 +85,17 @@ export class GoogleCalendarService {
       oauth2Client.setCredentials({ access_token: accessToken });
     }
 
-    const calendarClient = google.calendar({ version: 'v3', auth: oauth2Client });
-    
+    const calendarClient = google.calendar({
+      version: 'v3',
+      auth: oauth2Client,
+    });
+
     // ✅ Cache the client
     calendarClientCache.set(cacheKey, {
       client: calendarClient,
       timestamp: Date.now(),
     });
-    
+
     // ✅ Clean old cache entries (max 100)
     if (calendarClientCache.size > 100) {
       const oldestKey = calendarClientCache.keys().next().value;

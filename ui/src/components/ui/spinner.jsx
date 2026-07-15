@@ -37,11 +37,7 @@ export function Spinner({
 
   return (
     <div
-      className={cn(
-        'inline-block',
-        sizeClasses[size],
-        className
-      )}
+      className={cn('inline-block', sizeClasses[size], className)}
       {...props}
     >
       {variant === 'dots' && <SpinnerDots size={size} />}
@@ -64,24 +60,15 @@ function SpinnerDots({ size = 'default' }) {
   return (
     <div className="flex items-center justify-center gap-1">
       <div
-        className={cn(
-          'rounded-full bg-primary spinner-dots',
-          dotSize[size]
-        )}
+        className={cn('rounded-full bg-primary spinner-dots', dotSize[size])}
         style={{ animationDelay: '0s' }}
       />
       <div
-        className={cn(
-          'rounded-full bg-primary spinner-dots',
-          dotSize[size]
-        )}
+        className={cn('rounded-full bg-primary spinner-dots', dotSize[size])}
         style={{ animationDelay: '0.2s' }}
       />
       <div
-        className={cn(
-          'rounded-full bg-primary spinner-dots',
-          dotSize[size]
-        )}
+        className={cn('rounded-full bg-primary spinner-dots', dotSize[size])}
         style={{ animationDelay: '0.4s' }}
       />
     </div>
@@ -99,10 +86,7 @@ function SpinnerPulse({ size = 'default' }) {
 
   return (
     <div
-      className={cn(
-        'rounded-full bg-primary spinner-pulse',
-        sizeClasses[size]
-      )}
+      className={cn('rounded-full bg-primary spinner-pulse', sizeClasses[size])}
     />
   );
 }
@@ -143,19 +127,11 @@ function SpinnerChase({ size = 'default' }) {
   };
 
   return (
-    <div
-      className={cn(
-        'relative spinner-chase',
-        containerSize[size]
-      )}
-    >
+    <div className={cn('relative spinner-chase', containerSize[size])}>
       {[...Array(6)].map((_, i) => (
         <div
           key={i}
-          className={cn(
-            'absolute rounded-full bg-primary',
-            dotSize[size]
-          )}
+          className={cn('absolute rounded-full bg-primary', dotSize[size])}
           style={{
             top: '50%',
             left: '50%',
@@ -171,4 +147,3 @@ function SpinnerChase({ size = 'default' }) {
 }
 
 export default Spinner;
-

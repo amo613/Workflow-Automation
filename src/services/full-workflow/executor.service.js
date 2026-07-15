@@ -177,7 +177,20 @@ export async function executeWorkflow(
       executedEdges: Array.from(executedEdges),
     };
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'executor.service.js:207',message:'executeWorkflow returning SUCCESS',data:{success:finalResult.success,nodesExecuted:executionLog.length},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'executor.service.js:207',
+        message: 'executeWorkflow returning SUCCESS',
+        data: {
+          success: finalResult.success,
+          nodesExecuted: executionLog.length,
+        },
+        timestamp: Date.now(),
+        hypothesisId: 'H4',
+      }),
+    }).catch(() => {});
     // #endregion
     return finalResult;
   } catch (error) {
@@ -1065,102 +1078,4 @@ async function executeOutgoingBranches(
     results,
     count: results.length,
   };
-}
-
-/**
- * Match a value against a switch case
- * @param {*} value - Value to match
- * @param {Object} caseItem - Case configuration
- * @param {Object} context - Template context
- * @returns {boolean} - Whether the case matches
- */
-function matchCase(value, caseItem, context) {
-  if (!caseItem || !caseItem.value) {
-    return false;
-  }
-
-  const matchType = caseItem.matchType || 'exact';
-  const caseValue = resolveTemplate(caseItem.value, context);
-
-  try {
-    switch (matchType) {
-      case 'exact':
-        return String(value) === String(caseValue);
-
-      case 'contains':
-        return String(value).includes(String(caseValue));
-
-      case 'startsWith':
-        return String(value).startsWith(String(caseValue));
-
-      case 'endsWith':
-        return String(value).endsWith(String(caseValue));
-
-      case 'regex': {
-        // Remove leading/trailing slashes if present
-        let pattern = String(caseValue);
-        if (pattern.startsWith('/') && pattern.endsWith('/')) {
-          pattern = pattern.slice(1, -1);
-        }
-        try {
-          const regex = new RegExp(pattern);
-          return regex.test(String(value));
-        } catch (error) {
-          logger.warn('Invalid regex pattern in switch case', {
-            pattern,
-            error: error.message,
-          });
-          return false;
-        }
-      }
-
-      case 'greater': {
-        const num1 = parseFloat(value);
-        const num2 = parseFloat(caseValue);
-        if (isNaN(num1) || isNaN(num2)) {
-          return false;
-        }
-        return num1 > num2;
-      }
-
-      case 'less': {
-        const num1 = parseFloat(value);
-        const num2 = parseFloat(caseValue);
-        if (isNaN(num1) || isNaN(num2)) {
-          return false;
-        }
-        return num1 < num2;
-      }
-
-      case 'range': {
-        // Parse range like "0-100" or "10-20"
-        const rangeMatch = String(caseValue).match(
-          /^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/
-        );
-        if (!rangeMatch) {
-          logger.warn('Invalid range format in switch case', { caseValue });
-          return false;
-        }
-        const num = parseFloat(value);
-        if (isNaN(num)) {
-          return false;
-        }
-        const min = parseFloat(rangeMatch[1]);
-        const max = parseFloat(rangeMatch[2]);
-        return num >= min && num <= max;
-      }
-
-      default:
-        logger.warn('Unknown match type in switch case', { matchType });
-        return false;
-    }
-  } catch (error) {
-    logger.warn('Failed to match switch case', {
-      value,
-      caseValue,
-      matchType,
-      error: error.message,
-    });
-    return false;
-  }
 }

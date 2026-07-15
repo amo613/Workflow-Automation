@@ -357,7 +357,15 @@ function WorkflowEditorLayoutInner({
   };
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, height: '100%', flexDirection: 'column' }}>
+    <div
+      style={{
+        display: 'flex',
+        flex: 1,
+        minHeight: 0,
+        height: '100%',
+        flexDirection: 'column',
+      }}
+    >
       {generalError && (
         <div
           style={{
@@ -410,7 +418,9 @@ function WorkflowEditorLayoutInner({
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}>
+      <div
+        style={{ display: 'flex', flex: 1, overflow: 'hidden', height: '100%' }}
+      >
         <div
           className="custom-scrollbar"
           style={{
@@ -423,7 +433,6 @@ function WorkflowEditorLayoutInner({
             overflowY: 'auto',
           }}
         >
-
           <h3
             style={{
               fontSize: '0.875rem',
@@ -693,57 +702,57 @@ function WorkflowEditorLayoutInner({
               zoomOnPinch={true}
               proOptions={{ hideAttribution: true }}
             >
-            <Background
-              variant="dots"
-              gap={30}
-              size={3}
-              color="hsl(var(--border))"
-            />
-            <Controls
-              position="bottom-right"
-              className="!bg-card/80 dark:!bg-card/80 backdrop-blur-md border border-border rounded-lg shadow"
-            >
-              <ControlButton
-                title="Auto layout"
-                onClick={handleAutoLayout}
-                disabled={isAutoLayouting}
+              <Background
+                variant="dots"
+                gap={30}
+                size={3}
+                color="hsl(var(--border))"
+              />
+              <Controls
+                position="bottom-right"
+                className="!bg-card/80 dark:!bg-card/80 backdrop-blur-md border border-border rounded-lg shadow"
               >
-                {isAutoLayouting ? (
-                  <Spinner variant="ring" size="sm" />
-                ) : (
-                  <LayoutGrid className="w-4 h-4" />
-                )}
-              </ControlButton>
-            </Controls>
-            <MiniMap
-              position="bottom-left"
-              className="!bg-card/80 dark:!bg-card/80 backdrop-blur-md border border-border rounded-lg"
-              nodeColor={node => {
-                const colors = {
-                  start: '#10b981',
-                  end: '#ef4444',
-                  webhook: '#8b5cf6',
-                  'http-request': '#3b82f6',
-                  'call-agent': '#10b981',
-                  'call-trigger': '#10b981',
-                  'ai-agent': '#3b82f6',
-                  email: '#8b5cf6',
-                  'variable-set': '#f59e0b',
-                  if: '#f59e0b',
-                  merge: '#8b5cf6',
-                  wait: '#6366f1',
-                  'database-query': '#06b6d4',
-                  'google-sheets': '#34d399',
-                  'google-sheets-trigger': '#34d399',
-                  'webhook-trigger': '#8b5cf6',
-                  'schedule-trigger': '#8b5cf6',
-                  'knowledge-base-query': '#a78bfa',
-                };
-                return colors[node.type] || '#94a3b8';
-              }}
-              nodeStrokeWidth={3}
-            />
-          </ReactFlow>
+                <ControlButton
+                  title="Auto layout"
+                  onClick={handleAutoLayout}
+                  disabled={isAutoLayouting}
+                >
+                  {isAutoLayouting ? (
+                    <Spinner variant="ring" size="sm" />
+                  ) : (
+                    <LayoutGrid className="w-4 h-4" />
+                  )}
+                </ControlButton>
+              </Controls>
+              <MiniMap
+                position="bottom-left"
+                className="!bg-card/80 dark:!bg-card/80 backdrop-blur-md border border-border rounded-lg"
+                nodeColor={node => {
+                  const colors = {
+                    start: '#10b981',
+                    end: '#ef4444',
+                    webhook: '#8b5cf6',
+                    'http-request': '#3b82f6',
+                    'call-agent': '#10b981',
+                    'call-trigger': '#10b981',
+                    'ai-agent': '#3b82f6',
+                    email: '#8b5cf6',
+                    'variable-set': '#f59e0b',
+                    if: '#f59e0b',
+                    merge: '#8b5cf6',
+                    wait: '#6366f1',
+                    'database-query': '#06b6d4',
+                    'google-sheets': '#34d399',
+                    'google-sheets-trigger': '#34d399',
+                    'webhook-trigger': '#8b5cf6',
+                    'schedule-trigger': '#8b5cf6',
+                    'knowledge-base-query': '#a78bfa',
+                  };
+                  return colors[node.type] || '#94a3b8';
+                }}
+                nodeStrokeWidth={3}
+              />
+            </ReactFlow>
           </div>
           {isAutoLayouting && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
@@ -804,7 +813,6 @@ function WorkflowEditorLayoutInner({
               }}
             />
           )}
-
         </div>
 
         {/* Right sidebar: Agents (Settings | Chat), Statistics, Performance, Triggers, History */}
@@ -851,8 +859,14 @@ function WorkflowEditorLayoutInner({
                     fontWeight: 500,
                     border: 'none',
                     borderRadius: '6px',
-                    background: agentRightTab === 'settings' ? 'hsl(var(--primary))' : 'transparent',
-                    color: agentRightTab === 'settings' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                    background:
+                      agentRightTab === 'settings'
+                        ? 'hsl(var(--primary))'
+                        : 'transparent',
+                    color:
+                      agentRightTab === 'settings'
+                        ? 'hsl(var(--primary-foreground))'
+                        : 'hsl(var(--muted-foreground))',
                     cursor: 'pointer',
                   }}
                 >
@@ -868,8 +882,14 @@ function WorkflowEditorLayoutInner({
                     fontWeight: 500,
                     border: 'none',
                     borderRadius: '6px',
-                    background: agentRightTab === 'chat' ? 'hsl(var(--primary))' : 'transparent',
-                    color: agentRightTab === 'chat' ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                    background:
+                      agentRightTab === 'chat'
+                        ? 'hsl(var(--primary))'
+                        : 'transparent',
+                    color:
+                      agentRightTab === 'chat'
+                        ? 'hsl(var(--primary-foreground))'
+                        : 'hsl(var(--muted-foreground))',
                     cursor: 'pointer',
                   }}
                 >
@@ -887,7 +907,10 @@ function WorkflowEditorLayoutInner({
                 </Button>
               )}
               {agentRightTab === 'chat' && workflowId && (
-                <div className="flex flex-col min-h-0 flex-1" style={{ minHeight: '280px' }}>
+                <div
+                  className="flex flex-col min-h-0 flex-1"
+                  style={{ minHeight: '280px' }}
+                >
                   <AgentChatPanel
                     workflowId={workflowId}
                     workflowName={name}
@@ -928,70 +951,234 @@ function WorkflowEditorLayoutInner({
                   <BarChart3 className="w-4 h-4" />
                   Statistics
                 </span>
-                {showStatistics ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {showStatistics ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
               </button>
               {showStatistics && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
                   {statisticsError && (
-                    <div style={{ padding: '0.5rem', background: 'hsl(var(--destructive) / 0.1)', border: '1px solid hsl(var(--destructive))', borderRadius: '6px', marginBottom: '0.5rem', color: 'hsl(var(--destructive))' }}>
+                    <div
+                      style={{
+                        padding: '0.5rem',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
+                        borderRadius: '6px',
+                        marginBottom: '0.5rem',
+                        color: 'hsl(var(--destructive))',
+                      }}
+                    >
                       Error: {statisticsError}
                     </div>
                   )}
                   {statisticsLoading && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        textAlign: 'center',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
                       <Spinner variant="dots" size="sm" /> Loading…
                     </div>
                   )}
                   {!statisticsLoading && !statisticsError && statistics && (
-                    <div style={{ padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Total Executions</span>
-                        <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{statistics.totalExecutions ?? 0}</span>
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        background: 'hsl(var(--muted))',
+                        borderRadius: '6px',
+                        border: '1px solid hsl(var(--border))',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          paddingBottom: '0.5rem',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}
+                      >
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>
+                          Total Executions
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>
+                          {statistics.totalExecutions ?? 0}
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Success Rate</span>
-                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: parseFloat(statistics.successRate || 0) >= 90 ? '#10b981' : parseFloat(statistics.successRate || 0) >= 70 ? '#f59e0b' : '#ef4444' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          paddingBottom: '0.5rem',
+                          borderBottom: '1px solid hsl(var(--border))',
+                        }}
+                      >
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>
+                          Success Rate
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            fontSize: '0.875rem',
+                            color:
+                              parseFloat(statistics.successRate || 0) >= 90
+                                ? '#10b981'
+                                : parseFloat(statistics.successRate || 0) >= 70
+                                  ? '#f59e0b'
+                                  : '#ef4444',
+                          }}
+                        >
                           {parseFloat(statistics.successRate || 0).toFixed(1)}%
                         </span>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Successful</div>
-                          <div style={{ fontWeight: 600, color: '#10b981', fontSize: '0.875rem' }}>{statistics.successfulExecutions ?? 0}</div>
+                          <div
+                            style={{
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Successful
+                          </div>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: '#10b981',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {statistics.successfulExecutions ?? 0}
+                          </div>
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Failed</div>
-                          <div style={{ fontWeight: 600, color: '#ef4444', fontSize: '0.875rem' }}>{statistics.failedExecutions ?? 0}</div>
+                          <div
+                            style={{
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Failed
+                          </div>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: '#ef4444',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {statistics.failedExecutions ?? 0}
+                          </div>
                         </div>
                       </div>
                       {statistics.lastExecution && (
-                        <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                          <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Last Execution</div>
-                          <div style={{ fontSize: '0.7rem' }}>{new Date(statistics.lastExecution).toLocaleString()}</div>
+                        <div
+                          style={{
+                            paddingBottom: '0.5rem',
+                            borderBottom: '1px solid hsl(var(--border))',
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Last Execution
+                          </div>
+                          <div style={{ fontSize: '0.7rem' }}>
+                            {new Date(
+                              statistics.lastExecution
+                            ).toLocaleString()}
+                          </div>
                         </div>
                       )}
                       {(statistics.lastSuccess || statistics.lastFailure) && (
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           {statistics.lastSuccess && (
                             <div style={{ flex: 1 }}>
-                              <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Last Success</div>
-                              <div style={{ fontSize: '0.7rem', color: '#10b981' }}>{new Date(statistics.lastSuccess).toLocaleString()}</div>
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.65rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Last Success
+                              </div>
+                              <div
+                                style={{ fontSize: '0.7rem', color: '#10b981' }}
+                              >
+                                {new Date(
+                                  statistics.lastSuccess
+                                ).toLocaleString()}
+                              </div>
                             </div>
                           )}
                           {statistics.lastFailure && (
                             <div style={{ flex: 1 }}>
-                              <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Last Failure</div>
-                              <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>{new Date(statistics.lastFailure).toLocaleString()}</div>
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.65rem',
+                                  marginBottom: '0.25rem',
+                                }}
+                              >
+                                Last Failure
+                              </div>
+                              <div
+                                style={{ fontSize: '0.7rem', color: '#ef4444' }}
+                              >
+                                {new Date(
+                                  statistics.lastFailure
+                                ).toLocaleString()}
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
                       {statistics.errors && statistics.errors.length > 0 && (
-                        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
-                          <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Recent Errors ({statistics.errors.length})</div>
-                          <div style={{ maxHeight: '100px', overflowY: 'auto', fontSize: '0.65rem', color: 'hsl(var(--destructive))' }}>
+                        <div
+                          style={{
+                            marginTop: '0.5rem',
+                            paddingTop: '0.5rem',
+                            borderTop: '1px solid hsl(var(--border))',
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.65rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Recent Errors ({statistics.errors.length})
+                          </div>
+                          <div
+                            style={{
+                              maxHeight: '100px',
+                              overflowY: 'auto',
+                              fontSize: '0.65rem',
+                              color: 'hsl(var(--destructive))',
+                            }}
+                          >
                             {statistics.errors.slice(-3).map((err, idx) => (
-                              <div key={idx} style={{ marginBottom: '0.25rem' }}>{new Date(err.timestamp).toLocaleString()}: {err.error}</div>
+                              <div
+                                key={idx}
+                                style={{ marginBottom: '0.25rem' }}
+                              >
+                                {new Date(err.timestamp).toLocaleString()}:{' '}
+                                {err.error}
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -999,17 +1186,55 @@ function WorkflowEditorLayoutInner({
                       {statistics.totalExecutions > 0 && (
                         <button
                           type="button"
-                          onClick={() => { setShowExecutionHistory(!showExecutionHistory); if (!showExecutionHistory && (!Array.isArray(executionHistory) || executionHistory.length === 0)) fetchExecutionHistory(); }}
-                          style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem', background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--foreground))' }}
+                          onClick={() => {
+                            setShowExecutionHistory(!showExecutionHistory);
+                            if (
+                              !showExecutionHistory &&
+                              (!Array.isArray(executionHistory) ||
+                                executionHistory.length === 0)
+                            )
+                              fetchExecutionHistory();
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            marginTop: '0.5rem',
+                            background: 'transparent',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'hsl(var(--foreground))',
+                          }}
                         >
-                          <span><Clipboard className="w-4 h-4 mr-1 inline" /> Execution History ({Array.isArray(executionHistory) ? executionHistory.length : 0})</span>
+                          <span>
+                            <Clipboard className="w-4 h-4 mr-1 inline" />{' '}
+                            Execution History (
+                            {Array.isArray(executionHistory)
+                              ? executionHistory.length
+                              : 0}
+                            )
+                          </span>
                           <span>{showExecutionHistory ? '▼' : '▶'}</span>
                         </button>
                       )}
                     </div>
                   )}
                   {!statisticsLoading && !statisticsError && !statistics && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        textAlign: 'center',
+                        fontSize: '0.75rem',
+                        color: 'hsl(var(--muted-foreground))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                      }}
+                    >
                       No statistics yet. Execute the workflow to see statistics.
                     </div>
                   )}
@@ -1046,65 +1271,212 @@ function WorkflowEditorLayoutInner({
                   <Zap className="w-4 h-4" />
                   Performance
                 </span>
-                {showPerformance ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {showPerformance ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
               </button>
               {showPerformance && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
                   {performanceLoading && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}><Spinner variant="dots" size="sm" /> Loading…</div>
-                  )}
-                  {performanceError && (
-                    <div style={{ padding: '0.5rem', background: 'hsl(var(--destructive) / 0.1)', border: '1px solid hsl(var(--destructive))', borderRadius: '6px', color: 'hsl(var(--destructive))', marginBottom: '0.5rem' }}>{performanceError}</div>
-                  )}
-                  {!performanceLoading && !performanceError && performance?.workflow && (
-                    <div style={{ padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Workflow performance</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>Avg. runtime</span>
-                        <span>{performance.workflow.avgExecutionTime != null ? `${Math.round(performance.workflow.avgExecutionTime)} ms` : '—'}</span>
-                      </div>
-                      {performance.workflow.minExecutionTime != null && performance.workflow.minExecutionTime > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Min runtime</span>
-                          <span>{Math.round(performance.workflow.minExecutionTime)} ms</span>
-                        </div>
-                      )}
-                      {performance.workflow.maxExecutionTime != null && performance.workflow.maxExecutionTime > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Max runtime</span>
-                          <span>{Math.round(performance.workflow.maxExecutionTime)} ms</span>
-                        </div>
-                      )}
-                      {performance.workflow.totalExecutions != null && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                          <span style={{ color: 'hsl(var(--muted-foreground))' }}>Executions</span>
-                          <span>{performance.workflow.totalExecutions}</span>
-                        </div>
-                      )}
-                      {performance.nodes && performance.nodes.length > 0 && (
-                        <>
-                          <div style={{ fontWeight: 600, marginTop: '0.5rem', marginBottom: '0.25rem' }}>Nodes (top bottlenecks)</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
-                            {performance.nodes.slice(0, 5).map((n, i) => (
-                              <div key={n.nodeId || i} style={{ fontSize: '0.7rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                                <span className="truncate" style={{ maxWidth: '50%' }}>{n.nodeId || n.nodeType || 'Node'}</span>
-                                <span style={{ whiteSpace: 'nowrap' }}>
-                                  {n.avg != null ? `${Math.round(n.avg)} ms` : '—'}
-                                  {n.count != null && n.count > 0 ? ` (${n.count})` : ''}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                      <Button variant="outline" size="sm" className="w-full mt-2 gap-1.5" onClick={handleClearPerformance}>
-                        Clear performance data
-                      </Button>
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        textAlign: 'center',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      <Spinner variant="dots" size="sm" /> Loading…
                     </div>
                   )}
-                  {!performanceLoading && !performanceError && !performance?.workflow && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>No performance data yet.</div>
+                  {performanceError && (
+                    <div
+                      style={{
+                        padding: '0.5rem',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
+                        borderRadius: '6px',
+                        color: 'hsl(var(--destructive))',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      {performanceError}
+                    </div>
                   )}
+                  {!performanceLoading &&
+                    !performanceError &&
+                    performance?.workflow && (
+                      <div
+                        style={{
+                          padding: '0.75rem',
+                          background: 'hsl(var(--muted))',
+                          borderRadius: '6px',
+                          border: '1px solid hsl(var(--border))',
+                        }}
+                      >
+                        <div
+                          style={{ fontWeight: 600, marginBottom: '0.5rem' }}
+                        >
+                          Workflow performance
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span
+                            style={{ color: 'hsl(var(--muted-foreground))' }}
+                          >
+                            Avg. runtime
+                          </span>
+                          <span>
+                            {performance.workflow.avgExecutionTime != null
+                              ? `${Math.round(performance.workflow.avgExecutionTime)} ms`
+                              : '—'}
+                          </span>
+                        </div>
+                        {performance.workflow.minExecutionTime != null &&
+                          performance.workflow.minExecutionTime > 0 && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginBottom: '0.5rem',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                }}
+                              >
+                                Min runtime
+                              </span>
+                              <span>
+                                {Math.round(
+                                  performance.workflow.minExecutionTime
+                                )}{' '}
+                                ms
+                              </span>
+                            </div>
+                          )}
+                        {performance.workflow.maxExecutionTime != null &&
+                          performance.workflow.maxExecutionTime > 0 && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginBottom: '0.5rem',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                }}
+                              >
+                                Max runtime
+                              </span>
+                              <span>
+                                {Math.round(
+                                  performance.workflow.maxExecutionTime
+                                )}{' '}
+                                ms
+                              </span>
+                            </div>
+                          )}
+                        {performance.workflow.totalExecutions != null && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            <span
+                              style={{ color: 'hsl(var(--muted-foreground))' }}
+                            >
+                              Executions
+                            </span>
+                            <span>{performance.workflow.totalExecutions}</span>
+                          </div>
+                        )}
+                        {performance.nodes && performance.nodes.length > 0 && (
+                          <>
+                            <div
+                              style={{
+                                fontWeight: 600,
+                                marginTop: '0.5rem',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              Nodes (top bottlenecks)
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.25rem',
+                                maxHeight: '120px',
+                                overflowY: 'auto',
+                              }}
+                            >
+                              {performance.nodes.slice(0, 5).map((n, i) => (
+                                <div
+                                  key={n.nodeId || i}
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                  }}
+                                >
+                                  <span
+                                    className="truncate"
+                                    style={{ maxWidth: '50%' }}
+                                  >
+                                    {n.nodeId || n.nodeType || 'Node'}
+                                  </span>
+                                  <span style={{ whiteSpace: 'nowrap' }}>
+                                    {n.avg != null
+                                      ? `${Math.round(n.avg)} ms`
+                                      : '—'}
+                                    {n.count != null && n.count > 0
+                                      ? ` (${n.count})`
+                                      : ''}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2 gap-1.5"
+                          onClick={handleClearPerformance}
+                        >
+                          Clear performance data
+                        </Button>
+                      </div>
+                    )}
+                  {!performanceLoading &&
+                    !performanceError &&
+                    !performance?.workflow && (
+                      <div
+                        style={{
+                          padding: '0.75rem',
+                          textAlign: 'center',
+                          color: 'hsl(var(--muted-foreground))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        No performance data yet.
+                      </div>
+                    )}
                 </div>
               )}
             </div>
@@ -1136,35 +1508,143 @@ function WorkflowEditorLayoutInner({
               >
                 <span className="flex items-center gap-1.5">
                   <Zap className="w-4 h-4" />
-                  Active Triggers ({Array.isArray(activeTriggers) ? activeTriggers.length : 0})
+                  Active Triggers (
+                  {Array.isArray(activeTriggers) ? activeTriggers.length : 0})
                 </span>
-                {showActiveTriggers ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {showActiveTriggers ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
               </button>
               {showActiveTriggers && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
                   {triggersLoading && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}><Spinner variant="dots" size="sm" /> Loading…</div>
-                  )}
-                  {triggersError && (
-                    <div style={{ padding: '0.5rem', background: 'hsl(var(--destructive) / 0.1)', border: '1px solid hsl(var(--destructive))', borderRadius: '6px', color: 'hsl(var(--destructive))', marginBottom: '0.5rem' }}>{triggersError}</div>
-                  )}
-                  {!triggersLoading && !triggersError && activeTriggers?.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '240px', overflowY: 'auto' }}>
-                      {activeTriggers.map((trigger, i) => (
-                        <div key={i} style={{ padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '0.75rem' }}>
-                          <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{trigger.triggerType || trigger.type || 'Trigger'}</div>
-                          {trigger.triggerConfig?.triggerOn && <div style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.15rem' }}>Trigger On: {trigger.triggerConfig.triggerOn}</div>}
-                          {trigger.triggerConfig?.cronExpression && <div style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.15rem' }}>Cron: {trigger.triggerConfig.cronExpression}</div>}
-                          {trigger.triggerConfig?.preset && <div style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.15rem' }}>Preset: {trigger.triggerConfig.preset}</div>}
-                          {trigger.nextRun && <div style={{ color: 'hsl(var(--muted-foreground))' }}>Next Run: {new Date(trigger.nextRun).toLocaleString()}</div>}
-                          {trigger.id && <div style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>ID: {trigger.id}</div>}
-                        </div>
-                      ))}
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        textAlign: 'center',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      <Spinner variant="dots" size="sm" /> Loading…
                     </div>
                   )}
-                  {!triggersLoading && !triggersError && (!activeTriggers || activeTriggers.length === 0) && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>No active triggers.</div>
+                  {triggersError && (
+                    <div
+                      style={{
+                        padding: '0.5rem',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
+                        borderRadius: '6px',
+                        color: 'hsl(var(--destructive))',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      {triggersError}
+                    </div>
                   )}
+                  {!triggersLoading &&
+                    !triggersError &&
+                    activeTriggers?.length > 0 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          maxHeight: '240px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {activeTriggers.map((trigger, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: '0.75rem',
+                              background: 'hsl(var(--muted))',
+                              borderRadius: '8px',
+                              border: '1px solid hsl(var(--border))',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontWeight: 600,
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              {trigger.triggerType || trigger.type || 'Trigger'}
+                            </div>
+                            {trigger.triggerConfig?.triggerOn && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  marginBottom: '0.15rem',
+                                }}
+                              >
+                                Trigger On: {trigger.triggerConfig.triggerOn}
+                              </div>
+                            )}
+                            {trigger.triggerConfig?.cronExpression && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  marginBottom: '0.15rem',
+                                }}
+                              >
+                                Cron: {trigger.triggerConfig.cronExpression}
+                              </div>
+                            )}
+                            {trigger.triggerConfig?.preset && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                  marginBottom: '0.15rem',
+                                }}
+                              >
+                                Preset: {trigger.triggerConfig.preset}
+                              </div>
+                            )}
+                            {trigger.nextRun && (
+                              <div
+                                style={{
+                                  color: 'hsl(var(--muted-foreground))',
+                                }}
+                              >
+                                Next Run:{' '}
+                                {new Date(trigger.nextRun).toLocaleString()}
+                              </div>
+                            )}
+                            {trigger.id && (
+                              <div
+                                style={{
+                                  fontSize: '0.65rem',
+                                  color: 'hsl(var(--muted-foreground))',
+                                  marginTop: '0.25rem',
+                                }}
+                              >
+                                ID: {trigger.id}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  {!triggersLoading &&
+                    !triggersError &&
+                    (!activeTriggers || activeTriggers.length === 0) && (
+                      <div
+                        style={{
+                          padding: '0.75rem',
+                          textAlign: 'center',
+                          color: 'hsl(var(--muted-foreground))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        No active triggers.
+                      </div>
+                    )}
                 </div>
               )}
             </div>
@@ -1200,7 +1680,12 @@ function WorkflowEditorLayoutInner({
                 type="button"
                 onClick={() => {
                   setShowExecutionHistory(!showExecutionHistory);
-                  if (!showExecutionHistory && (!Array.isArray(executionHistory) || executionHistory.length === 0)) fetchExecutionHistory();
+                  if (
+                    !showExecutionHistory &&
+                    (!Array.isArray(executionHistory) ||
+                      executionHistory.length === 0)
+                  )
+                    fetchExecutionHistory();
                 }}
                 style={{
                   width: '100%',
@@ -1217,64 +1702,200 @@ function WorkflowEditorLayoutInner({
               >
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4" />
-                  Execution History ({Array.isArray(executionHistory) ? executionHistory.length : 0})
+                  Execution History (
+                  {Array.isArray(executionHistory)
+                    ? executionHistory.length
+                    : 0}
+                  )
                 </span>
-                {showExecutionHistory ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                {showExecutionHistory ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
               </button>
               {showExecutionHistory && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
                   {historyError && (
-                    <div style={{ padding: '0.5rem', background: 'hsl(var(--destructive) / 0.1)', border: '1px solid hsl(var(--destructive))', borderRadius: '6px', color: 'hsl(var(--destructive))', marginBottom: '0.5rem' }}>{historyError}</div>
-                  )}
-                  {historyLoading && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>Loading execution history…</div>
-                  )}
-                  {!historyLoading && !historyError && executionHistory?.length === 0 && (
-                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>No execution history yet.</div>
-                  )}
-                  {!historyLoading && !historyError && Array.isArray(executionHistory) && executionHistory.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '400px', overflowY: 'auto' }}>
-                      {executionHistory.map((execution, index) => {
-                        const isFailed = !execution.success;
-                        const hasError = execution.error || execution.errorStack;
-                        return (
-                          <div
-                            key={index}
-                            style={{
-                              padding: '0.75rem',
-                              background: execution.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                              border: `1px solid ${execution.success ? '#10b981' : '#ef4444'}`,
-                              borderRadius: '6px',
-                              cursor: isFailed ? 'pointer' : 'default',
-                              userSelect: 'none',
-                            }}
-                            onClick={(e) => { e.stopPropagation(); if (isFailed) setExpandedExecution(expandedExecution === index ? null : index); }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isFailed && hasError ? '0.5rem' : 0 }}>
-                              <span>{execution.success ? '✓ Success' : '✗ Failed'}</span>
-                              <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>
-                                {execution.finishedAt ? new Date(execution.finishedAt).toLocaleString() : execution.timestamp ? new Date(execution.timestamp).toLocaleString() : '—'}
-                              </span>
-                            </div>
-                            {isFailed && hasError && expandedExecution === index && (
-                              <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
-                                <div style={{ fontSize: '0.7rem', color: 'hsl(var(--destructive))', marginBottom: '0.25rem', wordBreak: 'break-word' }}>{execution.error}</div>
-                                {execution.errorStack && (
-                                  <details style={{ marginTop: '0.5rem' }}>
-                                    <summary style={{ cursor: 'pointer', color: 'hsl(var(--destructive))', fontSize: '0.65rem', fontWeight: 600 }}>Stack Trace</summary>
-                                    <pre style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'hsl(var(--destructive) / 0.1)', borderRadius: '4px', fontSize: '0.6rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '200px', overflowY: 'auto' }}>{execution.errorStack}</pre>
-                                  </details>
-                                )}
-                              </div>
-                            )}
-                            {isFailed && !hasError && (
-                              <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'hsl(var(--muted))', border: '1px solid #f59e0b', borderRadius: '6px', fontSize: '0.7rem', color: '#92400e' }}>No error details available</div>
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div
+                      style={{
+                        padding: '0.5rem',
+                        background: 'hsl(var(--destructive) / 0.1)',
+                        border: '1px solid hsl(var(--destructive))',
+                        borderRadius: '6px',
+                        color: 'hsl(var(--destructive))',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      {historyError}
                     </div>
                   )}
+                  {historyLoading && (
+                    <div
+                      style={{
+                        padding: '0.75rem',
+                        textAlign: 'center',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      Loading execution history…
+                    </div>
+                  )}
+                  {!historyLoading &&
+                    !historyError &&
+                    executionHistory?.length === 0 && (
+                      <div
+                        style={{
+                          padding: '0.75rem',
+                          textAlign: 'center',
+                          color: 'hsl(var(--muted-foreground))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        No execution history yet.
+                      </div>
+                    )}
+                  {!historyLoading &&
+                    !historyError &&
+                    Array.isArray(executionHistory) &&
+                    executionHistory.length > 0 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
+                          maxHeight: '400px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {executionHistory.map((execution, index) => {
+                          const isFailed = !execution.success;
+                          const hasError =
+                            execution.error || execution.errorStack;
+                          return (
+                            <div
+                              key={index}
+                              style={{
+                                padding: '0.75rem',
+                                background: execution.success
+                                  ? 'rgba(16, 185, 129, 0.1)'
+                                  : 'rgba(239, 68, 68, 0.1)',
+                                border: `1px solid ${execution.success ? '#10b981' : '#ef4444'}`,
+                                borderRadius: '6px',
+                                cursor: isFailed ? 'pointer' : 'default',
+                                userSelect: 'none',
+                              }}
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (isFailed)
+                                  setExpandedExecution(
+                                    expandedExecution === index ? null : index
+                                  );
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginBottom:
+                                    isFailed && hasError ? '0.5rem' : 0,
+                                }}
+                              >
+                                <span>
+                                  {execution.success ? '✓ Success' : '✗ Failed'}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '0.7rem',
+                                    color: 'hsl(var(--muted-foreground))',
+                                  }}
+                                >
+                                  {execution.finishedAt
+                                    ? new Date(
+                                        execution.finishedAt
+                                      ).toLocaleString()
+                                    : execution.timestamp
+                                      ? new Date(
+                                          execution.timestamp
+                                        ).toLocaleString()
+                                      : '—'}
+                                </span>
+                              </div>
+                              {isFailed &&
+                                hasError &&
+                                expandedExecution === index && (
+                                  <div
+                                    style={{
+                                      marginTop: '0.5rem',
+                                      paddingTop: '0.5rem',
+                                      borderTop: '1px solid hsl(var(--border))',
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        color: 'hsl(var(--destructive))',
+                                        marginBottom: '0.25rem',
+                                        wordBreak: 'break-word',
+                                      }}
+                                    >
+                                      {execution.error}
+                                    </div>
+                                    {execution.errorStack && (
+                                      <details style={{ marginTop: '0.5rem' }}>
+                                        <summary
+                                          style={{
+                                            cursor: 'pointer',
+                                            color: 'hsl(var(--destructive))',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          Stack Trace
+                                        </summary>
+                                        <pre
+                                          style={{
+                                            marginTop: '0.5rem',
+                                            padding: '0.5rem',
+                                            background:
+                                              'hsl(var(--destructive) / 0.1)',
+                                            borderRadius: '4px',
+                                            fontSize: '0.6rem',
+                                            overflowX: 'auto',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto',
+                                          }}
+                                        >
+                                          {execution.errorStack}
+                                        </pre>
+                                      </details>
+                                    )}
+                                  </div>
+                                )}
+                              {isFailed && !hasError && (
+                                <div
+                                  style={{
+                                    marginTop: '0.5rem',
+                                    padding: '0.5rem',
+                                    background: 'hsl(var(--muted))',
+                                    border: '1px solid #f59e0b',
+                                    borderRadius: '6px',
+                                    fontSize: '0.7rem',
+                                    color: '#92400e',
+                                  }}
+                                >
+                                  No error details available
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                 </div>
               )}
             </div>

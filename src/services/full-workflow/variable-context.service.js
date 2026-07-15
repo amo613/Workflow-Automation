@@ -113,7 +113,7 @@ class VariableContext {
       const mergedOutputs = { ...(this.workflowInput || {}) };
 
       // Merge ALL node outputs from ALL previously executed nodes
-      for (const [nodeId, nodeOutput] of this.nodeOutputs.entries()) {
+      for (const nodeOutput of this.nodeOutputs.values()) {
         if (
           nodeOutput !== undefined &&
           nodeOutput !== null &&

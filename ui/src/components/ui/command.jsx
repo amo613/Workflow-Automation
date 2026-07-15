@@ -138,7 +138,10 @@ export function CommandList({ className, children, ...props }) {
 export function CommandEmpty({ className, ...props }) {
   return (
     <div
-      className={cn('py-6 text-center text-sm text-muted-foreground', className)}
+      className={cn(
+        'py-6 text-center text-sm text-muted-foreground',
+        className
+      )}
       {...props}
     >
       No results found.
@@ -146,14 +149,12 @@ export function CommandEmpty({ className, ...props }) {
   );
 }
 
-export function CommandGroup({
-  heading,
-  className,
-  children,
-  ...props
-}) {
+export function CommandGroup({ heading, className, children, ...props }) {
   return (
-    <div className={cn('overflow-hidden p-1 text-foreground', className)} {...props}>
+    <div
+      className={cn('overflow-hidden p-1 text-foreground', className)}
+      {...props}
+    >
       {heading && (
         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
           {heading}
@@ -190,12 +191,7 @@ export function CommandItem({
 }
 
 export function CommandSeparator({ className, ...props }) {
-  return (
-    <div
-      className={cn('-mx-1 h-px bg-border', className)}
-      {...props}
-    />
-  );
+  return <div className={cn('-mx-1 h-px bg-border', className)} {...props} />;
 }
 
 CommandInput.displayName = 'CommandInput';
@@ -204,4 +200,3 @@ CommandEmpty.displayName = 'CommandEmpty';
 CommandGroup.displayName = 'CommandGroup';
 CommandItem.displayName = 'CommandItem';
 CommandSeparator.displayName = 'CommandSeparator';
-

@@ -42,7 +42,14 @@ import { eq, inArray, and } from 'drizzle-orm';
 export async function createFullWorkflowHandler(req, reply) {
   try {
     const userId = req.user.id;
-    const { name, description, type, workflow_json, goal_definition, agents_enabled } = req.body;
+    const {
+      name,
+      description,
+      type,
+      workflow_json,
+      goal_definition,
+      agents_enabled,
+    } = req.body;
 
     if (!name || !workflow_json) {
       return reply.code(400).send({
@@ -149,7 +156,15 @@ export async function updateFullWorkflowHandler(req, reply) {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-    const { name, description, type, workflow_json, is_active, goal_definition, agents_enabled } = req.body;
+    const {
+      name,
+      description,
+      type,
+      workflow_json,
+      is_active,
+      goal_definition,
+      agents_enabled,
+    } = req.body;
     const workflowId = parseInt(id, 10);
 
     // Get existing workflow to compare workflow_json for versioning
@@ -200,14 +215,16 @@ export async function updateFullWorkflowHandler(req, reply) {
 
     // Run agent pipeline when agents are enabled (fire-and-forget)
     if (workflow.agents_enabled) {
-      import('#services/full-workflow/agents/index.js').then(({ runAgentPipeline }) => {
-        runAgentPipeline(workflowId, userId).catch(err =>
-          logger.warn('Agent pipeline failed after workflow update', {
-            workflowId,
-            error: err.message,
-          })
-        );
-      });
+      import('#services/full-workflow/agents/index.js').then(
+        ({ runAgentPipeline }) => {
+          runAgentPipeline(workflowId, userId).catch(err =>
+            logger.warn('Agent pipeline failed after workflow update', {
+              workflowId,
+              error: err.message,
+            })
+          );
+        }
+      );
     }
 
     // Handle trigger scheduling if workflow_json is updated
@@ -795,10 +812,12 @@ export async function triggerWorkflowHandler(req, reply) {
         db
           .select({ is_active: fullWorkflows.is_active })
           .from(fullWorkflows)
-          .where(and(
-            eq(fullWorkflows.id, workflowId),
-            eq(fullWorkflows.user_id, userId)
-          ))
+          .where(
+            and(
+              eq(fullWorkflows.id, workflowId),
+              eq(fullWorkflows.user_id, userId)
+            )
+          )
           .limit(1),
         checkMonthlyExecutionLimit(userId, userRole),
       ]);
@@ -821,9 +840,15 @@ export async function triggerWorkflowHandler(req, reply) {
         });
       }
 
-      const result = await triggerWorkflow(workflowId, userId, input, userRole, {
-        skipLimitCheck: true,
-      });
+      const result = await triggerWorkflow(
+        workflowId,
+        userId,
+        input,
+        userRole,
+        {
+          skipLimitCheck: true,
+        }
+      );
 
       // Update lock with actual eventId
       memoryCache.set(
@@ -841,9 +866,12 @@ export async function triggerWorkflowHandler(req, reply) {
       });
     } catch (error) {
       memoryCache.del(dedupeKey);
-      
+
       // Check if error is due to monthly limit exceeded
-      if (error.message && error.message.includes('Monthly execution limit exceeded')) {
+      if (
+        error.message &&
+        error.message.includes('Monthly execution limit exceeded')
+      ) {
         return reply.code(429).send({
           success: false,
           error: 'Monthly execution limit exceeded',
@@ -851,7 +879,7 @@ export async function triggerWorkflowHandler(req, reply) {
           code: 'MONTHLY_LIMIT_EXCEEDED',
         });
       }
-      
+
       throw error;
     }
   } catch (error) {
@@ -863,9 +891,12 @@ export async function triggerWorkflowHandler(req, reply) {
       userId: req.user?.id,
       workflowId: req.params?.id,
     });
-    
+
     // Check if error is due to monthly limit exceeded
-    if (error.message && error.message.includes('Monthly execution limit exceeded')) {
+    if (
+      error.message &&
+      error.message.includes('Monthly execution limit exceeded')
+    ) {
       return reply.code(429).send({
         success: false,
         error: 'Monthly execution limit exceeded',
@@ -873,7 +904,7 @@ export async function triggerWorkflowHandler(req, reply) {
         code: 'MONTHLY_LIMIT_EXCEEDED',
       });
     }
-    
+
     return reply.code(500).send({
       success: false,
       error: error.message || 'Failed to trigger workflow',
@@ -907,7 +938,7 @@ export async function executeSingleNodeHandler(req, reply) {
     }
 
     const userId = req.user.id;
-    const { node, edges = [], input = {}, nodes: allNodes = [], nodeOutputsMap = {} } = req.body;
+    const { node, edges = [], input = {}, nodeOutputsMap = {} } = req.body;
 
     if (!node) {
       return reply.code(400).send({
@@ -1748,7 +1779,9 @@ export async function postWorkflowFromGoalHandler(req, reply) {
   try {
     const { goal, use_firecrawl: useFirecrawl } = req.body || {};
     if (!goal || typeof goal !== 'string') {
-      return reply.code(400).send({ success: false, error: 'goal is required' });
+      return reply
+        .code(400)
+        .send({ success: false, error: 'goal is required' });
     }
 
     const { createWorkflowFromGoal } = await import(
@@ -1792,7 +1825,9 @@ export async function getWorkflowAgentChatHandler(req, reply) {
 
     const workflow = await getFullWorkflow(workflowId, userId);
     if (!workflow) {
-      return reply.code(404).send({ success: false, error: 'Workflow not found' });
+      return reply
+        .code(404)
+        .send({ success: false, error: 'Workflow not found' });
     }
 
     const { getWorkflowAgentChatMessages } = await import(
@@ -1825,11 +1860,19 @@ export async function postWorkflowAgentApplyHandler(req, reply) {
   try {
     const userId = req.user.id;
     const workflowId = parseInt(req.params.id, 10);
-    const { workflow_json: newWorkflowJson, node_patches: nodePatches, reason, agent_type: agentType, optimization_impact: optimizationImpact } = req.body || {};
+    const {
+      workflow_json: newWorkflowJson,
+      node_patches: nodePatches,
+      reason,
+      agent_type: agentType,
+      optimization_impact: optimizationImpact,
+    } = req.body || {};
 
     const workflow = await getFullWorkflow(workflowId, userId);
     if (!workflow) {
-      return reply.code(404).send({ success: false, error: 'Workflow not found' });
+      return reply
+        .code(404)
+        .send({ success: false, error: 'Workflow not found' });
     }
     if (!workflow.agents_enabled) {
       return reply.code(400).send({
@@ -1872,9 +1915,14 @@ export async function postWorkflowAgentApplyHandler(req, reply) {
 
     let versionId = null;
     try {
-      const v = await createWorkflowVersion(workflowId, userId, finalWorkflowJson, {
-        description: `Agent (${agentType || 'orchestrator'}): ${reason || 'Applied changes'}`,
-      });
+      const v = await createWorkflowVersion(
+        workflowId,
+        userId,
+        finalWorkflowJson,
+        {
+          description: `Agent (${agentType || 'orchestrator'}): ${reason || 'Applied changes'}`,
+        }
+      );
       const id = v?.id != null ? Number(v.id) : null;
       versionId = id > 0 ? id : null;
     } catch (err) {
@@ -1884,7 +1932,9 @@ export async function postWorkflowAgentApplyHandler(req, reply) {
       });
     }
 
-    const { logAgentAction } = await import('#services/workflow-agent-action.service.js');
+    const { logAgentAction } = await import(
+      '#services/workflow-agent-action.service.js'
+    );
     await logAgentAction({
       workflowId,
       agentType: agentType || 'orchestrator',
@@ -1926,21 +1976,28 @@ export async function postWorkflowAgentChatHandler(req, reply) {
 
     const workflow = await getFullWorkflow(workflowId, userId);
     if (!workflow) {
-      return reply.code(404).send({ success: false, error: 'Workflow not found' });
+      return reply
+        .code(404)
+        .send({ success: false, error: 'Workflow not found' });
     }
     if (!workflow.agents_enabled) {
       return reply.code(400).send({
         success: false,
-        error: 'Agents are not enabled for this workflow. Enable them in Workflow Settings.',
+        error:
+          'Agents are not enabled for this workflow. Enable them in Workflow Settings.',
       });
     }
 
     const { getWorkflowAgentChatMessages } = await import(
       '#services/workflow-agent-action.service.js'
     );
-    const previousMessages = await getWorkflowAgentChatMessages(workflowId, userId, {
-      limit: 30,
-    });
+    const previousMessages = await getWorkflowAgentChatMessages(
+      workflowId,
+      userId,
+      {
+        limit: 30,
+      }
+    );
 
     let stats = null;
     let executionHistory = [];

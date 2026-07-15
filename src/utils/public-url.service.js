@@ -90,4 +90,3 @@ export function cleanupCallMapping(callSid) {
   callSidToConfigMap.delete(callSid);
   callSidToFromMap.delete(callSid);
 }
-

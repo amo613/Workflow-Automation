@@ -162,16 +162,16 @@ export default function WorkflowImportModal({
           )}
 
           <div className="flex justify-end gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleClose} 
+            <Button
+              variant="outline"
+              onClick={handleClose}
               animated
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleImport} 
+            <Button
+              onClick={handleImport}
               animated
               loading={loading}
               disabled={!file || loading}

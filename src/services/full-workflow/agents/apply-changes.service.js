@@ -10,22 +10,28 @@ import logger from '#config/logger.js';
 
 // CRITICAL: Allowed node types (must match system capabilities)
 const ALLOWED_NODE_TYPES = [
-  'start', 'end',
+  'start',
+  'end',
   'webhook-trigger',
   'http-request',
   'variable-set',
-  'if', 'switch',
+  'if',
+  'switch',
   'wait',
-  'email', 'gmail',
+  'email',
+  'gmail',
   'database-query',
-  'google-sheets', 'google-sheets-trigger',
-  'call-agent', 'ai-agent',
+  'google-sheets',
+  'google-sheets-trigger',
+  'call-agent',
+  'ai-agent',
   'call-trigger',
   'merge',
   'knowledge-base-query',
   'web-scraper',
-  'hubspot', 'hubspot-trigger',
-  'schedule-trigger'
+  'hubspot',
+  'hubspot-trigger',
+  'schedule-trigger',
 ];
 
 /**
@@ -85,11 +91,16 @@ export async function applyOptimizationChanges(
           });
           continue; // Skip this change
         }
-        
+
         // Add new node
-        const newNodeId = change.nodeId || `agent_added_${Date.now()}_${appliedCount}`;
-        const position = calculateNodePosition(nodes, change.position, change.connectAfter);
-        
+        const newNodeId =
+          change.nodeId || `agent_added_${Date.now()}_${appliedCount}`;
+        const position = calculateNodePosition(
+          nodes,
+          change.position,
+          change.connectAfter
+        );
+
         const newNode = {
           id: newNodeId,
           type: nodeType,
@@ -97,7 +108,7 @@ export async function applyOptimizationChanges(
           data: change.nodeData || change.data || {},
         };
         nodes.push(newNode);
-        
+
         // Connect node if specified
         if (change.connectAfter) {
           const newEdgeId = `edge_${newNodeId}_${Date.now()}`;
@@ -119,12 +130,12 @@ export async function applyOptimizationChanges(
             targetHandle: change.targetHandle || null,
           });
         }
-        
+
         appliedCount++;
         appliedChanges.push({
           type: 'add_node',
           nodeId: newNodeId,
-          nodeType: nodeType,
+          nodeType,
           reason: change.reason,
         });
       } else if (change.type === 'remove_node' && change.nodeId) {
@@ -134,9 +145,13 @@ export async function applyOptimizationChanges(
           // Find incoming and outgoing edges
           const incomingEdges = edges.filter(e => e.target === change.nodeId);
           const outgoingEdges = edges.filter(e => e.source === change.nodeId);
-          
+
           // Reconnect: connect all incoming sources to all outgoing targets
-          if (change.reconnect !== false && incomingEdges.length > 0 && outgoingEdges.length > 0) {
+          if (
+            change.reconnect !== false &&
+            incomingEdges.length > 0 &&
+            outgoingEdges.length > 0
+          ) {
             for (const inEdge of incomingEdges) {
               for (const outEdge of outgoingEdges) {
                 edges.push({
@@ -149,13 +164,13 @@ export async function applyOptimizationChanges(
               }
             }
           }
-          
+
           // Remove the node and its edges
           nodes = nodes.filter(n => n.id !== change.nodeId);
           edges = edges.filter(
             e => e.source !== change.nodeId && e.target !== change.nodeId
           );
-          
+
           appliedCount++;
           appliedChanges.push({
             type: 'remove_node',
@@ -167,7 +182,9 @@ export async function applyOptimizationChanges(
       } else if (change.type === 'workflow_update') {
         // General workflow-level changes (e.g., metadata)
         // Currently not implemented, placeholder for future
-        logger.debug('workflow_update change type not yet implemented', { change });
+        logger.debug('workflow_update change type not yet implemented', {
+          change,
+        });
       }
     } catch (err) {
       logger.warn('Failed to apply single change', {
@@ -180,8 +197,16 @@ export async function applyOptimizationChanges(
 
   if (appliedCount === 0) {
     if (rejectedChanges.length > 0) {
-      logger.warn('All changes rejected due to validation', { workflowId, rejectedChanges });
-      return { success: false, appliedCount: 0, rejectedChanges, error: 'All changes rejected' };
+      logger.warn('All changes rejected due to validation', {
+        workflowId,
+        rejectedChanges,
+      });
+      return {
+        success: false,
+        appliedCount: 0,
+        rejectedChanges,
+        error: 'All changes rejected',
+      };
     }
     return { success: true, appliedCount: 0 };
   }
@@ -198,10 +223,17 @@ export async function applyOptimizationChanges(
 
     let versionId = null;
     try {
-      const reasons = appliedChanges.map(c => c.reason || 'Auto-fix').join('; ');
-      const v = await createWorkflowVersion(workflowId, userId, finalWorkflowJson, {
-        description: `Agent Auto-Apply: ${reasons}`,
-      });
+      const reasons = appliedChanges
+        .map(c => c.reason || 'Auto-fix')
+        .join('; ');
+      const v = await createWorkflowVersion(
+        workflowId,
+        userId,
+        finalWorkflowJson,
+        {
+          description: `Agent Auto-Apply: ${reasons}`,
+        }
+      );
       versionId = v?.id ? Number(v.id) : null;
     } catch (versionErr) {
       logger.warn('Failed to create workflow version after auto-apply', {
@@ -246,7 +278,12 @@ export async function applyOptimizationChanges(
  * Calculate position for new node based on existing nodes.
  */
 function calculateNodePosition(nodes, positionHint, connectAfterNodeId) {
-  if (positionHint && typeof positionHint === 'object' && positionHint.x != null && positionHint.y != null) {
+  if (
+    positionHint &&
+    typeof positionHint === 'object' &&
+    positionHint.x != null &&
+    positionHint.y != null
+  ) {
     return positionHint;
   }
 

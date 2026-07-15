@@ -4,7 +4,10 @@
  * - On failure: solutions for the last error message.
  * Results are passed to all agents as context (no per-agent search).
  */
-import { firecrawlSearch, isFirecrawlConfigured } from '#services/firecrawl.service.js';
+import {
+  firecrawlSearch,
+  isFirecrawlConfigured,
+} from '#services/firecrawl.service.js';
 import { getRedisClient } from '#config/cache.js';
 import logger from '#config/logger.js';
 
@@ -25,7 +28,8 @@ function normalizeSearchResults(data) {
   return raw.slice(0, 10).map(item => ({
     title: item.title || item.name || '',
     url: item.url || item.link || '',
-    snippet: item.description || item.snippet || item.content?.slice?.(0, 300) || '',
+    snippet:
+      item.description || item.snippet || item.content?.slice?.(0, 300) || '',
   }));
 }
 
@@ -51,11 +55,11 @@ export async function fetchGoalResearch(workflow, executionContext = {}) {
   } else if (typeof raw === 'string') {
     goalDefinition = raw.trim().slice(0, 200);
   } else if (raw != null && typeof raw === 'object') {
-    const text =
-      raw.text ?? raw.goal ?? raw.description ?? raw.title;
-    goalDefinition = typeof text === 'string'
-      ? text.trim().slice(0, 200)
-      : JSON.stringify(raw).trim().slice(0, 200);
+    const text = raw.text ?? raw.goal ?? raw.description ?? raw.title;
+    goalDefinition =
+      typeof text === 'string'
+        ? text.trim().slice(0, 200)
+        : JSON.stringify(raw).trim().slice(0, 200);
   } else if (raw != null) {
     goalDefinition = String(raw).trim().slice(0, 200);
   }
@@ -88,7 +92,12 @@ export async function fetchGoalResearch(workflow, executionContext = {}) {
         goalSearch = normalizeSearchResults(data);
         if (goalSearch.length > 0 && cacheKey && redisClient?.isReady) {
           redisClient
-            .set(cacheKey, JSON.stringify(goalSearch), 'EX', GOAL_RESEARCH_CACHE_TTL_SEC)
+            .set(
+              cacheKey,
+              JSON.stringify(goalSearch),
+              'EX',
+              GOAL_RESEARCH_CACHE_TTL_SEC
+            )
             .catch(() => {});
         }
       }
@@ -102,15 +111,23 @@ export async function fetchGoalResearch(workflow, executionContext = {}) {
 
   let errorSearch = [];
   if (lastError && lastError.trim()) {
-    const query = lastError.slice(0, ERROR_QUERY_MAX_LEN).replace(/\s+/g, ' ').trim();
+    const query = lastError
+      .slice(0, ERROR_QUERY_MAX_LEN)
+      .replace(/\s+/g, ' ')
+      .trim();
     try {
-      const result = await firecrawlSearch(query, { limit: ERROR_SEARCH_LIMIT });
+      const result = await firecrawlSearch(query, {
+        limit: ERROR_SEARCH_LIMIT,
+      });
       if (result.success && result.data) {
         const data = result.data?.data ?? result.data;
         errorSearch = normalizeSearchResults(data);
       }
     } catch (err) {
-      logger.warn('Error research search failed', { workflowId, error: err?.message });
+      logger.warn('Error research search failed', {
+        workflowId,
+        error: err?.message,
+      });
     }
   }
 

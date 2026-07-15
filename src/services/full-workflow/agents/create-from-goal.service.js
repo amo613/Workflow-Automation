@@ -3,7 +3,10 @@
  * Uses OpenRouter; optional Firecrawl for research.
  */
 import { openRouterChat } from './openrouter.client.js';
-import { isFirecrawlConfigured, firecrawlSearch } from '#services/firecrawl.service.js';
+import {
+  isFirecrawlConfigured,
+  firecrawlSearch,
+} from '#services/firecrawl.service.js';
 import { getNodeDocsForAgents } from '../node-docs.js';
 
 const SCHEMA_DESC = `
@@ -27,7 +30,9 @@ export async function createWorkflowFromGoal(goal, options = {}) {
 
   let extraContext = '';
   if (options.useFirecrawl && isFirecrawlConfigured()) {
-    const searchResult = await firecrawlSearch(goal.trim().slice(0, 200), { limit: 3 });
+    const searchResult = await firecrawlSearch(goal.trim().slice(0, 200), {
+      limit: 3,
+    });
     if (searchResult.success && searchResult.data?.web?.length) {
       extraContext = '\nRelevant web search results (for inspiration only):\n';
       searchResult.data.web.slice(0, 3).forEach((r, i) => {
@@ -60,7 +65,10 @@ ${extraContext}`;
   }
 
   try {
-    const jsonStr = content.replace(/```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    const jsonStr = content
+      .replace(/```json?\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
     const parsed = JSON.parse(jsonStr);
     const nodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
     const edges = Array.isArray(parsed.edges) ? parsed.edges : [];

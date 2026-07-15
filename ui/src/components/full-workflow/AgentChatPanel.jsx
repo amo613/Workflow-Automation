@@ -5,24 +5,47 @@ import { Textarea } from '@/components/ui/textarea';
 import { X, Send, Loader2, Bot, Sparkles } from 'lucide-react';
 
 const QUICK_PROMPTS = [
-  { label: 'Workflow erklären', message: 'Erkläre mir bitte diesen Workflow: Ablauf, Zweck der Nodes und wo ich aufpassen muss.' },
-  { label: 'Optimierung vorschlagen', message: 'Schlag konkrete Optimierungen für diesen Workflow vor (Performance, Fehlerbehandlung, Vereinfachung).' },
-  { label: 'Sicherheit prüfen', message: 'Prüfe diesen Workflow auf Sicherheitsrisiken (Secrets, Trigger, externe Aufrufe).' },
-  { label: 'Node erklären', message: 'Erkläre mir den ausgewählten Node (oder den Start-Node, falls keiner ausgewählt): was macht er und welche Konfiguration ist wichtig?' },
+  {
+    label: 'Workflow erklären',
+    message:
+      'Erkläre mir bitte diesen Workflow: Ablauf, Zweck der Nodes und wo ich aufpassen muss.',
+  },
+  {
+    label: 'Optimierung vorschlagen',
+    message:
+      'Schlag konkrete Optimierungen für diesen Workflow vor (Performance, Fehlerbehandlung, Vereinfachung).',
+  },
+  {
+    label: 'Sicherheit prüfen',
+    message:
+      'Prüfe diesen Workflow auf Sicherheitsrisiken (Secrets, Trigger, externe Aufrufe).',
+  },
+  {
+    label: 'Node erklären',
+    message:
+      'Erkläre mir den ausgewählten Node (oder den Start-Node, falls keiner ausgewählt): was macht er und welche Konfiguration ist wichtig?',
+  },
 ];
 
 /**
  * Agent Chat panel: conversation with the workflow agent.
  * Improved layout, quick prompts, and empty state.
  */
-export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled = true, onClose, embedded = false }) {
+export default function AgentChatPanel({
+  workflowId,
+  workflowName,
+  agentsEnabled = true,
+  onClose,
+  embedded = false,
+}) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = () =>
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   useEffect(() => {
     if (!workflowId) return;
@@ -38,19 +61,22 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
         }
       })
       .catch(err => {
-        if (!cancelled) setError(err.message || 'Verlauf konnte nicht geladen werden.');
+        if (!cancelled)
+          setError(err.message || 'Verlauf konnte nicht geladen werden.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [workflowId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async (text) => {
+  const sendMessage = async text => {
     const trimmed = String(text).trim();
     if (!trimmed || sending || !workflowId) return;
 
@@ -60,11 +86,14 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
     setMessages(prev => [...prev, { role: 'user', content: trimmed }]);
 
     try {
-      const res = await fetchWithCSRF(`/api/full-workflows/${workflowId}/agent/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed }),
-      });
+      const res = await fetchWithCSRF(
+        `/api/full-workflows/${workflowId}/agent/chat`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: trimmed }),
+        }
+      );
       const data = await res.json();
 
       if (!res.ok) {
@@ -72,7 +101,10 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
       }
 
       if (data.success && data.data?.reply != null) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.data.reply }]);
+        setMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: data.data.reply },
+        ]);
       } else {
         throw new Error('Keine Antwort vom Agenten.');
       }
@@ -87,7 +119,7 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
 
   const handleSend = () => sendMessage(input);
 
-  const handleQuickPrompt = (message) => sendMessage(message);
+  const handleQuickPrompt = message => sendMessage(message);
 
   return (
     <div
@@ -113,13 +145,23 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
             <Bot className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-semibold text-foreground truncate">Agent Chat</h3>
+            <h3 className="font-semibold text-foreground truncate">
+              Agent Chat
+            </h3>
             {workflowName && (
-              <p className="text-xs text-muted-foreground truncate">{workflowName}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {workflowName}
+              </p>
             )}
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Schließen" className="shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          aria-label="Schließen"
+          className="shrink-0"
+        >
           <X className="w-4 h-4" />
         </Button>
       </div>
@@ -139,13 +181,18 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
           <div className="flex flex-col gap-4 py-2">
             <div className="rounded-xl bg-muted border border-border p-4 flex flex-col items-center text-center gap-2">
               <Sparkles className="w-8 h-8 text-primary/70" />
-              <p className="text-sm font-medium text-foreground">Mit dem Workflow-Agenten chatten</p>
+              <p className="text-sm font-medium text-foreground">
+                Mit dem Workflow-Agenten chatten
+              </p>
               <p className="text-xs text-muted-foreground max-w-[280px]">
-                Stelle Fragen zum Workflow, lass dir Nodes erklären oder bitte um Optimierungs- und Sicherheitsvorschläge.
+                Stelle Fragen zum Workflow, lass dir Nodes erklären oder bitte
+                um Optimierungs- und Sicherheitsvorschläge.
               </p>
             </div>
             <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Schnellvorschläge</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                Schnellvorschläge
+              </p>
               <div className="flex flex-wrap gap-2">
                 {QUICK_PROMPTS.map(({ label, message }) => (
                   <button
@@ -191,7 +238,8 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
 
       {!agentsEnabled && (
         <div className="shrink-0 px-4 py-3 bg-amber-500/10 border-t border-border text-amber-800 dark:text-amber-200 text-sm">
-          Agents sind deaktiviert. Aktiviere sie unter „Einstellungen & Goal“, um Nachrichten zu senden.
+          Agents sind deaktiviert. Aktiviere sie unter „Einstellungen & Goal“,
+          um Nachrichten zu senden.
         </div>
       )}
 
@@ -205,7 +253,11 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
       <div className="shrink-0 p-4 pt-3 border-t border-border bg-background">
         <div className="flex gap-2 items-end">
           <Textarea
-            placeholder={agentsEnabled ? 'Nachricht an den Agenten…' : 'Aktiviere Agents, um zu chatten'}
+            placeholder={
+              agentsEnabled
+                ? 'Nachricht an den Agenten…'
+                : 'Aktiviere Agents, um zu chatten'
+            }
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
@@ -224,7 +276,11 @@ export default function AgentChatPanel({ workflowId, workflowName, agentsEnabled
             size="icon"
             className="h-[52px] w-12 shrink-0"
           >
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {sending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </div>
       </div>

@@ -215,7 +215,7 @@ server.on('upgrade', (request, socket, head) => {
           try {
             // Dynamic import only in development
             const ngrok = (await import('@ngrok/ngrok')).default;
-            
+
             const listener = await ngrok.connect({
               addr: PORT,
               authtoken: NGROK_AUTH_TOKEN,

@@ -116,12 +116,7 @@ export default function LoginPage() {
                 disabled={loading}
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              animated
-              loading={loading}
-            >
+            <Button type="submit" className="w-full" animated loading={loading}>
               Login
             </Button>
             <div className="text-center text-sm text-muted-foreground">

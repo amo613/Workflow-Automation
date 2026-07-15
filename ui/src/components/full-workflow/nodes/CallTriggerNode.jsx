@@ -41,81 +41,81 @@ export default function CallTriggerNode({ data, selected }) {
             position: 'relative',
           }}
         >
-        <StatusBadge status={status} />
+          <StatusBadge status={status} />
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            marginBottom: '0.5rem',
-          }}
-        >
           <div
             style={{
-              fontSize: '1.5rem',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              borderRadius: '0.5rem',
-              background: 'rgba(16, 185, 129, 0.2)',
-              color: '#10b981',
+              gap: '0.5rem',
+              marginBottom: '0.5rem',
             }}
           >
-            <PhoneIncoming className="w-5 h-5" />
-          </div>
-          <div>
             <div
               style={{
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                color: 'hsl(var(--foreground))',
+                fontSize: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '32px',
+                borderRadius: '0.5rem',
+                background: 'rgba(16, 185, 129, 0.2)',
+                color: '#10b981',
               }}
             >
-              Call Trigger
+              <PhoneIncoming className="w-5 h-5" />
             </div>
-            {data.name && (
+            <div>
               <div
                 style={{
-                  fontSize: '0.75rem',
-                  color: 'hsl(var(--muted-foreground))',
-                  marginTop: '0.25rem',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  color: 'hsl(var(--foreground))',
                 }}
               >
-                {data.name}
+                Call Trigger
               </div>
-            )}
+              {data.name && (
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))',
+                    marginTop: '0.25rem',
+                  }}
+                >
+                  {data.name}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {data.description && (
-          <div
+          {data.description && (
+            <div
+              style={{
+                fontSize: '0.75rem',
+                color: 'hsl(var(--muted-foreground))',
+                marginTop: '0.5rem',
+                padding: '0.5rem',
+                background: 'hsl(var(--muted))',
+                borderRadius: '0.375rem',
+              }}
+            >
+              {data.description}
+            </div>
+          )}
+
+          {/* Only Output Handle - Trigger Nodes have no input */}
+          <Handle
+            type="source"
+            position={Position.Bottom}
             style={{
-              fontSize: '0.75rem',
-              color: 'hsl(var(--muted-foreground))',
-              marginTop: '0.5rem',
-              padding: '0.5rem',
-              background: 'hsl(var(--muted))',
-              borderRadius: '0.375rem',
+              background: '#10b981',
+              width: '12px',
+              height: '12px',
+              border: '2px solid hsl(var(--card))',
             }}
-          >
-            {data.description}
-          </div>
-        )}
-
-        {/* Only Output Handle - Trigger Nodes have no input */}
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          style={{
-            background: '#10b981',
-            width: '12px',
-            height: '12px',
-            border: '2px solid hsl(var(--card))',
-          }}
-        />
+          />
         </div>
       </ElectricBorder>
 

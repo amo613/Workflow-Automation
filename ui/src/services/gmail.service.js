@@ -39,4 +39,3 @@ export const gmailService = {
     return response.json();
   },
 };
-

@@ -233,4 +233,3 @@ export function CommandPalette({ open, onOpenChange, onAction }) {
     </Dialog>
   );
 }
-

@@ -19,7 +19,8 @@ import OAuthCallback from './pages/OAuthCallback';
 function AppContent() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage =
+    location.pathname === '/login' || location.pathname === '/register';
 
   if (isLandingPage || isAuthPage) {
     return (

@@ -10,32 +10,44 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageCircle, Bot, Shield, Zap, BarChart3, Play, Info } from 'lucide-react';
+import {
+  MessageCircle,
+  Bot,
+  Shield,
+  Zap,
+  BarChart3,
+  Play,
+  Info,
+} from 'lucide-react';
 
 const AGENT_TYPES = [
   {
     id: 'monitoring',
     name: 'Monitoring',
     icon: BarChart3,
-    description: 'Analysiert Ausführungsstatistiken und Fehler, schlägt Verbesserungen vor.',
+    description:
+      'Analysiert Ausführungsstatistiken und Fehler, schlägt Verbesserungen vor.',
   },
   {
     id: 'optimization',
     name: 'Optimization',
     icon: Zap,
-    description: 'Prüft Workflow und Goal, schlägt oder wendet Optimierungen an (Nodes, Ablauf).',
+    description:
+      'Prüft Workflow und Goal, schlägt oder wendet Optimierungen an (Nodes, Ablauf).',
   },
   {
     id: 'security',
     name: 'Security',
     icon: Shield,
-    description: 'Prüft Struktur, Trigger und externe Aufrufe auf Sicherheitsrisiken.',
+    description:
+      'Prüft Struktur, Trigger und externe Aufrufe auf Sicherheitsrisiken.',
   },
   {
     id: 'execution',
     name: 'Execution',
     icon: Play,
-    description: 'Prüft, ob der Workflow ausführbar ist (fehlende Konfiguration, ungültige Verbindungen).',
+    description:
+      'Prüft, ob der Workflow ausführbar ist (fehlende Konfiguration, ungültige Verbindungen).',
   },
 ];
 
@@ -73,7 +85,9 @@ export default function WorkflowSettingsPanel({
       );
       setGoalSuccessCriteria(initialGoalDefinition.success_criteria ?? '');
     } else {
-      setGoalSummary(typeof initialGoalDefinition === 'string' ? initialGoalDefinition : '');
+      setGoalSummary(
+        typeof initialGoalDefinition === 'string' ? initialGoalDefinition : ''
+      );
       setGoalConstraints('');
       setGoalSuccessCriteria('');
     }
@@ -81,7 +95,11 @@ export default function WorkflowSettingsPanel({
   }, [open, initialAgentsEnabled, initialGoalDefinition]);
 
   const buildGoalDefinition = () => {
-    if (!goalSummary.trim() && !goalConstraints.trim() && !goalSuccessCriteria.trim()) {
+    if (
+      !goalSummary.trim() &&
+      !goalConstraints.trim() &&
+      !goalSuccessCriteria.trim()
+    ) {
       return null;
     }
     const constraints = goalConstraints.trim()
@@ -121,9 +139,10 @@ export default function WorkflowSettingsPanel({
             Workflow-Agents & Goal
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Agents analysieren und optimieren deinen Workflow automatisch. Definiere ein Goal, damit
-            sie gezielt vorgehen können. Du kannst jederzeit mit dem Agenten chatten (Fragen,
-            Erklärungen, Optimierungen).
+            Agents analysieren und optimieren deinen Workflow automatisch.
+            Definiere ein Goal, damit sie gezielt vorgehen können. Du kannst
+            jederzeit mit dem Agenten chatten (Fragen, Erklärungen,
+            Optimierungen).
           </DialogDescription>
         </DialogHeader>
 
@@ -131,7 +150,10 @@ export default function WorkflowSettingsPanel({
           {/* Enable toggle */}
           <div className="rounded-xl border bg-card p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <Label htmlFor="agents-enabled" className="text-base font-semibold">
+              <Label
+                htmlFor="agents-enabled"
+                className="text-base font-semibold"
+              >
                 Agents aktivieren
               </Label>
               <Switch
@@ -141,8 +163,9 @@ export default function WorkflowSettingsPanel({
               />
             </div>
             <p className="text-sm text-muted-foreground">
-              Wenn aktiv, laufen nach dem Speichern des Workflows Monitoring-, Optimierungs-,
-              Security- und Execution-Checks. Alle Aktionen werden dokumentiert (Explainable AI).
+              Wenn aktiv, laufen nach dem Speichern des Workflows Monitoring-,
+              Optimierungs-, Security- und Execution-Checks. Alle Aktionen
+              werden dokumentiert (Explainable AI).
             </p>
           </div>
 
@@ -161,7 +184,9 @@ export default function WorkflowSettingsPanel({
                   <Icon className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
                   <div>
                     <span className="font-medium text-foreground">{name}</span>
-                    <p className="text-muted-foreground mt-0.5">{description}</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {description}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -172,12 +197,14 @@ export default function WorkflowSettingsPanel({
           <div className="rounded-xl border bg-card p-4 space-y-4">
             <Label className="text-base font-semibold">Goal Definition</Label>
             <p className="text-sm text-muted-foreground">
-              Je klarer das Ziel beschrieben ist, desto gezielter können die Agents optimieren und
-              antworten.
+              Je klarer das Ziel beschrieben ist, desto gezielter können die
+              Agents optimieren und antworten.
             </p>
             <div className="space-y-3">
               <div>
-                <Label className="text-xs text-muted-foreground">Zusammenfassung / Ziel</Label>
+                <Label className="text-xs text-muted-foreground">
+                  Zusammenfassung / Ziel
+                </Label>
                 <Textarea
                   placeholder="z. B. E-Mail-Benachrichtigungen bei neuen HubSpot-Deals, max. 3 Schritte"
                   value={goalSummary}
@@ -187,7 +214,9 @@ export default function WorkflowSettingsPanel({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Einschränkungen (eine pro Zeile)</Label>
+                <Label className="text-xs text-muted-foreground">
+                  Einschränkungen (eine pro Zeile)
+                </Label>
                 <Textarea
                   placeholder="z. B. Nur interne APIs\nMax. 5 Nodes"
                   value={goalConstraints}
@@ -197,7 +226,9 @@ export default function WorkflowSettingsPanel({
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Erfolgskriterien</Label>
+                <Label className="text-xs text-muted-foreground">
+                  Erfolgskriterien
+                </Label>
                 <Textarea
                   placeholder="z. B. E-Mail wird innerhalb von 1 Min. nach Deal-Erstellung versendet"
                   value={goalSuccessCriteria}
@@ -214,13 +245,20 @@ export default function WorkflowSettingsPanel({
             <div className="rounded-xl border-2 border-primary/30 bg-primary/10 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <MessageCircle className="w-10 h-10 shrink-0 text-primary" />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground">Mit dem Agenten chatten</p>
+                <p className="font-semibold text-foreground">
+                  Mit dem Agenten chatten
+                </p>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Stelle Fragen zum Workflow, lass Nodes erklären oder bitte um Optimierungsvorschläge.
-                  Der Agent kennt dein Goal und die Workflow-Struktur.
+                  Stelle Fragen zum Workflow, lass Nodes erklären oder bitte um
+                  Optimierungsvorschläge. Der Agent kennt dein Goal und die
+                  Workflow-Struktur.
                 </p>
               </div>
-              <Button onClick={handleOpenChat} className="shrink-0 gap-2" size="lg">
+              <Button
+                onClick={handleOpenChat}
+                className="shrink-0 gap-2"
+                size="lg"
+              >
                 <MessageCircle className="w-4 h-4" />
                 Chat öffnen
               </Button>

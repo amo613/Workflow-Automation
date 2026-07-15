@@ -10,9 +10,13 @@ on:
       - main
       - staging
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       redis:
@@ -27,12 +31,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20.x'
+          node-version: '24.x'
           cache: 'npm'
 
       - name: Install dependencies
@@ -49,7 +53,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: steps.test.outcome != 'cancelled'
         with:
           name: coverage-report
@@ -67,7 +71,7 @@ jobs:
             COVERAGE=$(node -p "JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct")
             echo "## Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
             
-            if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            if node -e "process.exit(Number(process.argv[1]) < 80 ? 0 : 1)" "$COVERAGE"; then
               echo "::warning::Code coverage is below 80%" >> $GITHUB_STEP_SUMMARY
               echo "⚠️ Coverage is below 80% (currently ${COVERAGE}%)" >> $GITHUB_STEP_SUMMARY
             else

@@ -24,19 +24,24 @@ async function canProcessJob(userId) {
 
   const userKey = userId?.toString() || 'default';
   const redisKey = `job:concurrency:${userKey}`;
-  
+
   try {
     const activeCount = await redisClient.get(redisKey);
     const count = activeCount ? parseInt(activeCount, 10) : 0;
-    
+
     if (count >= MAX_JOBS_PER_USER) {
-      logger.debug(`User ${userKey} has reached concurrency limit (${count}/${MAX_JOBS_PER_USER})`);
+      logger.debug(
+        `User ${userKey} has reached concurrency limit (${count}/${MAX_JOBS_PER_USER})`
+      );
       return false;
     }
-    
+
     return true;
   } catch (error) {
-    logger.error('Error checking user concurrency limit', { error: error.message, userId });
+    logger.error('Error checking user concurrency limit', {
+      error: error.message,
+      userId,
+    });
     // On error, allow job to proceed (fail open)
     return true;
   }
@@ -51,7 +56,7 @@ async function incrementUserJobCount(userId) {
 
   const userKey = userId?.toString() || 'default';
   const redisKey = `job:concurrency:${userKey}`;
-  
+
   try {
     const count = await redisClient.incr(redisKey);
     // Set expiration (5 minutes) to prevent stale keys
@@ -60,7 +65,10 @@ async function incrementUserJobCount(userId) {
     }
     logger.debug(`Incremented job count for user ${userKey}: ${count}`);
   } catch (error) {
-    logger.error('Error incrementing user job count', { error: error.message, userId });
+    logger.error('Error incrementing user job count', {
+      error: error.message,
+      userId,
+    });
   }
 }
 
@@ -73,7 +81,7 @@ async function decrementUserJobCount(userId) {
 
   const userKey = userId?.toString() || 'default';
   const redisKey = `job:concurrency:${userKey}`;
-  
+
   try {
     const count = await redisClient.decr(redisKey);
     if (count <= 0) {
@@ -81,7 +89,10 @@ async function decrementUserJobCount(userId) {
     }
     logger.debug(`Decremented job count for user ${userKey}: ${count}`);
   } catch (error) {
-    logger.error('Error decrementing user job count', { error: error.message, userId });
+    logger.error('Error decrementing user job count', {
+      error: error.message,
+      userId,
+    });
   }
 }
 
@@ -89,7 +100,7 @@ export const jobWorker = new Worker(
   'jobs',
   async job => {
     const { type, data, options, userId } = job.data;
-    
+
     // Check pro-User concurrency limit
     const canProcess = await canProcessJob(userId);
     if (!canProcess) {
@@ -99,10 +110,10 @@ export const jobWorker = new Worker(
         `User ${userId || 'default'} has reached concurrency limit (${MAX_JOBS_PER_USER} jobs). Job will be retried.`
       );
     }
-    
+
     // Increment active job count
     await incrementUserJobCount(userId);
-    
+
     try {
       if (!jobRegistry.has(type)) throw new Error(`Unknown job type: ${type}`);
       const JobClass = jobRegistry.getJobClass(type);
@@ -175,7 +186,7 @@ jobWorker.on('completed', async job => {
 jobWorker.on('failed', async (job, err) => {
   // Check if this is a concurrency limit error (should not count as real failure)
   const isConcurrencyLimit = err?.message?.includes('concurrency limit');
-  
+
   try {
     // Only mark as failed if it's not a concurrency limit error
     // Concurrency limit errors will be retried automatically
@@ -192,18 +203,18 @@ jobWorker.on('failed', async (job, err) => {
         .where(eq(jobsTable.id, String(job?.id ?? 'unknown')));
     } else {
       // For concurrency limit, just log as warning (job will be retried)
-      logger.warn(`Job ${job?.id} delayed due to concurrency limit, will retry`, {
-        userId: job?.data?.userId,
-        type: job?.data?.type,
-      });
+      logger.warn(
+        `Job ${job?.id} delayed due to concurrency limit, will retry`,
+        {
+          userId: job?.data?.userId,
+          type: job?.data?.type,
+        }
+      );
     }
   } catch (dbErr) {
-    logger.warn(
-      `Failed to update job ${job?.id} status in DB:`,
-      dbErr.message
-    );
+    logger.warn(`Failed to update job ${job?.id} status in DB:`, dbErr.message);
   }
-  
+
   if (!isConcurrencyLimit) {
     logger.error(`Job ${job?.id} failed: ${err?.message}`, {
       type: job?.data?.type,

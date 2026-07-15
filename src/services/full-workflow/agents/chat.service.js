@@ -18,7 +18,9 @@ function buildSystemPrompt(workflow, options = {}) {
 
   const sections = [];
 
-  sections.push(`You are a helpful workflow assistant with full READ access to this workflow. You can see and explain everything. Answer any question about the workflow, nodes, configuration, execution, errors, or optimization. Do not expose raw secrets or credentials in your answers; refer to them as "configured" or "set" when relevant.`);
+  sections.push(
+    `You are a helpful workflow assistant with full READ access to this workflow. You can see and explain everything. Answer any question about the workflow, nodes, configuration, execution, errors, or optimization. Do not expose raw secrets or credentials in your answers; refer to them as "configured" or "set" when relevant.`
+  );
 
   sections.push(`## Workflow metadata
 - Name: ${workflow.name || 'Unnamed'}
@@ -27,8 +29,10 @@ function buildSystemPrompt(workflow, options = {}) {
 - Goal definition: ${workflow.goal_definition ? JSON.stringify(workflow.goal_definition, null, 2) : 'Not set'}`);
 
   sections.push(`## Full workflow structure (nodes and edges)`);
-  
-  const workflowJsonStr = JSON.stringify(workflow.workflow_json || { nodes: [], edges: [] });
+
+  const workflowJsonStr = JSON.stringify(
+    workflow.workflow_json || { nodes: [], edges: [] }
+  );
   if (workflowJsonStr.length > 100000) {
     // Very large workflow: send summary to avoid token limit
     const nodes = workflow.workflow_json?.nodes || [];
@@ -45,7 +49,10 @@ ${workflowJsonStr}
 \`\`\``);
   }
 
-  if (workflow.trigger_config && Object.keys(workflow.trigger_config).length > 0) {
+  if (
+    workflow.trigger_config &&
+    Object.keys(workflow.trigger_config).length > 0
+  ) {
     sections.push(`## Trigger configuration
 \`\`\`json
 ${JSON.stringify(workflow.trigger_config, null, 2)}
@@ -57,7 +64,7 @@ ${JSON.stringify(workflow.trigger_config, null, 2)}
 \`\`\`json
 ${JSON.stringify(stats, null, 2)}
 \`\`\``);
-    
+
     // Highlight goal achievement if available
     if (stats.goalMetrics?.currentAchievementRate != null) {
       const rate = (stats.goalMetrics.currentAchievementRate * 100).toFixed(1);
@@ -86,7 +93,9 @@ ${JSON.stringify(nodeContext, null, 2)}
   sections.push(`## Node type documentation (short)
 ${getNodeDocsForAgents()}`);
 
-  sections.push(`Answer in the user's language. Be precise and cite the data above when relevant.`);
+  sections.push(
+    `Answer in the user's language. Be precise and cite the data above when relevant.`
+  );
 
   return sections.join('\n\n');
 }
@@ -108,9 +117,7 @@ export async function runAgentChatTurn(workflowId, userId, workflow, payload) {
     return { success: false, error: 'message is required' };
   }
 
-  const nodeContext = nodeId
-    ? getSingleNodeContext(workflow, nodeId)
-    : null;
+  const nodeContext = nodeId ? getSingleNodeContext(workflow, nodeId) : null;
 
   const systemPrompt = buildSystemPrompt(workflow, {
     nodeContext,
@@ -120,14 +127,16 @@ export async function runAgentChatTurn(workflowId, userId, workflow, payload) {
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    ...previousMessages.slice(-20).map(m => ({ role: m.role, content: m.content || '' })),
+    ...previousMessages
+      .slice(-20)
+      .map(m => ({ role: m.role, content: m.content || '' })),
     { role: 'user', content: message.trim() },
   ];
 
-  const { content: reply, error } = await openRouterChat(
-    messages,
-    { temperature: 0.4, max_tokens: 4096 }
-  );
+  const { content: reply, error } = await openRouterChat(messages, {
+    temperature: 0.4,
+    max_tokens: 4096,
+  });
 
   if (error) {
     await logAgentAction({

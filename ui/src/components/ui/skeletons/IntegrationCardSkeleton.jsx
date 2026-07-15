@@ -10,10 +10,7 @@ import { cn } from '@/lib/index';
 const IntegrationCardSkeleton = React.memo(() => {
   return (
     <div
-      className={cn(
-        'glass border-border/50 rounded-lg p-4',
-        'animate-pulse'
-      )}
+      className={cn('glass border-border/50 rounded-lg p-4', 'animate-pulse')}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -39,4 +36,3 @@ const IntegrationCardSkeleton = React.memo(() => {
 IntegrationCardSkeleton.displayName = 'IntegrationCardSkeleton';
 
 export default IntegrationCardSkeleton;
-

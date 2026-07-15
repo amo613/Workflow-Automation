@@ -1,5 +1,4 @@
 import fastifyApp from '#src/fastify-app.js';
-import request from 'supertest';
 import { closeRedis } from '#config/cache.js';
 import { closeLogger } from '#config/logger.js';
 
@@ -20,39 +19,41 @@ describe('API ENDPOINTS', () => {
 
   describe('GET /health', () => {
     it('should return health stats', async () => {
-      const response = await request(fastifyApp.server)
-        .get('/health')
-        .expect(200);
+      const response = await fastifyApp.inject({
+        method: 'GET',
+        url: '/health',
+      });
+      const body = response.json();
 
-      expect(response.body).toHaveProperty('status', 'OK');
-      expect(response.body).toHaveProperty('timestamp');
-      expect(response.body).toHaveProperty('uptime');
+      expect(response.statusCode).toBe(200);
+      expect(body).toHaveProperty('status', 'OK');
+      expect(body).toHaveProperty('timestamp');
+      expect(body).toHaveProperty('uptime');
     });
   });
 
   describe('GET /api', () => {
     it('should return API stats', async () => {
-      const response = await request(fastifyApp.server).get('/api').expect(200);
+      const response = await fastifyApp.inject({ method: 'GET', url: '/api' });
 
-      expect(response.body).toHaveProperty('message', 'API is running!');
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toHaveProperty('message', 'API is running!');
     });
   });
 
   describe('GET /nonexistent', () => {
     it('should return 404 for non-existing API routes', async () => {
-      const response = await request(fastifyApp.server)
-        .get('/api/nonexisting')
-        .expect(404);
+      const response = await fastifyApp.inject({
+        method: 'GET',
+        url: '/api/nonexisting',
+      });
+      const body = response.json();
 
       // Check that we got a 404 status
-      expect(response.status).toBe(404);
+      expect(response.statusCode).toBe(404);
       // If response body has error field, it should match expected message
-      if (
-        response.body &&
-        typeof response.body === 'object' &&
-        response.body.error
-      ) {
-        expect(response.body.error).toBe('Route not found');
+      if (body && typeof body === 'object' && body.error) {
+        expect(body.error).toBe('Route not found');
       }
     });
   });

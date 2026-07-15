@@ -4,11 +4,24 @@
 import { db } from '#config/database.js';
 import { workflowAgentActions } from '#models/workflow-agent-action.model.js';
 import { fullWorkflows } from '#models/full-workflow.model.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import logger from '#config/logger.js';
 
-const AGENT_TYPES = ['orchestrator', 'monitoring', 'optimization', 'security', 'execution'];
-const ACTION_TYPES = ['workflow_updated', 'node_updated', 'suggestion', 'chat', 'check_performed', 'pipeline_completed'];
+const AGENT_TYPES = [
+  'orchestrator',
+  'monitoring',
+  'optimization',
+  'security',
+  'execution',
+];
+const ACTION_TYPES = [
+  'workflow_updated',
+  'node_updated',
+  'suggestion',
+  'chat',
+  'check_performed',
+  'pipeline_completed',
+];
 const OPTIMIZATION_IMPACT = ['helped', 'neutral', 'unknown', 'not_applicable'];
 
 /**
@@ -46,9 +59,10 @@ export async function logAgentAction(params) {
         agent_type: agentType,
         action_type: actionType,
         details: details ?? null,
-        optimization_impact: optimizationImpact && OPTIMIZATION_IMPACT.includes(optimizationImpact)
-          ? optimizationImpact
-          : null,
+        optimization_impact:
+          optimizationImpact && OPTIMIZATION_IMPACT.includes(optimizationImpact)
+            ? optimizationImpact
+            : null,
         workflow_version_id:
           workflowVersionId != null && Number(workflowVersionId) > 0
             ? Number(workflowVersionId)
@@ -56,10 +70,18 @@ export async function logAgentAction(params) {
       })
       .returning();
 
-    logger.info('Agent action logged', { workflowId, agentType, actionType, id: row?.id });
+    logger.info('Agent action logged', {
+      workflowId,
+      agentType,
+      actionType,
+      id: row?.id,
+    });
     return row;
   } catch (err) {
-    logger.error('Failed to log agent action', { workflowId, error: err.message });
+    logger.error('Failed to log agent action', {
+      workflowId,
+      error: err.message,
+    });
     throw err;
   }
 }
@@ -67,7 +89,11 @@ export async function logAgentAction(params) {
 /**
  * Get recent agent actions for a workflow (for UI / version history).
  */
-export async function getWorkflowAgentActions(workflowId, userId, options = {}) {
+export async function getWorkflowAgentActions(
+  workflowId,
+  userId,
+  options = {}
+) {
   const limit = options.limit ?? 50;
   const offset = options.offset ?? 0;
 
@@ -96,15 +122,23 @@ export async function getWorkflowAgentActions(workflowId, userId, options = {}) 
  * Get chat messages for agent chat UI (from workflow_agent_actions with action_type=chat).
  * Returns list of { role: 'user'|'assistant', content } in chronological order.
  */
-export async function getWorkflowAgentChatMessages(workflowId, userId, options = {}) {
+export async function getWorkflowAgentChatMessages(
+  workflowId,
+  userId,
+  options = {}
+) {
   const limit = options.limit ?? 50;
-  const actions = await getWorkflowAgentActions(workflowId, userId, { limit, offset: 0 });
+  const actions = await getWorkflowAgentActions(workflowId, userId, {
+    limit,
+    offset: 0,
+  });
   const chatActions = actions.filter(a => a.action_type === 'chat').reverse();
   const messages = [];
   for (const a of chatActions) {
     const d = a.details || {};
     if (d.userMessage) messages.push({ role: 'user', content: d.userMessage });
-    if (d.assistantMessage) messages.push({ role: 'assistant', content: d.assistantMessage });
+    if (d.assistantMessage)
+      messages.push({ role: 'assistant', content: d.assistantMessage });
   }
   return messages;
 }

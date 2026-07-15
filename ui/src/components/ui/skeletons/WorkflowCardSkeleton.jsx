@@ -51,4 +51,3 @@ const WorkflowCardSkeleton = React.memo(() => {
 WorkflowCardSkeleton.displayName = 'WorkflowCardSkeleton';
 
 export default WorkflowCardSkeleton;
-

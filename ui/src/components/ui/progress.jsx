@@ -62,4 +62,3 @@ const Progress = React.memo(
 Progress.displayName = 'Progress';
 
 export { Progress };
-

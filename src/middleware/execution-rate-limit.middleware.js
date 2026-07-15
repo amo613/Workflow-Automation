@@ -23,19 +23,21 @@ function getSecondsUntilEndOfMonth() {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
-  
+
   // Get first day of next month
   const firstDayNextMonth = new Date(year, month + 1, 1);
-  
+
   // Get last day of current month (day before first day of next month)
   const lastDayCurrentMonth = new Date(firstDayNextMonth.getTime() - 1);
-  
+
   // Set to end of day (23:59:59)
   lastDayCurrentMonth.setHours(23, 59, 59, 999);
-  
+
   // Calculate seconds until end of month
-  const secondsUntilEnd = Math.ceil((lastDayCurrentMonth.getTime() - now.getTime()) / 1000);
-  
+  const secondsUntilEnd = Math.ceil(
+    (lastDayCurrentMonth.getTime() - now.getTime()) / 1000
+  );
+
   return Math.max(secondsUntilEnd, 60); // Minimum 60 seconds
 }
 
@@ -101,10 +103,13 @@ export async function checkMonthlyExecutionLimit(userId, role = 'user') {
       };
     } else {
       // Redis not available - allow execution but log warning
-      logger.warn('Redis not available for execution rate limiting, allowing execution', {
-        userId,
-        role,
-      });
+      logger.warn(
+        'Redis not available for execution rate limiting, allowing execution',
+        {
+          userId,
+          role,
+        }
+      );
       return {
         allowed: true,
         remaining: MONTHLY_EXECUTION_LIMIT,
@@ -147,7 +152,7 @@ export async function incrementExecutionCount(userId, role = 'user') {
   try {
     if (redisClient?.isReady) {
       const newCount = await redisClient.incr(redisKey);
-      
+
       // Set TTL to end of month (only on first increment)
       if (newCount === 1) {
         const ttl = getSecondsUntilEndOfMonth();
@@ -222,4 +227,3 @@ export async function getRemainingExecutions(userId, role = 'user') {
   const limitCheck = await checkMonthlyExecutionLimit(userId, role);
   return limitCheck.remaining;
 }
-

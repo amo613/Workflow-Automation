@@ -117,33 +117,6 @@ export function extractUsedVariables(node) {
 }
 
 /**
- * Get nested value from object using dot notation
- * @param {Object} obj - Object to get value from
- * @param {string} path - Dot notation path (e.g., 'data.userId' or 'updatedRows')
- * @returns {*} - Value or undefined
- */
-function getNestedValue(obj, path) {
-  if (!obj || !path) {
-    return undefined;
-  }
-
-  const parts = path.split('.');
-  let current = obj;
-
-  for (const part of parts) {
-    if (current === null || current === undefined) {
-      return undefined;
-    }
-    if (current[part] === undefined) {
-      return undefined;
-    }
-    current = current[part];
-  }
-
-  return current;
-}
-
-/**
  * Extract only the values needed for the used variables from node outputs
  * For nested paths like {{data.userId}}, we extract the parent object (data)
  * to preserve the structure needed for template resolution

@@ -1,7 +1,7 @@
 
 # Base image with Node.js
-# Upgraded to Node 20 for Inngest compatibility
-FROM node:20-alpine AS base
+# Node 24 is the current LTS release; Node 20 reached end of life in March 2026.
+FROM node:24-alpine AS base
 
 # Install Chromium and dependencies for Puppeteer
 RUN apk add --no-cache \
@@ -29,15 +29,15 @@ RUN npm ci && npm cache clean --force
 # Copy source code
 COPY . .
 
-# Build React UI (needs dev dependencies)
-RUN npm run ui:build
+# Build React UI (needs dev dependencies), then remove its build-only packages.
+RUN npm run ui:build && rm -rf ui/node_modules
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
+# Winston writes optional file logs in addition to stdout.
+RUN mkdir -p /app/logs && chown -R nodejs:nodejs /app
 USER nodejs
 
 # Expose the port
@@ -45,7 +45,7 @@ EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => { process.exit(1) })"
+  CMD node -e "require('http').get('http://127.0.0.1:' + (process.env.PORT || 3001) + '/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => { process.exit(1) })"
 
 # Development stage
 FROM base AS development
@@ -56,7 +56,7 @@ CMD ["npm", "run", "dev"]
 
 # Production stage
 FROM base AS production
+ENV NODE_ENV=production
 # Remove dev dependencies after build
-RUN npm prune --production && npm cache clean --force
+RUN npm prune --omit=dev && npm cache clean --force
 CMD ["npm", "start"]
-

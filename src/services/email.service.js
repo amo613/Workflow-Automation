@@ -21,11 +21,11 @@ function createTransporter(credentials) {
     useTls = true,
     service, // Optional: 'gmail', etc.
   } = credentials;
-  
+
   // ✅ Check cache first
   const cacheKey = `${service || smtpHost}-${smtpUser}`;
   const cached = transporterCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     logger.debug('Using cached SMTP transporter', { cacheKey });
     return cached.transporter;
@@ -78,13 +78,13 @@ function createTransporter(credentials) {
 
     transporter = nodemailer.createTransport(config);
   }
-  
+
   // ✅ Cache the transporter
   transporterCache.set(cacheKey, {
     transporter,
     timestamp: Date.now(),
   });
-  
+
   // ✅ Clean old cache entries
   if (transporterCache.size > 50) {
     const oldestKey = transporterCache.keys().next().value;
@@ -144,7 +144,10 @@ export async function sendEmail({
         await Promise.race([
           transporter.verify(),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('SMTP verification timeout')), 8000)
+            setTimeout(
+              () => reject(new Error('SMTP verification timeout')),
+              8000
+            )
           ),
         ]);
         logger.debug('SMTP connection verified', { to });

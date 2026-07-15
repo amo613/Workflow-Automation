@@ -81,7 +81,10 @@ export default function LiquidEther({
         this.container = container;
         this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
         this.resize();
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true,
+        });
         this.renderer.autoClear = false;
         this.renderer.setClearColor(new THREE.Color(0x000000), 0);
         this.renderer.setPixelRatio(this.pixelRatio);
@@ -99,7 +102,8 @@ export default function LiquidEther({
         this.width = Math.max(1, Math.floor(rect.width));
         this.height = Math.max(1, Math.floor(rect.height));
         this.aspect = this.width / this.height;
-        if (this.renderer) this.renderer.setSize(this.width, this.height, false);
+        if (this.renderer)
+          this.renderer.setSize(this.width, this.height, false);
       }
 
       update() {
@@ -140,17 +144,30 @@ export default function LiquidEther({
         this.container = container;
         this.listenerTarget = window;
         this.listenerTarget.addEventListener('mousemove', this._onMouseMove);
-        this.listenerTarget.addEventListener('touchstart', this._onTouchStart, { passive: true });
-        this.listenerTarget.addEventListener('touchmove', this._onTouchMove, { passive: true });
+        this.listenerTarget.addEventListener('touchstart', this._onTouchStart, {
+          passive: true,
+        });
+        this.listenerTarget.addEventListener('touchmove', this._onTouchMove, {
+          passive: true,
+        });
         this.listenerTarget.addEventListener('touchend', this._onTouchEnd);
         document.addEventListener('mouseleave', this._onDocumentLeave);
       }
 
       dispose() {
         if (this.listenerTarget) {
-          this.listenerTarget.removeEventListener('mousemove', this._onMouseMove);
-          this.listenerTarget.removeEventListener('touchstart', this._onTouchStart);
-          this.listenerTarget.removeEventListener('touchmove', this._onTouchMove);
+          this.listenerTarget.removeEventListener(
+            'mousemove',
+            this._onMouseMove
+          );
+          this.listenerTarget.removeEventListener(
+            'touchstart',
+            this._onTouchStart
+          );
+          this.listenerTarget.removeEventListener(
+            'touchmove',
+            this._onTouchMove
+          );
           this.listenerTarget.removeEventListener('touchend', this._onTouchEnd);
         }
         document.removeEventListener('mouseleave', this._onDocumentLeave);
@@ -162,7 +179,12 @@ export default function LiquidEther({
         if (!this.container) return false;
         const rect = this.container.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return false;
-        return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+        return (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        );
       }
 
       setCoords(x, y) {
@@ -243,7 +265,10 @@ export default function LiquidEther({
 
       pickNewTarget() {
         const r = Math.random;
-        this.target.set((r() * 2 - 1) * (1 - this.margin), (r() * 2 - 1) * (1 - this.margin));
+        this.target.set(
+          (r() * 2 - 1) * (1 - this.margin),
+          (r() * 2 - 1) * (1 - this.margin)
+        );
       }
 
       forceStop() {
@@ -283,7 +308,10 @@ export default function LiquidEther({
         dir.normalize();
         let ramp = 1;
         if (this.rampDurationMs > 0) {
-          const t = Math.min(1, (now - this.activationTime) / this.rampDurationMs);
+          const t = Math.min(
+            1,
+            (now - this.activationTime) / this.rampDurationMs
+          );
           ramp = t * t * (3 - 2 * t);
         }
         const step = this.speed * dtSec * ramp;
@@ -531,9 +559,13 @@ export default function LiquidEther({
       createBoundary() {
         const boundaryG = new THREE.BufferGeometry();
         const vertices_boundary = new Float32Array([
-          -1, -1, 0, -1, 1, 0, -1, 1, 0, 1, 1, 0, 1, 1, 0, 1, -1, 0, 1, -1, 0, -1, -1, 0,
+          -1, -1, 0, -1, 1, 0, -1, 1, 0, 1, 1, 0, 1, 1, 0, 1, -1, 0, 1, -1, 0,
+          -1, -1, 0,
         ]);
-        boundaryG.setAttribute('position', new THREE.BufferAttribute(vertices_boundary, 3));
+        boundaryG.setAttribute(
+          'position',
+          new THREE.BufferAttribute(vertices_boundary, 3)
+        );
         const boundaryM = new THREE.RawShaderMaterial({
           vertexShader: line_vert,
           fragmentShader: advection_frag,
@@ -569,7 +601,12 @@ export default function LiquidEther({
             px: { value: simProps.cellScale },
             force: { value: new THREE.Vector2(0.0, 0.0) },
             center: { value: new THREE.Vector2(0.0, 0.0) },
-            scale: { value: new THREE.Vector2(simProps.cursor_size, simProps.cursor_size) },
+            scale: {
+              value: new THREE.Vector2(
+                simProps.cursor_size,
+                simProps.cursor_size
+              ),
+            },
           },
         });
         this.mouse = new THREE.Mesh(mouseG, mouseM);
@@ -765,8 +802,14 @@ export default function LiquidEther({
       }
 
       calcSize() {
-        const width = Math.max(1, Math.round(this.options.resolution * Common.width));
-        const height = Math.max(1, Math.round(this.options.resolution * Common.height));
+        const width = Math.max(
+          1,
+          Math.round(this.options.resolution * Common.width)
+        );
+        const height = Math.max(
+          1,
+          Math.round(this.options.resolution * Common.height)
+        );
         const px_x = 1.0 / width;
         const px_y = 1.0 / height;
         this.cellScale.set(px_x, px_y);
@@ -785,7 +828,11 @@ export default function LiquidEther({
           wrapT: THREE.ClampToEdgeWrapping,
         };
         for (const key in this.fbos) {
-          this.fbos[key] = new THREE.WebGLRenderTarget(this.fboSize.x, this.fboSize.y, opts);
+          this.fbos[key] = new THREE.WebGLRenderTarget(
+            this.fboSize.x,
+            this.fboSize.y,
+            opts
+          );
         }
       }
 
@@ -1008,7 +1055,8 @@ export default function LiquidEther({
         Mouse.dispose();
         if (Common.renderer) {
           const canvas = Common.renderer.domElement;
-          if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+          if (canvas && canvas.parentNode)
+            canvas.parentNode.removeChild(canvas);
           Common.renderer.dispose();
         }
       }

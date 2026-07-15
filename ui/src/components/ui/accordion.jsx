@@ -22,7 +22,9 @@ export function Accordion({
   children,
   ...props
 }) {
-  const [internalValue, setInternalValue] = React.useState(defaultValue || null);
+  const [internalValue, setInternalValue] = React.useState(
+    defaultValue || null
+  );
   const value = controlledValue !== undefined ? controlledValue : internalValue;
 
   const handleValueChange = React.useCallback(
@@ -75,10 +77,7 @@ export function AccordionItem({ value, className, children, ...props }) {
   return (
     <AccordionItemContext.Provider value={value}>
       <div
-        className={cn(
-          'border-b border-border',
-          className
-        )}
+        className={cn('border-b border-border', className)}
         data-state={isOpen ? 'open' : 'closed'}
         {...props}
       >
@@ -88,13 +87,12 @@ export function AccordionItem({ value, className, children, ...props }) {
   );
 }
 
-export function AccordionTrigger({
-  className,
-  children,
-  ...props
-}) {
-  const { value: contextValue, onValueChange, type } =
-    React.useContext(AccordionContext);
+export function AccordionTrigger({ className, children, ...props }) {
+  const {
+    value: contextValue,
+    onValueChange,
+    type,
+  } = React.useContext(AccordionContext);
   const itemValue = React.useContext(AccordionItemContext);
   const isOpen =
     type === 'single'
@@ -118,11 +116,7 @@ export function AccordionTrigger({
   );
 }
 
-export function AccordionContent({
-  className,
-  children,
-  ...props
-}) {
+export function AccordionContent({ className, children, ...props }) {
   const { value: contextValue, type } = React.useContext(AccordionContext);
   const itemValue = React.useContext(AccordionItemContext);
   const isOpen =
@@ -148,4 +142,3 @@ export function AccordionContent({
 AccordionItem.displayName = 'AccordionItem';
 AccordionTrigger.displayName = 'AccordionTrigger';
 AccordionContent.displayName = 'AccordionContent';
-

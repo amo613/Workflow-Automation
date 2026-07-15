@@ -37,94 +37,92 @@ export default function GmailNode({ data, selected }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
+        <StatusBadge status={status} />
 
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          background: '#ea4335',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{
+            background: '#ea4335',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
+          }}
+        />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '0.5rem',
-        }}
-      >
         <div
           style={{
-            fontSize: '1.5rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: '32px',
-            height: '32px',
-            borderRadius: '0.5rem',
-            background: 'rgba(234, 67, 53, 0.2)',
-            color: '#ea4335',
+            gap: '0.5rem',
+            marginBottom: '0.5rem',
           }}
         >
-          <Mail className="w-5 h-5" />
-        </div>
-        <div>
           <div
             style={{
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              color: 'hsl(var(--foreground))',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '0.5rem',
+              background: 'rgba(234, 67, 53, 0.2)',
+              color: '#ea4335',
             }}
           >
-            Gmail
+            <Mail className="w-5 h-5" />
           </div>
-          {data.name && (
+          <div>
             <div
               style={{
-                fontSize: '0.75rem',
-                color: 'hsl(var(--muted-foreground))',
-                marginTop: '0.25rem',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                color: 'hsl(var(--foreground))',
               }}
             >
-              {data.name}
+              Gmail
             </div>
-          )}
+            {data.name && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  marginTop: '0.25rem',
+                }}
+              >
+                {data.name}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {data.to && (
-        <div
+        {data.to && (
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'hsl(var(--muted-foreground))',
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: 'hsl(var(--muted))',
+              borderRadius: '0.375rem',
+            }}
+          >
+            To: {data.to}
+          </div>
+        )}
+
+        <Handle
+          type="source"
+          position={Position.Bottom}
           style={{
-            fontSize: '0.75rem',
-            color: 'hsl(var(--muted-foreground))',
-            marginTop: '0.5rem',
-            padding: '0.5rem',
-            background: 'hsl(var(--muted))',
-            borderRadius: '0.375rem',
+            background: '#ea4335',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
           }}
-        >
-          To: {data.to}
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: '#ea4335',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        />
       </div>
     </ElectricBorder>
   );
 }
-
-

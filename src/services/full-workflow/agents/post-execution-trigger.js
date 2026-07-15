@@ -30,13 +30,17 @@ export async function triggerPostExecutionAgents(
   const { agentsEnabled = true } = options;
 
   if (!agentsEnabled) {
-    logger.debug('Post-execution agents skipped: agents not enabled', { workflowId });
+    logger.debug('Post-execution agents skipped: agents not enabled', {
+      workflowId,
+    });
     return 'skipped';
   }
 
   const redisClient = getRedisClient();
   if (!redisClient || !redisClient.isReady) {
-    logger.warn('Post-execution agents skipped: Redis not available', { workflowId });
+    logger.warn('Post-execution agents skipped: Redis not available', {
+      workflowId,
+    });
     return 'skipped';
   }
 
@@ -48,7 +52,10 @@ export async function triggerPostExecutionAgents(
     const lastRunStr = await redisClient.get(key);
     if (lastRunStr) lastRunTs = parseInt(lastRunStr, 10);
   } catch (e) {
-    logger.warn('Post-execution throttle: Redis get failed', { workflowId, error: e.message });
+    logger.warn('Post-execution throttle: Redis get failed', {
+      workflowId,
+      error: e.message,
+    });
     return 'error';
   }
 
@@ -56,36 +63,47 @@ export async function triggerPostExecutionAgents(
   const timeSinceLastRun = lastRunTs != null ? now - lastRunTs : Infinity;
   const cooldownMs = success ? COOLDOWN_SUCCESS_MS : COOLDOWN_FAILURE_MS;
   const maxInterval = 60 * 60 * 1000; // 1 hour max between checks
-  
+
   // Check if we should run based on goal metrics (if available)
   let goalNeedsAttention = false;
   try {
-    const { getWorkflowStatistics } = await import('#services/full-workflow/statistics.service.js');
+    const { getWorkflowStatistics } = await import(
+      '#services/full-workflow/statistics.service.js'
+    );
     const stats = await getWorkflowStatistics(workflowId);
     const achievementRate = stats?.goalMetrics?.currentAchievementRate;
     const trend = stats?.goalMetrics?.trend;
-    
+
     // Run agents if goal achievement is poor or declining
     if (achievementRate != null && achievementRate < 0.7) {
       goalNeedsAttention = true;
-      logger.debug('Goal achievement low, bypassing throttle', { workflowId, achievementRate });
+      logger.debug('Goal achievement low, bypassing throttle', {
+        workflowId,
+        achievementRate,
+      });
     }
     if (trend === 'declining') {
       goalNeedsAttention = true;
-      logger.debug('Goal trend declining, bypassing throttle', { workflowId, trend });
+      logger.debug('Goal trend declining, bypassing throttle', {
+        workflowId,
+        trend,
+      });
     }
   } catch (statsErr) {
     // Ignore stats errors, proceed with time-based throttle
-    logger.debug('Could not fetch stats for throttle decision', { workflowId, error: statsErr.message });
+    logger.debug('Could not fetch stats for throttle decision', {
+      workflowId,
+      error: statsErr.message,
+    });
   }
-  
-  const shouldThrottle = 
-    lastRunTs != null && 
-    timeSinceLastRun < cooldownMs && 
-    timeSinceLastRun < maxInterval && 
-    success && 
+
+  const shouldThrottle =
+    lastRunTs != null &&
+    timeSinceLastRun < cooldownMs &&
+    timeSinceLastRun < maxInterval &&
+    success &&
     !goalNeedsAttention; // Bypass throttle if goal needs attention
-  
+
   if (shouldThrottle) {
     logger.debug('Post-execution agents throttled', {
       workflowId,
@@ -99,22 +117,25 @@ export async function triggerPostExecutionAgents(
   try {
     await redisClient.set(key, String(now), 'EX', LAST_RUN_TTL_SEC);
   } catch (e) {
-    logger.warn('Post-execution throttle: Redis set failed', { workflowId, error: e.message });
+    logger.warn('Post-execution throttle: Redis set failed', {
+      workflowId,
+      error: e.message,
+    });
     return 'error';
   }
 
   const pipelineOptions = {
-    skipMonitoring: false,       // ✅ ALWAYS run monitoring
-    skipOptimization: success,   // Skip optimization on success (monitoring decides if needed)
-    skipSecurity: success,       // Only on failure
-    skipExecution: success,      // Only on failure
-    autoApply: !success,         // Only auto-apply on failure
+    skipMonitoring: false, // ✅ ALWAYS run monitoring
+    skipOptimization: success, // Skip optimization on success (monitoring decides if needed)
+    skipSecurity: success, // Only on failure
+    skipExecution: success, // Only on failure
+    autoApply: !success, // Only auto-apply on failure
     focusOnGoal: true,
   };
 
   // Pass rich execution context
   pipelineOptions.executionContext = {
-    lastError: !success && error ? (error?.message || String(error)) : null,
+    lastError: !success && error ? error?.message || String(error) : null,
     executionSuccess: success,
     eventId,
     triggeredBy: 'post_execution',

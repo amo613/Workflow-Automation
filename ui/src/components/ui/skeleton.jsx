@@ -9,7 +9,7 @@ import { cn } from '@/lib/index';
 const Skeleton = React.memo(
   React.forwardRef(({ className, variant = 'rectangular', ...props }, ref) => {
     const baseClasses = 'animate-pulse bg-muted';
-    
+
     const variantClasses = {
       rectangular: 'rounded-md',
       circular: 'rounded-full',
@@ -19,11 +19,7 @@ const Skeleton = React.memo(
     return (
       <div
         ref={ref}
-        className={cn(
-          baseClasses,
-          variantClasses[variant],
-          className
-        )}
+        className={cn(baseClasses, variantClasses[variant], className)}
         {...props}
       />
     );
@@ -33,4 +29,3 @@ const Skeleton = React.memo(
 Skeleton.displayName = 'Skeleton';
 
 export { Skeleton };
-

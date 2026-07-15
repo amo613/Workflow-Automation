@@ -536,10 +536,10 @@ export function useFullWorkflowEditorLogic() {
       }
 
       const result = await response.json();
-      
+
       // Set saving to false IMMEDIATELY after successful save
       setSaving(false);
-      
+
       if (isNew) {
         navigate(`/fullWorkflows/edit/${result.data.id}`);
       } else {
@@ -584,43 +584,39 @@ export function useFullWorkflowEditorLogic() {
   const handleSaveWorkflowSettings = useCallback(
     async (newAgentsEnabled, newGoalDefinition) => {
       if (isNew || !id) return;
-      try {
-        const workflowJson = {
-          nodes: nodes.map(({ id: nodeId, type: nodeType, position, data }) => ({
-            id: nodeId,
-            type: nodeType,
-            position,
-            data,
-          })),
-          edges: edges.map((edge, index) => ({
-            id: edge.id || `edge-${index}-${edge.source}-${edge.target}`,
-            source: edge.source,
-            target: edge.target,
-            ...(edge.sourceHandle != null && { sourceHandle: edge.sourceHandle }),
-            ...(edge.targetHandle != null && { targetHandle: edge.targetHandle }),
-          })),
-        };
-        const response = await fetchWithCSRF(`/api/full-workflows/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            description,
-            type,
-            workflow_json: workflowJson,
-            agents_enabled: newAgentsEnabled,
-            goal_definition: newGoalDefinition,
-          }),
-        });
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to save settings');
-        }
-        setAgentsEnabled(newAgentsEnabled);
-        setGoalDefinition(newGoalDefinition);
-      } catch (err) {
-        throw err;
+      const workflowJson = {
+        nodes: nodes.map(({ id: nodeId, type: nodeType, position, data }) => ({
+          id: nodeId,
+          type: nodeType,
+          position,
+          data,
+        })),
+        edges: edges.map((edge, index) => ({
+          id: edge.id || `edge-${index}-${edge.source}-${edge.target}`,
+          source: edge.source,
+          target: edge.target,
+          ...(edge.sourceHandle != null && { sourceHandle: edge.sourceHandle }),
+          ...(edge.targetHandle != null && { targetHandle: edge.targetHandle }),
+        })),
+      };
+      const response = await fetchWithCSRF(`/api/full-workflows/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description,
+          type,
+          workflow_json: workflowJson,
+          agents_enabled: newAgentsEnabled,
+          goal_definition: newGoalDefinition,
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to save settings');
       }
+      setAgentsEnabled(newAgentsEnabled);
+      setGoalDefinition(newGoalDefinition);
     },
     [description, edges, id, isNew, name, nodes, type]
   );

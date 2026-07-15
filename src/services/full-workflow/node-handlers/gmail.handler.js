@@ -82,10 +82,7 @@ export async function executeGmail(node, templateContext) {
         resolved.path = resolveTemplate(attachment.path, templateContext);
       }
       if (attachment.content) {
-        resolved.content = resolveTemplate(
-          attachment.content,
-          templateContext
-        );
+        resolved.content = resolveTemplate(attachment.content, templateContext);
       }
       return resolved;
     });
@@ -104,10 +101,13 @@ export async function executeGmail(node, templateContext) {
 
   // Get access token (refresh if needed)
   let accessToken = integration.accessToken;
-  let refreshToken = integration.refreshToken;
+  const refreshToken = integration.refreshToken;
 
   // Check if token is expired and refresh if needed
-  if (integration.tokenExpiresAt && new Date(integration.tokenExpiresAt) < new Date()) {
+  if (
+    integration.tokenExpiresAt &&
+    new Date(integration.tokenExpiresAt) < new Date()
+  ) {
     try {
       logger.info('Gmail access token expired, refreshing...', {
         nodeId: node.id,
@@ -134,20 +134,16 @@ export async function executeGmail(node, templateContext) {
 
   // Send email via Gmail API
   try {
-    const result = await gmailService.sendEmail(
-      accessToken,
-      refreshToken,
-      {
-        to: resolvedTo,
-        cc: resolvedCc,
-        bcc: resolvedBcc,
-        subject: resolvedSubject,
-        text: resolvedText,
-        html: resolvedHtml,
-        from: resolvedFromEmail,
-        attachments: resolvedAttachments,
-      }
-    );
+    const result = await gmailService.sendEmail(accessToken, refreshToken, {
+      to: resolvedTo,
+      cc: resolvedCc,
+      bcc: resolvedBcc,
+      subject: resolvedSubject,
+      text: resolvedText,
+      html: resolvedHtml,
+      from: resolvedFromEmail,
+      attachments: resolvedAttachments,
+    });
 
     logger.info('Email sent successfully via Gmail API', {
       nodeId: node.id,
@@ -174,5 +170,3 @@ export async function executeGmail(node, templateContext) {
     throw error;
   }
 }
-
-

@@ -42,15 +42,15 @@ const buttonVariants = cva(
   }
 );
 
-function Button({ 
-  className, 
-  variant, 
-  size, 
-  asChild = false, 
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
   animated = false,
   loading = false,
   children,
-  ...props 
+  ...props
 }) {
   const Comp = asChild ? Slot : 'button';
   const isDisabled = props.disabled || loading;

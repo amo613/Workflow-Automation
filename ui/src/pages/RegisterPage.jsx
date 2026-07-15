@@ -134,12 +134,7 @@ export default function RegisterPage() {
                 disabled={loading}
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              animated
-              loading={loading}
-            >
+            <Button type="submit" className="w-full" animated loading={loading}>
               Register
             </Button>
             <div className="text-center text-sm text-muted-foreground">

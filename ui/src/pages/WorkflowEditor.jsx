@@ -448,7 +448,9 @@ function WorkflowEditorInner() {
           >
             Nodes
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+          >
             <button
               onClick={() => addNode('start')}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 text-sm font-medium"
@@ -507,95 +509,95 @@ function WorkflowEditorInner() {
             saving={saving}
             isNew={isNew}
           />
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            boxSizing: 'border-box',
-            background: 'transparent',
-            position: 'relative',
-          }}
-        >
-          <ReactFlow
-            nodes={nodes.map(node => {
-              const nodeData = {
-                ...node.data,
-                onNodeUpdate: onNodeUpdate,
-              };
-              return {
-                ...node,
-                data: nodeData,
-              };
-            })}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            defaultEdgeOptions={defaultEdgeOptions}
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              boxSizing: 'border-box',
+              background: 'transparent',
+              position: 'relative',
+            }}
           >
-            <Background
-              variant="dots"
-              gap={30}
-              size={1}
-              color="hsl(var(--border))"
-            />
-            <Controls>
-              <ControlButton
-                title="Auto layout"
-                onClick={handleAutoLayout}
-                disabled={isAutoLayouting}
-              >
-                {isAutoLayouting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <LayoutGrid className="w-4 h-4" />
-                )}
-              </ControlButton>
-            </Controls>
-            <MiniMap
-              nodeColor={node => {
-                switch (node.type) {
-                  case 'start':
-                    return '#10b981';
-                  case 'step':
-                    return '#667eea';
-                  case 'if':
-                    return '#f59e0b';
-                  case 'end':
-                    return '#ef4444';
-                  default:
-                    return '#94a3b8';
-                }
-              }}
-              nodeStrokeWidth={3}
-              pannable={false}
-              zoomable={false}
-            />
-          </ReactFlow>
-          {isAutoLayouting && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
-              <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span>Re-arranging nodes…</span>
+            <ReactFlow
+              nodes={nodes.map(node => {
+                const nodeData = {
+                  ...node.data,
+                  onNodeUpdate: onNodeUpdate,
+                };
+                return {
+                  ...node,
+                  data: nodeData,
+                };
+              })}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              fitView
+              defaultEdgeOptions={defaultEdgeOptions}
+            >
+              <Background
+                variant="dots"
+                gap={30}
+                size={1}
+                color="hsl(var(--border))"
+              />
+              <Controls>
+                <ControlButton
+                  title="Auto layout"
+                  onClick={handleAutoLayout}
+                  disabled={isAutoLayouting}
+                >
+                  {isAutoLayouting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <LayoutGrid className="w-4 h-4" />
+                  )}
+                </ControlButton>
+              </Controls>
+              <MiniMap
+                nodeColor={node => {
+                  switch (node.type) {
+                    case 'start':
+                      return '#10b981';
+                    case 'step':
+                      return '#667eea';
+                    case 'if':
+                      return '#f59e0b';
+                    case 'end':
+                      return '#ef4444';
+                    default:
+                      return '#94a3b8';
+                  }
+                }}
+                nodeStrokeWidth={3}
+                pannable={false}
+                zoomable={false}
+              />
+            </ReactFlow>
+            {isAutoLayouting && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-sm z-50 pointer-events-none">
+                <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span>Re-arranging nodes…</span>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Node Sidebar - inside canvas container */}
-        {selectedNode && (
-          <NodeSidebar
-            selectedNode={selectedNode}
-            onNodeUpdate={onNodeUpdate}
-            nodes={nodes}
-            edges={edges}
-            onClose={() => setSelectedNode(null)}
-          />
-        )}
+          {/* Node Sidebar - inside canvas container */}
+          {selectedNode && (
+            <NodeSidebar
+              selectedNode={selectedNode}
+              onNodeUpdate={onNodeUpdate}
+              nodes={nodes}
+              edges={edges}
+              onClose={() => setSelectedNode(null)}
+            />
+          )}
         </div>
 
         {/* Right sidebar: description, prompt (no Agents for Call Flow) */}
@@ -610,7 +612,9 @@ function WorkflowEditorInner() {
             overflowY: 'auto',
           }}
         >
-          <label className="text-sm font-medium text-muted-foreground block mb-1">Description</label>
+          <label className="text-sm font-medium text-muted-foreground block mb-1">
+            Description
+          </label>
           <textarea
             placeholder="Description"
             value={description}

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": ">=24 <25"
+  },
   "imports": {
     "#src/*": "./src/*",
     "#config/*": "./src/config/*",
@@ -32,22 +35,22 @@
     "dev:docker": "sh ./scripts/dev.sh",
     "prod:docker": "sh ./scripts/prod.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "ui:build": "cd ui && npm install && npm run build",
+    "ui:build": "cd ui && npm ci && npm run build",
     "ui:dev": "cd ui && npm run dev",
     "load-test": "node scripts/load-test.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amo613/Testing.git"
+    "url": "git+https://github.com/amo613/Workflow-Automation.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/amo613/Testing/issues"
+    "url": "https://github.com/amo613/Workflow-Automation/issues"
   },
-  "homepage": "https://github.com/amo613/Testing#readme",
+  "homepage": "https://github.com/amo613/Workflow-Automation#readme",
   "dependencies": {
     "@arcjet/inspect": "^1.0.0-beta.13",
     "@arcjet/node": "^1.0.0-beta.13",
@@ -86,6 +89,7 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "redis": "^4.6.12",
     "twilio": "^5.10.4",
+    "undici": "^8.7.0",
     "winston": "^3.18.3",
     "ws": "^8.18.3",
     "zod": "^4.1.12"

@@ -21,7 +21,13 @@ import { workflowExecutionQueue } from './workflow-execution.queue.js';
  * @param {{ skipLimitCheck?: boolean }} [options] - If skipLimitCheck is true, limit was already checked by caller (e.g. controller)
  * @returns {Promise<Object>} - { success, eventId (job.id), workflowId }
  */
-export async function triggerWorkflow(workflowId, userId, input = {}, userRole = 'user', options = {}) {
+export async function triggerWorkflow(
+  workflowId,
+  userId,
+  input = {},
+  userRole = 'user',
+  options = {}
+) {
   try {
     logger.info('Triggering workflow via BullMQ', {
       workflowId,
@@ -67,10 +73,13 @@ export async function triggerWorkflow(workflowId, userId, input = {}, userRole =
           };
         }
       } catch (redisErr) {
-        logger.warn('Failed to store large input in Redis, sending full payload', {
-          workflowId,
-          error: redisErr.message,
-        });
+        logger.warn(
+          'Failed to store large input in Redis, sending full payload',
+          {
+            workflowId,
+            error: redisErr.message,
+          }
+        );
       }
     }
 
@@ -211,7 +220,8 @@ export async function triggerBySchedule(workflowId, cron) {
       success: true,
       workflowId,
       cron,
-      message: 'Schedule is managed by trigger-polling (BullMQ) when workflow is active',
+      message:
+        'Schedule is managed by trigger-polling (BullMQ) when workflow is active',
     };
   } catch (error) {
     logger.error('Failed to schedule workflow', {

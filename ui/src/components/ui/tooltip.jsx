@@ -123,16 +123,10 @@ export function TooltipContent({
       {...props}
     >
       {children}
-      <div
-        className={cn(
-          'absolute w-0 h-0 border-4',
-          arrowClasses[side]
-        )}
-      />
+      <div className={cn('absolute w-0 h-0 border-4', arrowClasses[side])} />
     </div>
   );
 }
 
 TooltipTrigger.displayName = 'TooltipTrigger';
 TooltipContent.displayName = 'TooltipContent';
-

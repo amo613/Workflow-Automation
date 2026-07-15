@@ -205,7 +205,10 @@ function FullWorkflowList() {
         </div>
 
         {/* Glassmorphism Card */}
-        <Card hover className="glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10">
+        <Card
+          hover
+          className="glass border-border/50 hover:border-blue-500/30 transition-all hover:shadow-lg hover:shadow-blue-500/10"
+        >
           <CardHeader className="pb-4">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -301,7 +304,11 @@ function FullWorkflowList() {
                           <div className="flex items-center gap-3">
                             <Switch
                               checked={workflow.is_active}
-                              onCheckedChange={() => handleToggleActive(workflow, { stopPropagation: () => {} })}
+                              onCheckedChange={() =>
+                                handleToggleActive(workflow, {
+                                  stopPropagation: () => {},
+                                })
+                              }
                               animated
                             />
                             <Badge

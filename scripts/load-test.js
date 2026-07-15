@@ -5,7 +5,8 @@
  * Usage: npm run load-test
  * Env:   BASE_URL, LOAD_TEST_EMAIL, LOAD_TEST_PASSWORD (optional, see defaults)
  */
-const BASE_URL="https://app-production-58ae.up.railway.app";
+const BASE_URL =
+  process.env.BASE_URL || 'https://app-production-7047.up.railway.app';
 const EMAIL = process.env.LOAD_TEST_EMAIL || 'john@gmail.com';
 const PASSWORD = process.env.LOAD_TEST_PASSWORD || '123456';
 const WORKFLOW_ID = parseInt(process.env.LOAD_TEST_WORKFLOW_ID || '1', 10);
@@ -43,19 +44,22 @@ async function login() {
 }
 
 async function runWorkflow(token) {
-  const res = await fetch(`${BASE_URL}/api/full-workflows/${WORKFLOW_ID}/trigger`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({}),
-  });
+  const res = await fetch(
+    `${BASE_URL}/api/full-workflows/${WORKFLOW_ID}/trigger`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({}),
+    }
+  );
   return { status: res.status, ok: res.ok };
 }
 
 function delay(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+  return new Promise(r => setTimeout(r, ms));
 }
 
 async function runOneUser(userIndex) {
@@ -68,10 +72,23 @@ async function runOneUser(userIndex) {
     loginOk = true;
     const { status, ok } = await runWorkflow(token);
     triggerOk = ok;
-    return { userIndex, loginOk, triggerOk, status, durationMs: Date.now() - start };
+    return {
+      userIndex,
+      loginOk,
+      triggerOk,
+      status,
+      durationMs: Date.now() - start,
+    };
   } catch (e) {
     err = e.message || String(e);
-    return { userIndex, loginOk, triggerOk, status: null, durationMs: Date.now() - start, err };
+    return {
+      userIndex,
+      loginOk,
+      triggerOk,
+      status: null,
+      durationMs: Date.now() - start,
+      err,
+    };
   }
 }
 
@@ -83,23 +100,27 @@ async function main() {
     NUM_USERS,
     DURATION_MS,
   });
-  console.log('Spreading', NUM_USERS, 'users over', DURATION_MS / 1000, 'seconds...\n');
+  console.log(
+    'Spreading',
+    NUM_USERS,
+    'users over',
+    DURATION_MS / 1000,
+    'seconds...\n'
+  );
 
   const intervalMs = DURATION_MS / NUM_USERS;
   const promises = [];
   for (let i = 0; i < NUM_USERS; i++) {
     const t = i * intervalMs;
-    promises.push(
-      delay(t).then(() => runOneUser(i + 1))
-    );
+    promises.push(delay(t).then(() => runOneUser(i + 1)));
   }
 
   const results = await Promise.all(promises);
 
-  const successful = results.filter((r) => r.loginOk && r.triggerOk);
-  const loginFail = results.filter((r) => !r.loginOk);
-  const triggerFail = results.filter((r) => r.loginOk && !r.triggerOk);
-  const durations = results.map((r) => r.durationMs).filter((n) => n != null);
+  const successful = results.filter(r => r.loginOk && r.triggerOk);
+  const loginFail = results.filter(r => !r.loginOk);
+  const triggerFail = results.filter(r => r.loginOk && !r.triggerOk);
+  const durations = results.map(r => r.durationMs).filter(n => n != null);
 
   console.log('\n--- Results ---');
   console.log('Total:', results.length);
@@ -108,7 +129,10 @@ async function main() {
   console.log('Trigger failed (after login OK):', triggerFail.length);
   if (durations.length) {
     const sum = durations.reduce((a, b) => a + b, 0);
-    console.log('Avg duration per user (ms):', Math.round(sum / durations.length));
+    console.log(
+      'Avg duration per user (ms):',
+      Math.round(sum / durations.length)
+    );
     console.log('Min duration (ms):', Math.min(...durations));
     console.log('Max duration (ms):', Math.max(...durations));
   }
@@ -116,11 +140,15 @@ async function main() {
     console.log('\nFirst login error:', loginFail[0]?.err || loginFail[0]);
   }
   if (triggerFail.length) {
-    console.log('First trigger status:', triggerFail[0]?.status, triggerFail[0]?.err);
+    console.log(
+      'First trigger status:',
+      triggerFail[0]?.status,
+      triggerFail[0]?.err
+    );
   }
 }
 
-main().catch((e) => {
+main().catch(e => {
   console.error(e);
   process.exit(1);
 });

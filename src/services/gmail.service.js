@@ -58,7 +58,7 @@ export class GmailService {
     // ✅ Check cache first
     const cacheKey = `${accessToken.substring(0, 20)}-${refreshToken?.substring(0, 20) || 'none'}`;
     const cached = gmailClientCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       logger.debug('Using cached Gmail OAuth client');
       return cached.client;
@@ -80,13 +80,13 @@ export class GmailService {
     }
 
     const gmailClient = google.gmail({ version: 'v1', auth: oauth2Client });
-    
+
     // ✅ Cache the client
     gmailClientCache.set(cacheKey, {
       client: gmailClient,
       timestamp: Date.now(),
     });
-    
+
     // ✅ Clean old cache entries (max 100)
     if (gmailClientCache.size > 100) {
       const oldestKey = gmailClientCache.keys().next().value;
@@ -108,20 +108,10 @@ export class GmailService {
    * @param {string} emailData.text - Plain text body (optional)
    * @param {string} emailData.html - HTML body (optional)
    * @param {string} emailData.from - From email address (optional, defaults to authenticated user)
-   * @param {Array} emailData.attachments - Attachments array (optional)
    * @returns {Promise<Object>} Send result
    */
   async sendEmail(accessToken, refreshToken, emailData) {
-    const {
-      to,
-      cc = [],
-      bcc = [],
-      subject,
-      text,
-      html,
-      from,
-      attachments = [],
-    } = emailData;
+    const { to, cc = [], bcc = [], subject, text, html, from } = emailData;
 
     if (!to) {
       throw new Error('Recipient email address (to) is required');
@@ -174,7 +164,9 @@ export class GmailService {
       // Multipart alternative (both HTML and text)
       const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       messageParts.push('MIME-Version: 1.0');
-      messageParts.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+      messageParts.push(
+        `Content-Type: multipart/alternative; boundary="${boundary}"`
+      );
       messageParts.push('');
       messageParts.push(`--${boundary}`);
       messageParts.push('Content-Type: text/plain; charset=UTF-8');
@@ -270,5 +262,3 @@ export class GmailService {
 }
 
 export const gmailService = new GmailService();
-
-

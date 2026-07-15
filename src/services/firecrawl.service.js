@@ -45,11 +45,19 @@ export async function firecrawlSearch(query, options = {}) {
     const body = {
       query,
       limit: options.limit ?? 5,
-      ...(options.scrapeOptions !== undefined && { scrapeOptions: options.scrapeOptions }),
-      ...(typeof options.timeout === 'number' && !Number.isNaN(options.timeout) && options.timeout > 0 && { timeout: Math.min(options.timeout, FIRECRAWL_TIMEOUT_MAX_MS) }),
+      ...(options.scrapeOptions !== undefined && {
+        scrapeOptions: options.scrapeOptions,
+      }),
+      ...(typeof options.timeout === 'number' &&
+        !Number.isNaN(options.timeout) &&
+        options.timeout > 0 && {
+          timeout: Math.min(options.timeout, FIRECRAWL_TIMEOUT_MAX_MS),
+        }),
       ...(options.tbs !== undefined && { tbs: options.tbs }),
       ...(options.location !== undefined && { location: options.location }),
-      ...(options.ignoreInvalidURLs !== undefined && { ignoreInvalidURLs: options.ignoreInvalidURLs }),
+      ...(options.ignoreInvalidURLs !== undefined && {
+        ignoreInvalidURLs: options.ignoreInvalidURLs,
+      }),
     };
 
     const res = await fetch(url, {
@@ -64,8 +72,15 @@ export async function firecrawlSearch(query, options = {}) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      logger.warn('Firecrawl search failed', { status: res.status, query, data });
-      return { success: false, error: data.error || data.message || `HTTP ${res.status}` };
+      logger.warn('Firecrawl search failed', {
+        status: res.status,
+        query,
+        data,
+      });
+      return {
+        success: false,
+        error: data.error || data.message || `HTTP ${res.status}`,
+      };
     }
 
     return { success: true, data: data.data ?? data };
@@ -90,7 +105,11 @@ export async function firecrawlScrape(urlToScrape, options = {}) {
       url: urlToScrape,
       formats: options.formats ?? ['markdown'],
       onlyMainContent: options.onlyMainContent !== false,
-      ...(typeof options.timeout === 'number' && !Number.isNaN(options.timeout) && options.timeout > 0 && { timeout: Math.min(options.timeout, FIRECRAWL_TIMEOUT_MAX_MS) }),
+      ...(typeof options.timeout === 'number' &&
+        !Number.isNaN(options.timeout) &&
+        options.timeout > 0 && {
+          timeout: Math.min(options.timeout, FIRECRAWL_TIMEOUT_MAX_MS),
+        }),
     };
 
     const res = await fetch(url, {
@@ -105,13 +124,23 @@ export async function firecrawlScrape(urlToScrape, options = {}) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      logger.warn('Firecrawl scrape failed', { status: res.status, url: urlToScrape, data });
-      return { success: false, error: data.error || data.message || `HTTP ${res.status}` };
+      logger.warn('Firecrawl scrape failed', {
+        status: res.status,
+        url: urlToScrape,
+        data,
+      });
+      return {
+        success: false,
+        error: data.error || data.message || `HTTP ${res.status}`,
+      };
     }
 
     return { success: true, data: data.data ?? data };
   } catch (err) {
-    logger.error('Firecrawl scrape error', { url: urlToScrape, error: err.message });
+    logger.error('Firecrawl scrape error', {
+      url: urlToScrape,
+      error: err.message,
+    });
     return { success: false, error: err.message };
   }
 }

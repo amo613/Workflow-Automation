@@ -56,7 +56,7 @@ Before you start, make sure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/amo613/Testing.git
+git clone https://github.com/amo613/Workflow-Automation.git
 cd Testing
 ```
 

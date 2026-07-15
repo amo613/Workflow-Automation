@@ -19,10 +19,10 @@ const VersionItemSkeleton = React.memo(() => {
         <div className="flex items-center gap-4 flex-1">
           {/* Version Number */}
           <Skeleton variant="rectangular" className="h-8 w-16 rounded-md" />
-          
+
           {/* Date */}
           <Skeleton variant="text" className="h-5 w-32" />
-          
+
           {/* Message */}
           <Skeleton variant="text" className="h-5 w-48" />
         </div>
@@ -39,4 +39,3 @@ const VersionItemSkeleton = React.memo(() => {
 VersionItemSkeleton.displayName = 'VersionItemSkeleton';
 
 export default VersionItemSkeleton;
-

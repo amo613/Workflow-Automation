@@ -15,7 +15,11 @@ Respond in JSON: { "summary": "...", "blockers": [{ "nodeId": "...", "reason": "
   let userContent = `Nodes: ${JSON.stringify(context.nodes || [], null, 2)}
 Edges: ${JSON.stringify(context.edges || [], null, 2)}
 Trigger config present: ${!!context.trigger_config}`;
-  if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
+  if (
+    context.goalResearch &&
+    (context.goalResearch.goalSearch?.length ||
+      context.goalResearch.errorSearch?.length)
+  ) {
     userContent += `\n\nWeb research (goal / last error):\n${JSON.stringify(context.goalResearch, null, 2)}`;
   }
   if (context.nodeDocumentation) {

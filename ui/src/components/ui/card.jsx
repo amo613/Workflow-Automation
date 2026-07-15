@@ -2,19 +2,17 @@ import * as React from 'react';
 
 import { cn } from '@/lib';
 
-const Card = React.forwardRef(
-  ({ className, hover = false, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(
-        'rounded-xl border bg-card text-card-foreground shadow',
-        hover && 'card-hover-animated',
-        className
-      )}
-      {...props}
-    />
-  )
-);
+const Card = React.forwardRef(({ className, hover = false, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      'rounded-xl border bg-card text-card-foreground shadow',
+      hover && 'card-hover-animated',
+      className
+    )}
+    {...props}
+  />
+));
 Card.displayName = 'Card';
 
 const CardHeader = React.forwardRef(({ className, ...props }, ref) => (

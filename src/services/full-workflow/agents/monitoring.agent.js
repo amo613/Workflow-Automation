@@ -8,7 +8,7 @@ export async function runMonitoringAgent(workflowId, context) {
   const goalMetrics = context.goalMetrics || {};
   const achievementRate = goalMetrics.currentAchievementRate;
   const trend = goalMetrics.trend || 'unknown';
-  
+
   const systemPrompt = `You are a workflow monitoring agent with GOAL-AWARENESS as your primary focus.
 
 GOAL: ${JSON.stringify(context.goal_definition || 'Not defined')}
@@ -32,12 +32,16 @@ Be specific: "Node X takes 12 minutes but goal requires <5min" not just "workflo
 Goal: ${JSON.stringify(context.goal_definition || 'none')}
 Stats: ${JSON.stringify(context.stats || {}, null, 2)}
 Recent execution history (sample): ${JSON.stringify(context.executionHistory || [], null, 2)}`;
-  
+
   if (context.executionContext) {
     userContent += `\n\nLast Execution Context:\n${JSON.stringify(context.executionContext, null, 2)}`;
   }
-  
-  if (context.goalResearch && (context.goalResearch.goalSearch?.length || context.goalResearch.errorSearch?.length)) {
+
+  if (
+    context.goalResearch &&
+    (context.goalResearch.goalSearch?.length ||
+      context.goalResearch.errorSearch?.length)
+  ) {
     userContent += `\n\nWeb research for goal / last error:\n${JSON.stringify(context.goalResearch, null, 2)}`;
   }
 

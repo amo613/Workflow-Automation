@@ -38,56 +38,56 @@ export default function AiAgentNode({ data, selected }) {
           position: 'relative',
         }}
       >
-      <StatusBadge status={status} />
-      <div
-        style={{
-          fontSize: '2rem',
-          marginBottom: '0.5rem',
-        }}
-      >
-        <Bot className="w-8 h-8" />
-      </div>
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: '1rem',
-          color: 'hsl(var(--foreground))',
-          marginBottom: '0.25rem',
-        }}
-      >
-        AI Agent
-      </div>
-      {data?.model && (
+        <StatusBadge status={status} />
         <div
           style={{
-            fontSize: '0.75rem',
-            color: 'hsl(var(--muted-foreground))',
-            marginTop: '0.25rem',
+            fontSize: '2rem',
+            marginBottom: '0.5rem',
           }}
         >
-          {data.model}
+          <Bot className="w-8 h-8" />
         </div>
-      )}
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{
-          background: '#3b82f6',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: '#3b82f6',
-          width: '12px',
-          height: '12px',
-          border: '2px solid hsl(var(--card))',
-        }}
-      />
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: 'hsl(var(--foreground))',
+            marginBottom: '0.25rem',
+          }}
+        >
+          AI Agent
+        </div>
+        {data?.model && (
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: 'hsl(var(--muted-foreground))',
+              marginTop: '0.25rem',
+            }}
+          >
+            {data.model}
+          </div>
+        )}
+        <Handle
+          type="target"
+          position={Position.Top}
+          style={{
+            background: '#3b82f6',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
+          }}
+        />
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          style={{
+            background: '#3b82f6',
+            width: '12px',
+            height: '12px',
+            border: '2px solid hsl(var(--card))',
+          }}
+        />
       </div>
     </ElectricBorder>
   );

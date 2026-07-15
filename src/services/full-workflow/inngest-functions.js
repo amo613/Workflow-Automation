@@ -45,7 +45,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         refKey: input._largeInputRef,
         originalSizeKB: input._originalSizeKB,
       });
-      
+
       try {
         const { getRedisClient } = await import('#config/cache.js');
         const redisClient = getRedisClient();
@@ -57,7 +57,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
               workflowId,
               sizeKB: Math.round(largeInputStr.length / 1024),
             });
-            
+
             // Delete reference (one-time use)
             redisClient.del(input._largeInputRef).catch(() => {});
           } else {
@@ -100,9 +100,19 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     let result;
     let executionSuccess = false;
     let executionError = null;
-    
+
     // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:96',message:'BEFORE workflow execution',data:{workflowId,executionSuccess,hasResult:!!result},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'inngest-functions.js:96',
+        message: 'BEFORE workflow execution',
+        data: { workflowId, executionSuccess, hasResult: !!result },
+        timestamp: Date.now(),
+        hypothesisId: 'H1',
+      }),
+    }).catch(() => {});
     // #endregion
 
     // Create cache key for incremental updates
@@ -114,12 +124,12 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     let nodesSinceLastUpdate = 0;
     const CACHE_UPDATE_INTERVAL_MS = 2000; // Update at most every 2 seconds
     const CACHE_UPDATE_NODE_INTERVAL = 5; // Or every 5 nodes
-    
+
     const updateCacheIncremental = partialResult => {
       nodesSinceLastUpdate++;
       const now = Date.now();
       const timeSinceLastUpdate = now - lastCacheUpdate;
-      
+
       // Only update if enough time passed OR enough nodes executed
       if (
         timeSinceLastUpdate < CACHE_UPDATE_INTERVAL_MS &&
@@ -127,10 +137,10 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       ) {
         return; // Skip this update
       }
-      
+
       lastCacheUpdate = now;
       nodesSinceLastUpdate = 0;
-      
+
       try {
         const cacheData = {
           success: false, // Still running
@@ -195,7 +205,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         });
         return executionResult;
       });
-      
+
       // ✅ CRITICAL FIX: Set executionSuccess AFTER step.run based on result
       executionSuccess = !!(result && result.success !== false);
     } catch (error) {
@@ -207,7 +217,24 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       executionSuccess = false;
       executionError = error;
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:198',message:'CATCH - executionSuccess set to FALSE',data:{workflowId,executionSuccess:false,errorMsg:error.message},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      fetch(
+        'http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'inngest-functions.js:198',
+            message: 'CATCH - executionSuccess set to FALSE',
+            data: {
+              workflowId,
+              executionSuccess: false,
+              errorMsg: error.message,
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'H3',
+          }),
+        }
+      ).catch(() => {});
       // #endregion
 
       // Even on error, try to store partial results if available
@@ -279,7 +306,25 @@ export const executeFullWorkflowFunction = inngest.createFunction(
       });
 
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'inngest-functions.js:269',message:'BEFORE trackWorkflowExecution',data:{workflowId,executionSuccess,hasError:!!executionError,errorMsg:executionError?.message},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      fetch(
+        'http://127.0.0.1:7243/ingest/8f4e09ce-08d0-41d4-b1cb-7efad2a3f731',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'inngest-functions.js:269',
+            message: 'BEFORE trackWorkflowExecution',
+            data: {
+              workflowId,
+              executionSuccess,
+              hasError: !!executionError,
+              errorMsg: executionError?.message,
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'H2',
+          }),
+        }
+      ).catch(() => {});
       // #endregion
       await trackWorkflowExecution(
         workflowId,
@@ -343,7 +388,7 @@ export const executeFullWorkflowFunction = inngest.createFunction(
         const redisClient = getRedisClient();
         if (redisClient && redisClient.isReady) {
           const serialized = JSON.stringify(cacheData);
-          
+
           // Warn if payload is very large
           if (serialized.length > 500000) {
             logger.warn('Large execution result being cached', {
@@ -352,9 +397,9 @@ export const executeFullWorkflowFunction = inngest.createFunction(
               sizeKB: Math.round(serialized.length / 1024),
             });
           }
-          
+
           await redisClient.set(cacheKey, serialized, 'EX', 3600);
-          
+
           logger.debug('Workflow execution results cached in Redis', {
             workflowId,
             eventId: event.id,
@@ -393,4 +438,3 @@ export const executeFullWorkflowFunction = inngest.createFunction(
     };
   }
 );
-

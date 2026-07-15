@@ -34,12 +34,8 @@ export default function ErrorConfig({
   );
 
   return (
-    <div
-      className="mt-4 pt-4 border-t border-border"
-    >
-      <div
-        className="text-sm font-semibold text-muted-foreground mb-3"
-      >
+    <div className="mt-4 pt-4 border-t border-border">
+      <div className="text-sm font-semibold text-muted-foreground mb-3">
         Error Handling
       </div>
 

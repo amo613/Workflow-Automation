@@ -22,7 +22,11 @@ export const initiateAuth = async (req, res) => {
     const userId = req.user.id;
     const state = { userId, timestamp: Date.now() };
 
-    const authUrl = googleOAuthService.getAuthUrl(userId, state, 'GOOGLE_GMAIL');
+    const authUrl = googleOAuthService.getAuthUrl(
+      userId,
+      state,
+      'GOOGLE_GMAIL'
+    );
 
     logger.info(`Initiating Gmail OAuth for user ${userId}`);
 
@@ -298,5 +302,3 @@ export const disconnect = async (req, res) => {
     }
   }
 };
-
-
