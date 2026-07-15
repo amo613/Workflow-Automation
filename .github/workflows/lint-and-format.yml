@@ -17,6 +17,8 @@ jobs:
   lint-and-format:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
 
     steps:
       - name: Checkout code
