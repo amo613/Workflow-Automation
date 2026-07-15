@@ -4,6 +4,7 @@ import { googleCalendarService } from '#services/google-calendar.service.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
+import { getRequiredAppUrl } from '#utils/app-url.utils.js';
 
 // Helper: Detect if this is Fastify (has reply) or Express (has res)
 const isFastify = reply =>
@@ -58,6 +59,7 @@ export const handleCallback = async (req, res) => {
   // Support both Express (res) and Fastify (reply)
   const reply = res; // Fastify uses 'reply', Express uses 'res'
   const isFastifyRequest = isFastify(reply);
+  const appUrl = getRequiredAppUrl();
 
   try {
     const { code, state } = req.query;
@@ -163,8 +165,7 @@ export const handleCallback = async (req, res) => {
     }
 
     // Redirect back to OpenAI test page with success flag
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const redirectUrl = `${frontendUrl}/test-openai?googleCalendar=connected`;
+    const redirectUrl = `${appUrl}/test-openai?googleCalendar=connected`;
 
     if (isFastifyRequest) {
       return reply.redirect(redirectUrl);
@@ -173,8 +174,7 @@ export const handleCallback = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error handling OAuth callback:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const errorRedirectUrl = `${frontendUrl}/integrations/google-calendar/error?message=${encodeURIComponent(error.message)}`;
+    const errorRedirectUrl = `${appUrl}/integrations/google-calendar/error?message=${encodeURIComponent(error.message)}`;
 
     if (isFastifyRequest) {
       return reply.redirect(errorRedirectUrl);

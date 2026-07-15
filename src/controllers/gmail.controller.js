@@ -4,6 +4,7 @@ import { gmailService } from '#services/gmail.service.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
+import { getRequiredAppUrl } from '#utils/app-url.utils.js';
 
 // Helper: Detect if this is Fastify (has reply) or Express (has res)
 const isFastify = reply =>
@@ -60,6 +61,7 @@ export const initiateAuth = async (req, res) => {
 export const handleCallback = async (req, res) => {
   const reply = res;
   const isFastifyRequest = isFastify(reply);
+  const appUrl = getRequiredAppUrl();
 
   try {
     const { code, state } = req.query;
@@ -162,8 +164,7 @@ export const handleCallback = async (req, res) => {
     }
 
     // Redirect back to workflow editor settings tab
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const redirectUrl = `${frontendUrl}/workflows?gmail=connected`;
+    const redirectUrl = `${appUrl}/workflows?gmail=connected`;
 
     if (isFastifyRequest) {
       return reply.redirect(redirectUrl);
@@ -172,8 +173,7 @@ export const handleCallback = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error handling Gmail OAuth callback:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const errorRedirectUrl = `${frontendUrl}/workflows?gmail=error&message=${encodeURIComponent(error.message)}`;
+    const errorRedirectUrl = `${appUrl}/workflows?gmail=error&message=${encodeURIComponent(error.message)}`;
 
     if (isFastifyRequest) {
       return reply.redirect(errorRedirectUrl);

@@ -1,6 +1,44 @@
 import { resolveTemplate } from '#utils/template-engine.js';
 import logger from '#config/logger.js';
-import { undiciAgent } from '#config/http-agent.js';
+
+function resolveConfiguredValue(value, context) {
+  if (typeof value === 'string') {
+    return resolveTemplate(value, context);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => resolveConfiguredValue(item, context));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        resolveConfiguredValue(item, context),
+      ])
+    );
+  }
+
+  return value;
+}
+
+function resolveObjectConfig(value, context) {
+  const resolvedValue = resolveConfiguredValue(value, context);
+  const parsedValue =
+    typeof resolvedValue === 'string'
+      ? JSON.parse(resolvedValue)
+      : resolvedValue;
+
+  if (
+    !parsedValue ||
+    typeof parsedValue !== 'object' ||
+    Array.isArray(parsedValue)
+  ) {
+    throw new TypeError('Expected a JSON object');
+  }
+
+  return parsedValue;
+}
 
 /**
  * Execute HTTP Request Node
@@ -26,8 +64,7 @@ export async function executeHttpRequest(data, context) {
 
   if (headers) {
     try {
-      const headersStr = resolveTemplate(headers, context);
-      resolvedHeaders = JSON.parse(headersStr);
+      resolvedHeaders = resolveObjectConfig(headers, context);
     } catch (error) {
       logger.warn('Failed to parse headers as JSON', { error: error.message });
     }
@@ -35,8 +72,11 @@ export async function executeHttpRequest(data, context) {
 
   if (body) {
     try {
-      const bodyStr = resolveTemplate(body, context);
-      resolvedBody = JSON.parse(bodyStr);
+      const resolvedValue = resolveConfiguredValue(body, context);
+      resolvedBody =
+        typeof resolvedValue === 'string'
+          ? JSON.parse(resolvedValue)
+          : resolvedValue;
     } catch (error) {
       logger.warn('Failed to parse body as JSON', { error: error.message });
       resolvedBody = resolveTemplate(body, context);
@@ -45,8 +85,7 @@ export async function executeHttpRequest(data, context) {
 
   if (query_params) {
     try {
-      const queryStr = resolveTemplate(query_params, context);
-      resolvedQueryParams = JSON.parse(queryStr);
+      resolvedQueryParams = resolveObjectConfig(query_params, context);
     } catch (error) {
       logger.warn('Failed to parse query params as JSON', {
         error: error.message,
@@ -67,8 +106,6 @@ export async function executeHttpRequest(data, context) {
         'Content-Type': 'application/json',
         ...resolvedHeaders,
       },
-      // ✅ Add undici dispatcher for connection pooling (native fetch)
-      dispatcher: undiciAgent,
     };
 
     if (resolvedBody && method.toUpperCase() !== 'GET') {

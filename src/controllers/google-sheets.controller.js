@@ -5,6 +5,7 @@ import { googleSheetsService } from '#services/google-sheets.service.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
+import { getRequiredAppUrl } from '#utils/app-url.utils.js';
 
 // Helper: Detect if this is Fastify (has reply) or Express (has res)
 const isFastify = reply =>
@@ -107,6 +108,7 @@ export const initiateAuth = async (req, res) => {
 export const handleCallback = async (req, res) => {
   const reply = res;
   const isFastifyRequest = isFastify(reply);
+  const appUrl = getRequiredAppUrl();
 
   try {
     // Support both Fastify (request.query) and Express (req.query)
@@ -262,26 +264,6 @@ export const handleCallback = async (req, res) => {
       });
     }
 
-    // Redirect back to Full Workflow Editor
-    // Get origin from request headers or use env var
-    const headers = req.headers || {};
-    let origin = headers.origin;
-
-    // If no origin, try to extract from referer
-    if (!origin && headers.referer) {
-      try {
-        const refererUrl = new URL(headers.referer);
-        origin = refererUrl.origin;
-      } catch {
-        // Ignore
-      }
-    }
-
-    // Fallback to env var or default
-    if (!origin) {
-      origin = process.env.FRONTEND_URL || 'http://localhost:5173';
-    }
-
     const returnUrl =
       stateData.returnUrl || stateData.redirectUrl || '/fullWorkflows';
 
@@ -290,16 +272,14 @@ export const handleCallback = async (req, res) => {
     const finalReturnUrl = returnUrl.startsWith('/')
       ? returnUrl
       : `/${returnUrl}`;
-    const redirectUrl = `${origin}${finalReturnUrl}?googleSheets=connected`;
+    const redirectUrl = `${appUrl}${finalReturnUrl}?googleSheets=connected`;
 
     logger.info('Redirecting OAuth callback', {
       redirectUrl,
-      origin,
+      appUrl,
       returnUrl: finalReturnUrl,
       userId,
       email,
-      headersOrigin: headers.origin,
-      headersReferer: headers.referer,
     });
 
     if (isFastifyRequest) {
@@ -309,25 +289,6 @@ export const handleCallback = async (req, res) => {
     }
   } catch (error) {
     logger.error('Error handling OAuth callback:', error);
-    // Get origin from request headers (for popup) or use env var
-    const headers = req.headers || {};
-    let origin = headers.origin;
-
-    // If no origin, try to extract from referer
-    if (!origin && headers.referer) {
-      try {
-        const refererUrl = new URL(headers.referer);
-        origin = refererUrl.origin;
-      } catch {
-        // Ignore
-      }
-    }
-
-    // Fallback to env var or default
-    if (!origin) {
-      origin = process.env.FRONTEND_URL || 'http://localhost:5173';
-    }
-
     // Try to get returnUrl from state if available, otherwise use default
     let returnUrl = '/fullWorkflows';
     try {
@@ -344,11 +305,11 @@ export const handleCallback = async (req, res) => {
     const finalReturnUrl = returnUrl.startsWith('/')
       ? returnUrl
       : `/${returnUrl}`;
-    const errorRedirectUrl = `${origin}${finalReturnUrl}?googleSheets=error&error=${encodeURIComponent(error.message || 'OAuth failed')}`;
+    const errorRedirectUrl = `${appUrl}${finalReturnUrl}?googleSheets=error&error=${encodeURIComponent(error.message || 'OAuth failed')}`;
 
     logger.error('Redirecting to error URL', {
       errorRedirectUrl,
-      origin,
+      appUrl,
       returnUrl: finalReturnUrl,
       error: error.message,
     });

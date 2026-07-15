@@ -54,11 +54,10 @@ export const googleSheetsRoutesFastify = async fastify => {
       // Error handling to prevent crashes
       if (!reply.sent) {
         logger.error('Error in handleCallback route:', error);
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        const returnUrl = request.query?.returnUrl || '/fullWorkflows';
-        return reply.redirect(
-          `${frontendUrl}${returnUrl}?googleSheets=error&error=${encodeURIComponent(error.message || 'OAuth callback failed')}`
-        );
+        return reply.status(500).send({
+          error: 'Google Sheets OAuth callback failed',
+          message: error.message || 'Unknown error',
+        });
       }
     }
   });
