@@ -107,7 +107,7 @@ export const authenticateToken = (req, res, next) => {
     req.authMethod = authMethod;
 
     logger.info(
-      `User authenticated: ${decoded.email} (${decoded.role}) via ${authMethod}`
+      `User authenticated with role ${decoded.role} via ${authMethod}`
     );
     next();
   } catch (e) {

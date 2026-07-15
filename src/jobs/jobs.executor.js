@@ -135,12 +135,11 @@ export const jobWorker = new Worker(
 
 // Event listeners for the job worker TODO: Add more methods to the job worker.
 jobWorker.on('ready', () => {
-  logger.info(`Job worker ready, connected to Redis: ${REDIS_URL}`);
+  logger.info('Job worker ready and connected to Redis');
 });
 
 jobWorker.on('error', err => {
   logger.error(`Job worker error: ${err?.message}`);
-  logger.error(`Redis URL used: ${REDIS_URL}`);
 });
 
 jobWorker.on('active', async job => {

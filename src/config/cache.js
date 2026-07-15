@@ -143,8 +143,13 @@ export const getRedisClient = () => redisClient;
 export const closeRedis = async () => {
   try {
     if (redisClient && redisClient.isOpen) {
-      await redisClient.quit();
-      redisClient = null;
+      if (redisClient.isReady) {
+        await redisClient.quit();
+      } else {
+        // quit() waits for an unavailable server; disconnect immediately while
+        // a connection attempt is still pending (notably during test cleanup).
+        redisClient.disconnect();
+      }
       if (process.env.NODE_ENV !== 'test') {
         logger.info('Redis client closed');
       }
@@ -153,6 +158,7 @@ export const closeRedis = async () => {
     if (process.env.NODE_ENV !== 'test') {
       logger.error('Error closing Redis client:', error);
     }
+  } finally {
     redisClient = null;
   }
 };
