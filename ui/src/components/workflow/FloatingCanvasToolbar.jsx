@@ -7,6 +7,7 @@ import {
   Play,
   Pencil,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -26,6 +27,8 @@ export default function FloatingCanvasToolbar({
   onExport,
   onKnowledgeBase,
   onExecute,
+  onBack,
+  backLabel = 'Workflows',
   onOpenAgentsSettings,
   isFullWorkflow = true,
   saving = false,
@@ -63,6 +66,27 @@ export default function FloatingCanvasToolbar({
         borderColor: 'hsl(var(--border))',
       }}
     >
+      {onBack && (
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+            onClick={onBack}
+            title={`Back to ${backLabel}`}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {backLabel}
+          </Button>
+
+          <div
+            className="h-6 w-px shrink-0"
+            style={{ background: 'hsl(var(--border))' }}
+          />
+        </>
+      )}
+
       {/* Workflow name (editable) */}
       <div className="flex items-center gap-2 min-w-0 max-w-[220px]">
         {isEditingName ? (

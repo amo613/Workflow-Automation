@@ -1,4 +1,15 @@
 import { useState, useEffect } from 'react';
+import {
+  BookOpen,
+  FileText,
+  Loader2,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { fetchWithCSRF } from '../../utils/csrf.utils.js';
 
 /**
@@ -110,305 +121,195 @@ export default function KnowledgeBaseManager({ onClose }) {
 
   return (
     <div
+      className="custom-scrollbar h-full w-full overflow-y-auto border-l border-border/60 bg-card/95 text-foreground shadow-2xl shadow-black/40 backdrop-blur-xl"
       style={{
-        width: '400px',
-        background: 'hsl(var(--card))',
-        borderLeft: '1px solid hsl(var(--border))',
-        padding: '1.5rem',
-        overflowY: 'auto',
-        height: '100%',
-        boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.1)',
+        background:
+          'radial-gradient(circle at top right, rgba(168, 85, 247, 0.14), transparent 34%), radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 30%), hsl(var(--card))',
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: '#1a202c',
-            margin: 0,
-          }}
-        >
-          📚 Knowledge Base
-        </h2>
-        <button
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-card/80 px-5 py-4 backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-purple-500/30 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 shadow-lg shadow-purple-500/10">
+            <BookOpen className="h-5 w-5 text-purple-300" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="truncate bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-lg font-bold text-transparent">
+              Knowledge Base
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Reusable context for your workflows
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '1.5rem',
-            cursor: 'pointer',
-            color: '#64748b',
-            padding: '0.25rem 0.5rem',
-            borderRadius: '8px',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)';
-            e.currentTarget.style.color = '#1f2937';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#64748b';
-          }}
+          className="shrink-0 text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Close knowledge base"
         >
-          ×
-        </button>
+          <X className="h-5 w-5" />
+        </Button>
       </div>
 
-      {/* Create/Edit Form */}
-      <div
-        style={{
-          marginBottom: '1.5rem',
-          padding: '1rem',
-          background: '#f8fafc',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <h3
-          style={{
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            color: '#1a202c',
-            marginBottom: '1rem',
-          }}
-        >
-          {editingId ? 'Edit Entry' : 'Create New Entry'}
-        </h3>
-        <div style={{ marginBottom: '1rem' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: '#64748b',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-            }}
-          >
-            Name
-          </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={e => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., Product Name"
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              color: '#111827',
-              fontSize: '0.875rem',
-              fontFamily: 'inherit',
-            }}
-          />
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label
-            style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: '#64748b',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-            }}
-          >
-            Text
-          </label>
-          <textarea
-            value={formData.text}
-            onChange={e => setFormData({ ...formData, text: e.target.value })}
-            placeholder="Enter knowledge base text..."
-            rows={4}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              fontFamily: 'inherit',
-              color: '#111827',
-              resize: 'vertical',
-            }}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={editingId ? () => handleUpdate(editingId) : handleCreate}
-            style={{
-              flex: 1,
-              padding: '0.75rem',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            {editingId ? 'Update' : 'Create'}
-          </button>
-          {editingId && (
-            <button
-              onClick={cancelEdit}
-              style={{
-                padding: '0.75rem 1rem',
-                background: '#f1f5f9',
-                color: '#64748b',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+      <div className="space-y-6 p-5">
+        {/* Create/Edit Form */}
+        <div className="rounded-2xl border border-border/60 bg-background/55 p-5 shadow-xl shadow-black/10 backdrop-blur-sm">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-500/25 bg-blue-500/10">
+              {editingId ? (
+                <Pencil className="h-4 w-4 text-blue-300" />
+              ) : (
+                <Plus className="h-4 w-4 text-blue-300" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                {editingId ? 'Edit Entry' : 'Create New Entry'}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {editingId
+                  ? 'Update the selected knowledge entry.'
+                  : 'Add information your workflow can reuse.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Name
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g., Product Name"
+              className="w-full rounded-xl border border-input bg-card/70 px-3.5 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15"
+            />
+          </div>
+
+          <div className="mb-5">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Text
+            </label>
+            <textarea
+              value={formData.text}
+              onChange={e => setFormData({ ...formData, text: e.target.value })}
+              placeholder="Enter knowledge base text..."
+              rows={6}
+              className="min-h-36 w-full resize-y rounded-xl border border-input bg-card/70 px-3.5 py-3 text-sm leading-6 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-purple-500/70 focus:ring-2 focus:ring-purple-500/15"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={editingId ? () => handleUpdate(editingId) : handleCreate}
+              className="flex-1 gap-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20 transition hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-purple-500/30"
             >
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Entries List */}
-      <div>
-        <h3
-          style={{
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            color: '#1a202c',
-            marginBottom: '1rem',
-          }}
-        >
-          Entries ({entries.length})
-        </h3>
-        {loading ? (
-          <div
-            style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}
-          >
-            Loading...
-          </div>
-        ) : entries.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '2rem',
-              color: '#94a3b8',
-              fontSize: '0.875rem',
-            }}
-          >
-            No entries yet. Create your first entry above.
-          </div>
-        ) : (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-          >
-            {entries.map(entry => (
-              <div
-                key={entry.id}
-                style={{
-                  padding: '1rem',
-                  background:
-                    editingId === entry.id
-                      ? 'hsl(var(--accent))'
-                      : 'hsl(var(--card))',
-                  border: `1px solid ${editingId === entry.id ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
-                  borderRadius: '8px',
-                  transition: 'all 0.2s',
-                }}
+              {editingId ? (
+                <Save className="h-4 w-4" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {editingId ? 'Update Entry' : 'Create Entry'}
+            </Button>
+            {editingId && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancelEdit}
+                className="border-border/70 bg-card/60 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Entries List */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-purple-300" />
+              <h3 className="text-sm font-semibold text-foreground">Entries</h3>
+            </div>
+            <span className="rounded-full border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 text-xs font-semibold text-purple-200">
+              {entries.length}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-border/50 bg-background/40 px-4 py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-purple-300" />
+              Loading entries...
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border/70 bg-background/35 px-5 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-purple-500/20 bg-purple-500/10">
+                <BookOpen className="h-5 w-5 text-purple-300" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                No entries yet
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Create your first reusable knowledge entry above.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {entries.map(entry => (
                 <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: '0.5rem',
-                  }}
+                  key={entry.id}
+                  className={`rounded-2xl border p-4 transition ${
+                    editingId === entry.id
+                      ? 'border-purple-500/60 bg-purple-500/10 shadow-lg shadow-purple-500/10'
+                      : 'border-border/60 bg-background/45 hover:border-purple-500/35 hover:bg-background/60'
+                  }`}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: '0.875rem',
-                        color: '#1a202c',
-                        marginBottom: '0.25rem',
-                      }}
-                    >
-                      {entry.name}
+                  <div className="mb-3 flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10">
+                      <FileText className="h-4 w-4 text-blue-300" />
                     </div>
-                    <div
-                      style={{
-                        fontSize: '0.75rem',
-                        color: '#64748b',
-                        lineHeight: '1.5',
-                        maxHeight: '60px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {entry.text}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {entry.name}
+                      </div>
+                      <div className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+                        {entry.text}
+                      </div>
                     </div>
                   </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startEdit(entry)}
+                      className="flex-1 gap-1.5 border-border/70 bg-card/50 text-muted-foreground hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-200"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(entry.id)}
+                      className="flex-1 gap-1.5 border-red-500/25 bg-red-500/5 text-red-300 hover:border-red-500/50 hover:bg-red-500/15 hover:text-red-200"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '0.5rem',
-                    marginTop: '0.75rem',
-                  }}
-                >
-                  <button
-                    onClick={() => startEdit(entry)}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      background: '#f1f5f9',
-                      color: '#475569',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    style={{
-                      flex: 1,
-                      padding: '0.5rem',
-                      background: '#fef2f2',
-                      color: '#dc2626',
-                      border: '1px solid #fecaca',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

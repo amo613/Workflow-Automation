@@ -494,6 +494,8 @@ function WorkflowEditorInner() {
           <FloatingCanvasToolbar
             workflowName={name}
             onWorkflowNameChange={setName}
+            onBack={() => navigate('/workflows')}
+            backLabel="Call Flows"
             activeTab="call"
             onSwitchTab={tab => {
               if (tab === 'full') {
