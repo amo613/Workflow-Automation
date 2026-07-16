@@ -9,7 +9,6 @@ export function useHubspot(shouldFetch = false) {
   const [lists, setLists] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -74,41 +73,6 @@ export function useHubspot(shouldFetch = false) {
     }
   };
 
-  const fetchSubscriptions = async () => {
-    try {
-      const data = await hubspotService.getWebhookSubscriptions();
-      setSubscriptions(data);
-    } catch (err) {
-      setError(err.message);
-      setSubscriptions([]);
-      console.error('Error fetching subscriptions:', err);
-    }
-  };
-
-  const createSubscriptions = async (eventTypes, webhookUrl) => {
-    try {
-      const result = await hubspotService.createWebhookSubscriptions(
-        eventTypes,
-        webhookUrl
-      );
-      await fetchSubscriptions(); // Refresh list
-      return result;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  const deleteSubscriptions = async subscriptionIds => {
-    try {
-      await hubspotService.deleteWebhookSubscriptions(subscriptionIds);
-      await fetchSubscriptions(); // Refresh list
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
   const authenticate = async (returnUrl, workflowId) => {
     try {
       await hubspotService.authenticate(returnUrl, workflowId);
@@ -140,16 +104,12 @@ export function useHubspot(shouldFetch = false) {
     lists,
     contacts,
     companies,
-    subscriptions,
     loading,
     error,
     fetchStatus,
     fetchLists,
     fetchContacts,
     fetchCompanies,
-    fetchSubscriptions,
-    createSubscriptions,
-    deleteSubscriptions,
     authenticate,
     disconnect,
   };

@@ -22,6 +22,8 @@ export const integrations = pgTable('integrations', {
   access_token: text('access_token').notNull(),
   refresh_token: text('refresh_token'),
   token_expires_at: timestamp('token_expires_at'),
+  external_account_id: varchar('external_account_id', { length: 100 }),
+  granted_scopes: text('granted_scopes'),
 
   // Google Calendar specific config
   email: varchar('email', { length: 255 }), // Google Account Email

@@ -1,1033 +1,481 @@
 import logger from '#config/logger.js';
-import { hubspotOAuthService } from '#services/hubspot-oauth.service.js';
-import { hubspotService } from '#services/hubspot.service.js';
-import { hubspotWebhookService } from '#services/hubspot-webhook.service.js';
+import { HUBSPOT_CLIENT_SECRET } from '#config/env.js';
 import { db } from '#config/database.js';
 import { integrations } from '#models/integration.model.js';
-import { eq, and } from 'drizzle-orm';
+import { fullWorkflows } from '#models/full-workflow.model.js';
+import { and, eq, inArray } from 'drizzle-orm';
+import { hubspotOAuthService } from '#services/hubspot-oauth.service.js';
+import { hubspotService } from '#services/hubspot.service.js';
+import {
+  claimHubSpotEvent,
+  normalizeHubSpotEvent,
+  validateHubSpotSignature,
+} from '#services/hubspot-webhook.service.js';
 import {
   getIntegration,
   updateIntegration,
 } from '#services/integration.service.js';
+import { triggerWorkflow } from '#services/full-workflow/trigger.service.js';
+import { getRequiredAppUrl } from '#utils/app-url.utils.js';
 
-// Helper: Detect if this is Fastify (has reply) or Express (has res)
 const isFastify = reply =>
   reply &&
   typeof reply.send === 'function' &&
   typeof reply.status === 'function';
 
-/**
- * GET /api/integrations/hubspot/auth
- * Start OAuth Flow - returns URL
- */
+function send(reply, statusCode, payload) {
+  if (isFastify(reply)) {
+    return reply.status(statusCode).send(payload);
+  }
+  return reply.status(statusCode).json(payload);
+}
+
+function getAuthenticatedUser(req) {
+  return req.user || req.request?.user || null;
+}
+
+function normalizeReturnUrl(returnUrl) {
+  if (
+    !returnUrl ||
+    typeof returnUrl !== 'string' ||
+    !returnUrl.startsWith('/') ||
+    returnUrl.startsWith('//')
+  ) {
+    return '/fullWorkflows';
+  }
+  return returnUrl;
+}
+
 export const initiateAuth = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
   try {
-    const user = req.user || (req.request && req.request.user) || null;
-    if (!user || !user.id) {
-      logger.error('Authentication failed - user not found in request');
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        reply.status(401).send(errorResponse);
-        throw new Error('Authentication required');
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-    const userId = user.id;
-    const returnUrl = req.query?.returnUrl || req.query?.redirectUrl || null;
-    const workflowId = req.query?.workflowId || null;
-
-    let finalReturnUrl = null;
-    if (workflowId) {
-      finalReturnUrl = `/fullWorkflows/${workflowId}`;
-    } else if (returnUrl) {
-      finalReturnUrl = returnUrl;
-    } else {
-      const referer = req.headers?.referer || req.headers?.referrer;
-      if (referer) {
-        try {
-          const url = new URL(referer);
-          finalReturnUrl = url.pathname;
-        } catch {
-          // Ignore
-        }
-      }
+    const user = getAuthenticatedUser(req);
+    if (!user?.id) {
+      return send(res, 401, { error: 'Authentication required' });
     }
 
-    const state = {
-      userId,
-      timestamp: Date.now(),
-      returnUrl: finalReturnUrl,
-      integrationType: 'HUBSPOT',
-    };
+    const workflowId = req.query?.workflowId;
+    const returnUrl = workflowId
+      ? `/fullWorkflows/${workflowId}`
+      : normalizeReturnUrl(
+          req.query?.returnUrl || req.query?.redirectUrl || '/fullWorkflows'
+        );
 
-    const authUrl = hubspotOAuthService.getAuthUrl(userId, state);
-    logger.info(`Initiating HubSpot OAuth for user ${userId}`);
-    const response = {
+    const authUrl = hubspotOAuthService.getAuthUrl(user.id, { returnUrl });
+    logger.info('Initiating HubSpot OAuth', { userId: user.id });
+
+    return send(res, 200, {
       authUrl,
       message: 'Redirect user to this URL to authorize',
-    };
-    if (isFastifyRequest) {
-      return reply.send(response);
-    } else {
-      return res.json(response);
-    }
+    });
   } catch (error) {
-    logger.error('Error initiating HubSpot OAuth:', error);
-    const errorResponse = {
+    logger.error('Error initiating HubSpot OAuth', {
+      error: error.message,
+    });
+    return send(res, 500, {
       error: 'Failed to initiate OAuth',
-      message: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
+      message: error.message,
+    });
   }
 };
 
 export const handleCallback = async (req, res) => {
-  const reply = res;
+  const appUrl = getRequiredAppUrl();
+  let returnUrl = '/fullWorkflows';
+
   try {
-    const { code, state } = req.query;
-    if (!code) {
-      throw new Error('Authorization code not found');
+    const {
+      code,
+      state,
+      error,
+      error_description: errorDescription,
+    } = req.query || {};
+
+    if (error) {
+      throw new Error(errorDescription || error);
     }
-    const stateData = JSON.parse(state);
-    const userId = stateData.userId;
+
+    const stateData = hubspotOAuthService.verifyState(state);
+    returnUrl = normalizeReturnUrl(stateData.returnUrl);
+
+    if (!code) {
+      throw new Error('HubSpot authorization code is missing');
+    }
 
     const tokens = await hubspotOAuthService.exchangeCodeForTokens(code);
+    if (!tokens.externalAccountId) {
+      throw new Error('HubSpot OAuth response did not include a portal ID');
+    }
 
     const existingIntegration = await db
       .select()
       .from(integrations)
       .where(
         and(
-          eq(integrations.user_id, userId),
+          eq(integrations.user_id, stateData.userId),
           eq(integrations.integration_type, 'HUBSPOT')
         )
       )
       .limit(1);
 
+    const integrationData = {
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      token_expires_at: tokens.expiresAt,
+      external_account_id: tokens.externalAccountId,
+      granted_scopes: JSON.stringify(tokens.grantedScopes),
+      is_complete: true,
+      is_active: true,
+      updated_at: new Date(),
+    };
+
     if (existingIntegration[0]) {
       await db
         .update(integrations)
-        .set({
-          access_token: tokens.accessToken,
-          refresh_token: tokens.refreshToken,
-          token_expires_at: tokens.expiresAt,
-          is_complete: true,
-          is_active: true,
-          updated_at: new Date(),
-        })
+        .set(integrationData)
         .where(eq(integrations.id, existingIntegration[0].id));
-
-      logger.info(`Updated HubSpot integration for user ${userId}`, {
-        integrationId: existingIntegration[0].id,
-        isActive: true,
-      });
     } else {
-      const [newIntegration] = await db
-        .insert(integrations)
-        .values({
-          user_id: userId,
-          integration_type: 'HUBSPOT',
-          access_token: tokens.accessToken,
-          refresh_token: tokens.refreshToken,
-          token_expires_at: tokens.expiresAt,
-          is_complete: true,
-          is_active: true,
-        })
-        .returning();
-
-      logger.info(`Created HubSpot integration for user ${userId}`, {
-        integrationId: newIntegration?.id,
-        isActive: true,
+      await db.insert(integrations).values({
+        user_id: stateData.userId,
+        integration_type: 'HUBSPOT',
+        ...integrationData,
       });
     }
 
-    const headers = req.headers || {};
-    let origin = headers.origin;
-    if (!origin && headers.referer) {
-      try {
-        const refererUrl = new URL(headers.referer);
-        origin = refererUrl.origin;
-      } catch {
-        // Ignore
-      }
-    }
-    if (!origin) {
-      origin = process.env.FRONTEND_URL || 'http://localhost:5173';
-    }
-    const returnUrl =
-      stateData.returnUrl || stateData.redirectUrl || '/fullWorkflows';
-    const finalReturnUrl = returnUrl.startsWith('/')
-      ? returnUrl
-      : `/${returnUrl}`;
-    const redirectUrl = `${origin}${finalReturnUrl}?hubspot=connected`;
-    logger.info(`Redirecting user ${userId} to ${redirectUrl}`);
-    return reply.redirect(redirectUrl);
+    hubspotService.clearCachedToken(stateData.userId);
+    logger.info('HubSpot OAuth connection saved', {
+      userId: stateData.userId,
+      portalId: tokens.externalAccountId,
+    });
+
+    return res.redirect(`${appUrl}${returnUrl}?hubspot=connected`);
   } catch (error) {
-    logger.error('Error in HubSpot OAuth callback:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const returnUrl = req.query?.returnUrl || '/fullWorkflows';
-    return reply.redirect(
-      `${frontendUrl}${returnUrl}?hubspot=error&error=${encodeURIComponent(error.message || 'OAuth callback failed')}`
+    logger.error('Error in HubSpot OAuth callback', {
+      error: error.message,
+    });
+    return res.redirect(
+      `${appUrl}${returnUrl}?hubspot=error&error=${encodeURIComponent(error.message || 'OAuth callback failed')}`
     );
   }
 };
 
 export const getStatus = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
   try {
-    const user = req.user || (req.request && req.request.user) || null;
-    if (!user || !user.id) {
-      logger.error('Authentication failed - user not found in request');
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
+    const user = getAuthenticatedUser(req);
+    if (!user?.id) {
+      return send(res, 401, { error: 'Authentication required' });
     }
-    const userId = user.id;
-    const integration = await getIntegration(userId, 'HUBSPOT');
-    const connected = !!integration?.isActive;
-    const response = {
-      connected,
-      email: integration?.email || null, // HubSpot doesn't directly provide email in OAuth, might need separate API call
-    };
-    if (isFastifyRequest) {
-      return reply.send(response);
-    } else {
-      return res.json(response);
-    }
+
+    const integration = await getIntegration(user.id, 'HUBSPOT');
+    return send(res, 200, {
+      connected: !!integration?.isActive,
+      portalId: integration?.externalAccountId || null,
+      scopes: integration?.grantedScopes || [],
+    });
   } catch (error) {
-    logger.error('Error getting HubSpot status:', error);
-    const errorResponse = {
-      connected: false,
-      error: 'Failed to get status',
-      message: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
+    logger.error('Error getting HubSpot status', { error: error.message });
+    return send(res, 500, {
+      error: 'Failed to get HubSpot status',
+      message: error.message,
+    });
   }
 };
 
 export const disconnect = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
   try {
-    const user = req.user || (req.request && req.request.user) || null;
-    if (!user || !user.id) {
-      logger.error('Authentication failed - user not found in request');
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
+    const user = getAuthenticatedUser(req);
+    if (!user?.id) {
+      return send(res, 401, { error: 'Authentication required' });
     }
-    const userId = user.id;
-    await updateIntegration(userId, 'HUBSPOT', { is_active: false });
-    logger.info(`Disconnected HubSpot integration for user ${userId}`);
-    const response = { success: true, message: 'HubSpot disconnected' };
-    if (isFastifyRequest) {
-      return reply.send(response);
-    } else {
-      return res.json(response);
-    }
+
+    await updateIntegration(user.id, 'HUBSPOT', {
+      is_active: false,
+      is_complete: false,
+    });
+    hubspotService.clearCachedToken(user.id);
+
+    return send(res, 200, {
+      success: true,
+      message: 'HubSpot disconnected',
+    });
   } catch (error) {
-    logger.error('Error disconnecting HubSpot:', error);
-    const errorResponse = {
+    logger.error('Error disconnecting HubSpot', { error: error.message });
+    return send(res, 500, {
       success: false,
       error: 'Failed to disconnect',
-      message: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
+      message: error.message,
+    });
   }
 };
 
+async function requireHubSpotAccessToken(req, res) {
+  const user = getAuthenticatedUser(req);
+  if (!user?.id) {
+    send(res, 401, { error: 'Authentication required' });
+    return null;
+  }
+
+  const integration = await getIntegration(user.id, 'HUBSPOT');
+  if (!integration) {
+    send(res, 400, { error: 'HubSpot not connected' });
+    return null;
+  }
+
+  const { accessToken } = await hubspotService.getAuthenticatedClient(user.id);
+  return { accessToken, userId: user.id };
+}
+
 export const getLists = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
   try {
-    const user = req.user || (req.request && req.request.user) || null;
+    const auth = await requireHubSpotAccessToken(req, res);
+    if (!auth) return;
 
-    if (!user || !user.id) {
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-
-    const userId = user.id;
-
-    const integration = await db
-      .select()
-      .from(integrations)
-      .where(
-        and(
-          eq(integrations.user_id, userId),
-          eq(integrations.integration_type, 'HUBSPOT'),
-          eq(integrations.is_active, true)
-        )
-      )
-      .limit(1);
-
-    if (!integration[0]) {
-      const errorResponse = { error: 'HubSpot not connected' };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    try {
-      const { accessToken } =
-        await hubspotService.getAuthenticatedClient(userId);
-      const lists = await hubspotService.getLists(accessToken);
-
-      logger.info('HubSpot lists retrieved', {
-        userId,
-        count: lists.length,
-      });
-
-      const result = {
-        success: true,
-        data: lists.map(list => ({
-          id: list.listId,
-          name: list.name,
-        })),
-      };
-
-      if (isFastifyRequest) {
-        return reply.send(result);
-      } else {
-        return res.json(result);
-      }
-    } catch (error) {
-      logger.error('Error in getLists controller:', error);
-      const errorResponse = {
-        success: false,
-        error: error.message || 'Failed to get lists',
-      };
-      if (isFastifyRequest) {
-        return reply.status(500).send(errorResponse);
-      } else {
-        return res.status(500).json(errorResponse);
-      }
-    }
+    const lists = await hubspotService.getLists(auth.accessToken);
+    return send(res, 200, {
+      success: true,
+      data: lists.map(list => ({
+        id: String(list.listId || list.id),
+        name: list.name,
+      })),
+    });
   } catch (error) {
-    logger.error('Error getting HubSpot lists:', error);
-    const errorResponse = {
-      error: 'Failed to get lists',
-      message: error.message || 'Unknown error',
-    };
-
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
+    logger.error('Error getting HubSpot lists', { error: error.message });
+    return send(res, 500, {
+      success: false,
+      error: error.message || 'Failed to get lists',
+    });
   }
 };
 
 export const getContacts = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
   try {
-    const user = req.user || (req.request && req.request.user) || null;
+    const auth = await requireHubSpotAccessToken(req, res);
+    if (!auth) return;
 
-    if (!user || !user.id) {
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-
-    const userId = user.id;
-    const limit = parseInt(req.query?.limit || '100', 10);
-
-    const integration = await db
-      .select()
-      .from(integrations)
-      .where(
-        and(
-          eq(integrations.user_id, userId),
-          eq(integrations.integration_type, 'HUBSPOT'),
-          eq(integrations.is_active, true)
-        )
-      )
-      .limit(1);
-
-    if (!integration[0]) {
-      const errorResponse = { error: 'HubSpot not connected' };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    try {
-      const { accessToken } =
-        await hubspotService.getAuthenticatedClient(userId);
-      const contacts = await hubspotService.getContacts(accessToken, limit);
-
-      logger.info('HubSpot contacts retrieved', {
-        userId,
-        count: contacts.length,
-      });
-
-      const result = {
-        success: true,
-        data: contacts.map(contact => ({
-          id: contact.id,
-          email: contact.properties.email,
-          displayName:
-            `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim() ||
-            contact.properties.email,
-        })),
-      };
-
-      if (isFastifyRequest) {
-        return reply.send(result);
-      } else {
-        return res.json(result);
-      }
-    } catch (error) {
-      logger.error('Error in getContacts controller:', error);
-      const errorResponse = {
-        success: false,
-        error: error.message || 'Failed to get contacts',
-      };
-      if (isFastifyRequest) {
-        return reply.status(500).send(errorResponse);
-      } else {
-        return res.status(500).json(errorResponse);
-      }
-    }
-  } catch (error) {
-    logger.error('Error getting HubSpot contacts:', error);
-    const errorResponse = {
-      error: 'Failed to get contacts',
-      message: error.message || 'Unknown error',
-    };
-
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
-  }
-};
-
-/**
- * GET /api/integrations/hubspot/companies
- * Get all companies from HubSpot
- */
-export const getCompanies = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
-  try {
-    const user = req.user || (req.request && req.request.user) || null;
-
-    if (!user || !user.id) {
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-
-    const userId = user.id;
-    const limit = parseInt(req.query?.limit || '100', 10);
-
-    const integration = await db
-      .select()
-      .from(integrations)
-      .where(
-        and(
-          eq(integrations.user_id, userId),
-          eq(integrations.integration_type, 'HUBSPOT'),
-          eq(integrations.is_active, true)
-        )
-      )
-      .limit(1);
-
-    if (!integration[0]) {
-      const errorResponse = { error: 'HubSpot not connected' };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    try {
-      const { accessToken } =
-        await hubspotService.getAuthenticatedClient(userId);
-      const companies = await hubspotService.getCompanies(accessToken, limit);
-
-      logger.info('HubSpot companies retrieved', {
-        userId,
-        count: companies.length,
-      });
-
-      const result = {
-        success: true,
-        data: companies.map(company => ({
-          id: company.id,
-          name: company.properties?.name || '',
-          domain: company.properties?.domain || '',
-          phone: company.properties?.phone || '',
-          city: company.properties?.city || '',
-          country: company.properties?.country || '',
-          industry: company.properties?.industry || '',
-          displayName: company.properties?.name || 'Unknown',
-        })),
-      };
-
-      if (isFastifyRequest) {
-        return reply.send(result);
-      } else {
-        return res.json(result);
-      }
-    } catch (error) {
-      logger.error('Error in getCompanies controller:', error);
-      const errorResponse = {
-        success: false,
-        error: error.message || 'Failed to get companies',
-      };
-      if (isFastifyRequest) {
-        return reply.status(500).send(errorResponse);
-      } else {
-        return res.status(500).json(errorResponse);
-      }
-    }
-  } catch (error) {
-    logger.error('Error getting HubSpot companies:', error);
-    const errorResponse = {
-      error: 'Failed to get companies',
-      message: error.message || 'Unknown error',
-    };
-
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
-  }
-};
-
-/**
- * POST /api/integrations/hubspot/webhook
- * Handle incoming HubSpot webhook events
- * NO AUTH - HubSpot sends webhooks
- */
-export const handleWebhook = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
-  try {
-    const { workflowId } = req.query || {};
-    const webhookPayload = req.body || {};
-
-    // ENHANCED LOGGING - Log everything to debug
-    logger.info('HubSpot webhook received - FULL DETAILS', {
-      workflowId,
-      method: req.method || 'POST',
-      url: req.url,
-      headers: {
-        'content-type': req.headers?.['content-type'],
-        'user-agent': req.headers?.['user-agent'],
-        'x-hubspot-signature': req.headers?.['x-hubspot-signature'],
-        'x-hubspot-request-timestamp':
-          req.headers?.['x-hubspot-request-timestamp'],
-      },
-      query: req.query || {},
-      bodyType: Array.isArray(webhookPayload) ? 'array' : typeof webhookPayload,
-      bodyIsArray: Array.isArray(webhookPayload),
-      bodyLength: Array.isArray(webhookPayload)
-        ? webhookPayload.length
-        : Object.keys(webhookPayload).length,
-      bodyPreview: JSON.stringify(webhookPayload).substring(0, 1000),
-    });
-
-    if (!workflowId) {
-      logger.warn('HubSpot webhook called without workflowId');
-      const errorResponse = {
-        success: false,
-        error: 'workflowId is required',
-      };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    // Handle HubSpot webhook format - it might be an array of events
-    let events = [];
-    if (Array.isArray(webhookPayload)) {
-      events = webhookPayload;
-      logger.info('HubSpot webhook contains array of events', {
-        eventCount: events.length,
-        workflowId,
-      });
-    } else if (
-      webhookPayload.subscriptionId ||
-      webhookPayload.subscriptionType ||
-      webhookPayload.eventType
-    ) {
-      // Single event object
-      events = [webhookPayload];
-      logger.info('HubSpot webhook contains single event', {
-        workflowId,
-        subscriptionId: webhookPayload.subscriptionId,
-        subscriptionType:
-          webhookPayload.subscriptionType || webhookPayload.eventType,
-      });
-    } else {
-      // Try to find events in nested structure
-      events = webhookPayload.events || webhookPayload.data || [webhookPayload];
-      logger.info('HubSpot webhook - extracted events from nested structure', {
-        eventCount: events.length,
-        payloadKeys: Object.keys(webhookPayload),
-        workflowId,
-      });
-    }
-
-    if (events.length === 0) {
-      logger.warn('HubSpot webhook received but no events found', {
-        workflowId,
-        payload: webhookPayload,
-      });
-      // Still return 200 to acknowledge receipt
-      const response = {
-        success: true,
-        message: 'Webhook received but no events found',
-      };
-      if (isFastifyRequest) {
-        return reply.status(200).send(response);
-      } else {
-        return res.status(200).json(response);
-      }
-    }
-
-    // Load workflow
-    const { getFullWorkflow } = await import(
-      '#services/full-workflow.service.js'
+    const limit = Math.min(
+      Math.max(Number.parseInt(req.query?.limit || '100', 10), 1),
+      100
     );
-    const { triggerWorkflow } = await import(
-      '#services/full-workflow/trigger.service.js'
-    );
+    const contacts = await hubspotService.getContacts(auth.accessToken, limit);
 
-    let workflow;
-    try {
-      workflow = await getFullWorkflow(parseInt(workflowId, 10), null);
-    } catch (error) {
-      logger.error('Failed to load workflow for HubSpot webhook', {
-        workflowId,
-        error: error.message,
-      });
-      const errorResponse = {
-        success: false,
-        error: 'Workflow not found',
-      };
-      if (isFastifyRequest) {
-        return reply.status(404).send(errorResponse);
-      } else {
-        return res.status(404).json(errorResponse);
-      }
-    }
-
-    if (!workflow || !workflow.is_active) {
-      logger.warn('Workflow not found or not active for HubSpot webhook', {
-        workflowId,
-        isActive: workflow?.is_active,
-      });
-      const errorResponse = {
-        success: false,
-        error: 'Workflow not found or not active',
-      };
-      if (isFastifyRequest) {
-        return reply.status(404).send(errorResponse);
-      } else {
-        return res.status(404).json(errorResponse);
-      }
-    }
-
-    // Find HubSpot trigger node
-    const workflowJson = workflow.workflow_json || {};
-    const nodes = workflowJson.nodes || [];
-    const hubspotTriggerNodes = nodes.filter(
-      node => node.type === 'hubspot-trigger'
-    );
-
-    if (hubspotTriggerNodes.length === 0) {
-      logger.error('No HubSpot trigger node found in workflow', {
-        workflowId,
-      });
-      const errorResponse = {
-        success: false,
-        error: 'No HubSpot trigger node found',
-      };
-      if (isFastifyRequest) {
-        return reply.status(500).send(errorResponse);
-      } else {
-        return res.status(500).json(errorResponse);
-      }
-    }
-
-    // Use first HubSpot trigger node (if multiple exist)
-    const hubspotTriggerNode = hubspotTriggerNodes[0];
-
-    // Trigger workflow for each event
-    const userId = workflow.user_id;
-    const triggerPromises = events.map((event, index) => {
-      // Normalize event structure - HubSpot might send different formats
-      const normalizedEvent = {
-        subscriptionId: event.subscriptionId || event.subscription?.id,
-        subscriptionType:
-          event.subscriptionType || event.eventType || event.type,
-        objectId: event.objectId || event.object?.id,
-        properties: event.properties || event.object?.properties || {},
-        occurredAt:
-          event.occurredAt || event.timestamp || new Date().toISOString(),
-        portalId: event.portalId || event.portal?.id,
-        changeFlag: event.changeFlag,
-        changeSource: event.changeSource,
-        eventId: event.eventId || event.id,
-        appId: event.appId,
-        attemptNumber: event.attemptNumber,
-        sourceId: event.sourceId,
-        // Include all original event data
-        ...event,
-      };
-
-      const triggerInput = {
-        triggerNodeId: hubspotTriggerNode.id,
-        _hubspot: normalizedEvent,
-        ...normalizedEvent, // Also spread properties directly for easy access
-      };
-
-      logger.info('Triggering workflow for HubSpot event', {
-        workflowId,
-        eventIndex: index,
-        totalEvents: events.length,
-        triggerNodeId: hubspotTriggerNode.id,
-        subscriptionId: normalizedEvent.subscriptionId,
-        subscriptionType: normalizedEvent.subscriptionType,
-        objectId: normalizedEvent.objectId,
-      });
-
-      return triggerWorkflow(
-        parseInt(workflowId, 10),
-        userId,
-        triggerInput
-      ).catch(error => {
-        logger.error('Error triggering workflow from HubSpot webhook', {
-          workflowId,
-          eventIndex: index,
-          error: error.message,
-          errorStack: error.stack,
-        });
-      });
-    });
-
-    // Wait for all triggers (but don't block the response)
-    Promise.all(triggerPromises).then(results => {
-      logger.info('All HubSpot webhook events processed', {
-        workflowId,
-        eventCount: events.length,
-        results: results.map(r => ({
-          success: r?.success,
-          eventId: r?.eventId,
-        })),
-      });
-    });
-
-    logger.info('HubSpot webhook processed, workflow triggered', {
-      workflowId,
-      eventCount: events.length,
-    });
-
-    // Always return 200 to HubSpot (webhook acknowledged)
-    const response = {
+    return send(res, 200, {
       success: true,
-      message: 'Webhook received and processed',
-      eventsProcessed: events.length,
-    };
-    if (isFastifyRequest) {
-      return reply.status(200).send(response);
-    } else {
-      return res.status(200).json(response);
+      data: contacts.map(contact => {
+        const properties = contact.properties || {};
+        return {
+          id: contact.id,
+          email: properties.email || '',
+          firstName: properties.firstname || '',
+          lastName: properties.lastname || '',
+          phone: properties.phone || '',
+          company: properties.company || '',
+          displayName:
+            `${properties.firstname || ''} ${properties.lastname || ''}`.trim() ||
+            properties.email ||
+            contact.id,
+        };
+      }),
+    });
+  } catch (error) {
+    logger.error('Error getting HubSpot contacts', { error: error.message });
+    return send(res, 500, {
+      success: false,
+      error: error.message || 'Failed to get contacts',
+    });
+  }
+};
+
+export const getCompanies = async (req, res) => {
+  try {
+    const auth = await requireHubSpotAccessToken(req, res);
+    if (!auth) return;
+
+    const limit = Math.min(
+      Math.max(Number.parseInt(req.query?.limit || '100', 10), 1),
+      100
+    );
+    const companies = await hubspotService.getCompanies(
+      auth.accessToken,
+      limit
+    );
+
+    return send(res, 200, {
+      success: true,
+      data: companies.map(company => ({
+        id: company.id,
+        name: company.properties?.name || '',
+        domain: company.properties?.domain || '',
+        phone: company.properties?.phone || '',
+        city: company.properties?.city || '',
+        country: company.properties?.country || '',
+        industry: company.properties?.industry || '',
+        displayName: company.properties?.name || company.id,
+      })),
+    });
+  } catch (error) {
+    logger.error('Error getting HubSpot companies', { error: error.message });
+    return send(res, 500, {
+      success: false,
+      error: error.message || 'Failed to get companies',
+    });
+  }
+};
+
+function getRequestUrl(req) {
+  const rawUrl =
+    req.rawUrl || req.url || req.request?.raw?.url || req.request?.url;
+  if (!rawUrl) {
+    throw new Error('HubSpot webhook request URL is unavailable');
+  }
+  return new URL(rawUrl, getRequiredAppUrl()).toString();
+}
+
+async function loadWebhookTargets(portalIds) {
+  if (portalIds.length === 0) {
+    return { connectedIntegrations: [], workflows: [] };
+  }
+
+  const connectedIntegrations = await db
+    .select()
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.integration_type, 'HUBSPOT'),
+        eq(integrations.is_active, true),
+        inArray(integrations.external_account_id, portalIds)
+      )
+    );
+
+  const userIds = [
+    ...new Set(connectedIntegrations.map(integration => integration.user_id)),
+  ];
+  if (userIds.length === 0) {
+    return { connectedIntegrations, workflows: [] };
+  }
+
+  const workflows = await db
+    .select()
+    .from(fullWorkflows)
+    .where(
+      and(
+        eq(fullWorkflows.is_active, true),
+        inArray(fullWorkflows.user_id, userIds)
+      )
+    );
+
+  return { connectedIntegrations, workflows };
+}
+
+export const handleWebhook = async (req, res) => {
+  try {
+    const webhookPayload = req.body || [];
+    const rawBody = req.rawBody || JSON.stringify(webhookPayload);
+    const signature = req.headers?.['x-hubspot-signature-v3'];
+    const timestamp = req.headers?.['x-hubspot-request-timestamp'];
+
+    const signatureIsValid = validateHubSpotSignature({
+      clientSecret: HUBSPOT_CLIENT_SECRET,
+      method: req.method || 'POST',
+      requestUrl: getRequestUrl(req),
+      rawBody,
+      timestamp,
+      signature,
+    });
+
+    if (!signatureIsValid) {
+      logger.warn('Rejected HubSpot webhook with invalid signature');
+      return send(res, 401, {
+        success: false,
+        error: 'Invalid HubSpot webhook signature',
+      });
     }
+
+    const rawEvents = Array.isArray(webhookPayload)
+      ? webhookPayload
+      : [webhookPayload];
+    const events = rawEvents.map(normalizeHubSpotEvent);
+    const portalIds = [
+      ...new Set(
+        events
+          .map(event => event.portalId)
+          .filter(Boolean)
+          .map(portalId => String(portalId))
+      ),
+    ];
+
+    const { connectedIntegrations, workflows } =
+      await loadWebhookTargets(portalIds);
+    const triggerJobs = [];
+
+    for (const event of events) {
+      if (!event.portalId || !event.subscriptionType) {
+        logger.warn('Skipping incomplete HubSpot webhook event', {
+          hasPortalId: !!event.portalId,
+          hasSubscriptionType: !!event.subscriptionType,
+        });
+        continue;
+      }
+
+      if (!(await claimHubSpotEvent(event))) {
+        logger.info('Skipping duplicate HubSpot webhook event', {
+          portalId: event.portalId,
+          eventId: event.eventId,
+        });
+        continue;
+      }
+
+      const portalIntegrations = connectedIntegrations.filter(
+        integration =>
+          String(integration.external_account_id) === String(event.portalId)
+      );
+
+      for (const integration of portalIntegrations) {
+        const userWorkflows = workflows.filter(
+          workflow => workflow.user_id === integration.user_id
+        );
+
+        for (const workflow of userWorkflows) {
+          const nodes = workflow.workflow_json?.nodes || [];
+          const matchingTriggers = nodes.filter(
+            node =>
+              node.type === 'hubspot-trigger' &&
+              (node.data?.eventTypes || []).includes(event.subscriptionType)
+          );
+
+          for (const triggerNode of matchingTriggers) {
+            triggerJobs.push(
+              triggerWorkflow(workflow.id, workflow.user_id, {
+                triggerNodeId: triggerNode.id,
+                _hubspot: event,
+                ...event,
+              })
+            );
+          }
+        }
+      }
+    }
+
+    const results = await Promise.allSettled(triggerJobs);
+    const failed = results.filter(result => result.status === 'rejected');
+    if (failed.length > 0) {
+      logger.error('Some HubSpot webhook workflow triggers failed', {
+        failed: failed.length,
+        total: results.length,
+      });
+    }
+
+    return send(res, 200, {
+      success: true,
+      eventsReceived: events.length,
+      workflowsTriggered: results.length - failed.length,
+    });
   } catch (error) {
     logger.error('Error handling HubSpot webhook', {
       error: error.message,
       stack: error.stack,
-      body: req.body,
     });
-    // Always return 200 to HubSpot (even on error, to prevent retries)
-    const response = {
+    return send(res, 500, {
       success: false,
-      error: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(200).send(response);
-    } else {
-      return res.status(200).json(response);
-    }
-  }
-};
-
-/**
- * POST /api/integrations/hubspot/webhooks/subscriptions
- * Create webhook subscriptions for HubSpot events
- */
-export const createWebhookSubscription = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
-  try {
-    const user = req.user || (req.request && req.request.user) || null;
-
-    if (!user || !user.id) {
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-
-    const userId = user.id;
-    const { eventTypes, webhookUrl } = req.body || {};
-
-    if (!eventTypes || !Array.isArray(eventTypes) || eventTypes.length === 0) {
-      const errorResponse = {
-        error: 'eventTypes array is required',
-      };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    if (!webhookUrl) {
-      const errorResponse = {
-        error: 'webhookUrl is required',
-      };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    // Get authenticated client
-    const { accessToken } = await hubspotService.getAuthenticatedClient(userId);
-
-    // Create subscriptions
-    const result = await hubspotWebhookService.createMultipleSubscriptions(
-      accessToken,
-      eventTypes,
-      webhookUrl
-    );
-
-    logger.info('HubSpot webhook subscriptions created', {
-      userId,
-      eventTypes,
-      subscriptionCount: result.subscriptions.length,
+      error: 'Failed to process HubSpot webhook',
     });
-
-    const response = {
-      success: true,
-      subscriptions: result.subscriptions,
-      errors: result.errors || [],
-    };
-
-    if (isFastifyRequest) {
-      return reply.send(response);
-    } else {
-      return res.json(response);
-    }
-  } catch (error) {
-    logger.error('Error creating HubSpot webhook subscriptions:', error);
-    const errorResponse = {
-      success: false,
-      error: 'Failed to create subscriptions',
-      message: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
-  }
-};
-
-/**
- * DELETE /api/integrations/hubspot/webhooks/subscriptions
- * Delete webhook subscriptions
- */
-export const deleteWebhookSubscription = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
-  try {
-    const user = req.user || (req.request && req.request.user) || null;
-
-    if (!user || !user.id) {
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-
-    const userId = user.id;
-    const { subscriptionIds } = req.body || {};
-
-    if (
-      !subscriptionIds ||
-      !Array.isArray(subscriptionIds) ||
-      subscriptionIds.length === 0
-    ) {
-      const errorResponse = {
-        error: 'subscriptionIds array is required',
-      };
-      if (isFastifyRequest) {
-        return reply.status(400).send(errorResponse);
-      } else {
-        return res.status(400).json(errorResponse);
-      }
-    }
-
-    // Get authenticated client
-    const { accessToken } = await hubspotService.getAuthenticatedClient(userId);
-
-    // Delete subscriptions
-    await hubspotWebhookService.deleteMultipleSubscriptions(
-      accessToken,
-      subscriptionIds
-    );
-
-    logger.info('HubSpot webhook subscriptions deleted', {
-      userId,
-      subscriptionIds,
-    });
-
-    const response = {
-      success: true,
-      message: 'Subscriptions deleted successfully',
-    };
-
-    if (isFastifyRequest) {
-      return reply.send(response);
-    } else {
-      return res.json(response);
-    }
-  } catch (error) {
-    logger.error('Error deleting HubSpot webhook subscriptions:', error);
-    const errorResponse = {
-      success: false,
-      error: 'Failed to delete subscriptions',
-      message: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
-  }
-};
-
-/**
- * GET /api/integrations/hubspot/webhooks/subscriptions
- * Get all webhook subscriptions
- */
-export const getWebhookSubscriptions = async (req, res) => {
-  const reply = res;
-  const isFastifyRequest = isFastify(reply);
-
-  try {
-    const user = req.user || (req.request && req.request.user) || null;
-
-    if (!user || !user.id) {
-      const errorResponse = { error: 'Authentication required' };
-      if (isFastifyRequest) {
-        return reply.status(401).send(errorResponse);
-      } else {
-        return res.status(401).json(errorResponse);
-      }
-    }
-
-    const userId = user.id;
-
-    // Get authenticated client
-    const { accessToken } = await hubspotService.getAuthenticatedClient(userId);
-
-    // Get subscriptions
-    const subscriptions =
-      await hubspotWebhookService.getSubscriptions(accessToken);
-
-    logger.info('HubSpot webhook subscriptions retrieved', {
-      userId,
-      count: subscriptions.length,
-    });
-
-    const response = {
-      success: true,
-      data: subscriptions.map(sub => ({
-        id: sub.id,
-        eventType: sub.eventType,
-        active: sub.active,
-        createdAt: sub.createdAt,
-        updatedAt: sub.updatedAt,
-      })),
-    };
-
-    if (isFastifyRequest) {
-      return reply.send(response);
-    } else {
-      return res.json(response);
-    }
-  } catch (error) {
-    logger.error('Error getting HubSpot webhook subscriptions:', error);
-    const errorResponse = {
-      success: false,
-      error: 'Failed to get subscriptions',
-      message: error.message || 'Unknown error',
-    };
-    if (isFastifyRequest) {
-      return reply.status(500).send(errorResponse);
-    } else {
-      return res.status(500).json(errorResponse);
-    }
   }
 };

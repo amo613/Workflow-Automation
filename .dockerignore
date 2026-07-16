@@ -51,6 +51,7 @@ jspm_packages/
 # Build artifacts (will be built inside container)
 dist/
 build/
+hubspot-project/
 
 # Git
 .git

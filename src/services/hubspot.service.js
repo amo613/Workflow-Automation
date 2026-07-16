@@ -8,6 +8,7 @@ import { eq, and } from 'drizzle-orm';
 // ✅ Cache HubSpot access tokens to reduce DB queries
 const hubspotTokenCache = new Map();
 const CACHE_TTL = 4 * 60 * 1000; // 4 minutes (refresh 1 min before expiry)
+const HUBSPOT_LISTS_API = 'https://api.hubapi.com/crm/lists/2026-03';
 
 /**
  * HubSpot Service
@@ -63,6 +64,12 @@ export class HubSpotService {
               access_token: refreshed.accessToken,
               refresh_token: refreshed.refreshToken || integration.refreshToken,
               token_expires_at: refreshed.expiresAt,
+              external_account_id:
+                refreshed.externalAccountId || integration.externalAccountId,
+              granted_scopes:
+                refreshed.grantedScopes?.length > 0
+                  ? JSON.stringify(refreshed.grantedScopes)
+                  : JSON.stringify(integration.grantedScopes || []),
               updated_at: new Date(),
             })
             .where(
@@ -100,6 +107,10 @@ export class HubSpotService {
     }
 
     return { accessToken };
+  }
+
+  clearCachedToken(userId) {
+    hubspotTokenCache.delete(`hubspot-token-${userId}`);
   }
 
   /**
@@ -260,13 +271,18 @@ export class HubSpotService {
    * @returns {Promise<Array>} - List of lists
    */
   async getLists(accessToken) {
-    // HubSpot V1 Lists API
-    const url = 'https://api.hubapi.com/contacts/v1/lists';
-    const response = await fetch(url, {
-      method: 'GET',
+    const response = await fetch(`${HUBSPOT_LISTS_API}/search`, {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
+      body: JSON.stringify({
+        offset: 0,
+        count: 250,
+        processingTypes: ['MANUAL', 'SNAPSHOT', 'DYNAMIC'],
+        additionalProperties: ['hs_list_size'],
+      }),
     });
 
     if (!response.ok) {
@@ -279,7 +295,7 @@ export class HubSpotService {
     }
 
     const result = await response.json();
-    return result.lists || [];
+    return result.lists || result.results || [];
   }
 
   /**
@@ -334,17 +350,14 @@ export class HubSpotService {
       throw new Error(`Contact with email ${contactEmail} not found`);
     }
 
-    // HubSpot V1 Lists API - Add contact to list
-    const url = `https://api.hubapi.com/contacts/v1/lists/${listId}/add`;
+    const url = `${HUBSPOT_LISTS_API}/${encodeURIComponent(listId)}/memberships/add`;
     const response = await fetch(url, {
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({
-        emails: [contactEmail],
-      }),
+      body: JSON.stringify([String(contact.id)]),
     });
 
     if (!response.ok) {
@@ -358,7 +371,8 @@ export class HubSpotService {
       );
     }
 
-    const result = await response.json();
+    const responseText = await response.text();
+    const result = responseText ? JSON.parse(responseText) : { success: true };
     logger.info('HubSpot contact added to list', {
       contactEmail,
       listId,

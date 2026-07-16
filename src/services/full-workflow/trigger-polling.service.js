@@ -1027,12 +1027,9 @@ export async function getActiveTriggers(workflowId) {
     );
 
     for (const hubspotTriggerNode of hubspotTriggerNodes) {
-      // Get webhook URL for HubSpot trigger
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      const baseUrl = frontendUrl.replace(/\/$/, '');
-      const webhookUrl = `${baseUrl}/api/integrations/hubspot/webhook?workflowId=${workflowId}`;
+      const { getRequiredAppUrl } = await import('#utils/app-url.utils.js');
+      const webhookUrl = `${getRequiredAppUrl()}/api/integrations/hubspot/webhook`;
       const eventTypes = hubspotTriggerNode.data?.eventTypes || [];
-      const subscriptionIds = hubspotTriggerNode.data?.subscriptionIds || [];
 
       validTriggers.push({
         id: `hubspot-trigger:${workflowId}:${hubspotTriggerNode.id}`,
@@ -1042,7 +1039,6 @@ export async function getActiveTriggers(workflowId) {
           type: 'hubspot-trigger',
           webhookUrl,
           eventTypes,
-          subscriptionIds,
         },
         nextRun: null, // HubSpot triggers are passive, no scheduled runs
         state: 'active', // Always active for HubSpot triggers (if workflow is active and subscriptions exist)

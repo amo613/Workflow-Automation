@@ -10,16 +10,13 @@ import { Label } from '@/components/ui/label';
 export default function HubspotTriggerConfig({
   localData,
   handleUpdate,
-  workflowId,
   hubspot,
 }) {
   const [copied, setCopied] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
 
   const eventTypes = localData.eventTypes || [];
-  const webhookUrl = workflowId
-    ? `${window.location.origin}/api/integrations/hubspot/webhook?workflowId=${workflowId}`
-    : '';
+  const webhookUrl = `${window.location.origin}/api/integrations/hubspot/webhook`;
 
   // Available HubSpot events
   const availableEvents = [
@@ -127,30 +124,28 @@ export default function HubspotTriggerConfig({
             border: '1px solid #333',
           }}
         >
-          {webhookUrl || 'Save workflow to generate URL'}
+          {webhookUrl}
         </div>
-        {webhookUrl && (
-          <div style={{ marginTop: '0.5rem' }}>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleCopyWebhookUrl}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy URL
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        <div style={{ marginTop: '0.5rem' }}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCopyWebhookUrl}
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy URL
+              </>
+            )}
+          </Button>
+        </div>
         <div
           style={{
             fontSize: '0.7rem',
@@ -158,8 +153,8 @@ export default function HubspotTriggerConfig({
             marginTop: '0.5rem',
           }}
         >
-          Configure this URL in your HubSpot app settings. HubSpot will send
-          events to this endpoint.
+          This app-wide URL is configured in the HubSpot project. Event choices
+          below determine which workflows run for incoming events.
         </div>
       </div>
 
@@ -324,11 +319,7 @@ export default function HubspotTriggerConfig({
             lineHeight: '1.6',
           }}
         >
-          <li>Copy the webhook URL above</li>
-          <li>
-            Configure it in your HubSpot app settings (Settings → Integrations →
-            Webhooks)
-          </li>
+          <li>The webhook URL is managed by the HubSpot project</li>
           <li>Select the events you want to listen for</li>
           <li>
             When a selected event occurs in HubSpot, this workflow will be

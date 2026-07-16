@@ -3,6 +3,19 @@ import { integrations } from '#models/integration.model.js';
 import { eq, and } from 'drizzle-orm';
 import logger from '#config/logger.js';
 
+function parseGrantedScopes(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    logger.warn('Failed to parse integration scopes');
+    return [];
+  }
+}
+
 /**
  * Get integration for a user
  * @param {number} userId - User ID
@@ -44,6 +57,8 @@ export async function getIntegration(userId, integrationType) {
       accessToken: integration.access_token,
       refreshToken: integration.refresh_token,
       tokenExpiresAt: integration.token_expires_at,
+      externalAccountId: integration.external_account_id,
+      grantedScopes: parseGrantedScopes(integration.granted_scopes),
       email: integration.email,
       timezone: integration.timezone,
       calendarId: integration.calendar_id,
@@ -95,6 +110,14 @@ export async function updateIntegration(userId, integrationType, updateData) {
     }
     if (updateData.token_expires_at !== undefined) {
       updateFields.token_expires_at = updateData.token_expires_at;
+    }
+    if (updateData.external_account_id !== undefined) {
+      updateFields.external_account_id = updateData.external_account_id;
+    }
+    if (updateData.granted_scopes !== undefined) {
+      updateFields.granted_scopes = Array.isArray(updateData.granted_scopes)
+        ? JSON.stringify(updateData.granted_scopes)
+        : updateData.granted_scopes;
     }
     if (updateData.email !== undefined) {
       updateFields.email = updateData.email;

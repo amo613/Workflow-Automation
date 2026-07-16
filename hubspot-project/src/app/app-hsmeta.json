@@ -1,0 +1,36 @@
+{
+  "uid": "workflow_automation_hubspot",
+  "type": "app",
+  "config": {
+    "name": "Workflow Automation HubSpot",
+    "description": "OAuth integration for HubSpot CRM workflow automation.",
+    "distribution": "private",
+    "auth": {
+      "type": "oauth",
+      "redirectUrls": [
+        "https://app-production-7047.up.railway.app/api/integrations/hubspot/callback"
+      ],
+      "requiredScopes": [
+        "oauth",
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write",
+        "crm.objects.companies.read",
+        "crm.objects.companies.write",
+        "crm.lists.read",
+        "crm.lists.write"
+      ],
+      "optionalScopes": [],
+      "conditionallyRequiredScopes": []
+    },
+    "permittedUrls": {
+      "fetch": ["https://api.hubapi.com", "https://api.hubspot.com"],
+      "iframe": [],
+      "img": []
+    },
+    "support": {
+      "supportEmail": "arminajdarpasic6@gmail.com",
+      "documentationUrl": "https://app-production-7047.up.railway.app",
+      "supportUrl": "https://app-production-7047.up.railway.app"
+    }
+  }
+}

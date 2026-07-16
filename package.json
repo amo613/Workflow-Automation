@@ -28,6 +28,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:agents": "node scripts/run-agents-migration.js",
+    "db:migrate:hubspot": "node scripts/run-hubspot-migration.js",
     "db:studio": "drizzle-kit studio",
     "db:fix-migrations": "node scripts/fix-migrations.js",
     "db:create-missing-tables": "node scripts/create-missing-tables.js",
